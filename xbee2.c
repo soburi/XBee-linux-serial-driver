@@ -8,7 +8,7 @@
 #include <linux/mutex.h>
 #include <net/mac802154.h>
 
-#define N_IEEE802154_XBEE 25
+#define N_IEEE802154_XBEE 29
 #define VERSION 1
 
 #define XBEE_CHAR_NEWFRM 0x7e
