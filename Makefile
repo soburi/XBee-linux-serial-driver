@@ -1,6 +1,7 @@
-TARGET := xbee.ko
+TARGET := xbee2.ko
 VERBOSITY = 0
 EXTRA_CFLAGS += -Wformat=2
+EXTRA_CFLAGS += -DDEBUG
 KVER ?= `uname -r`
 
 KBUILD = /lib/modules/$(KVER)/build
@@ -8,7 +9,7 @@ INSTALL_DIR = /lib/modules/$(KVER)/kernel/drivers/video
 
 all: ${TARGET}
 
-xbee.ko: xbee2.c
+xbee2.ko: xbee2.c
 	make -C $(KBUILD) M=`pwd` V=$(VERBOSITY) modules
 
 clean:
