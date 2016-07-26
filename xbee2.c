@@ -37,7 +37,7 @@ struct xb_device {
 
 	/* locks the ldisc for the command */
 	struct mutex		mutex;
-
+	struct completion	cmd_resp_done;
 	/* command completition */
     wait_queue_head_t frame_waitq;
 
@@ -113,6 +113,7 @@ static int append_send_buf(struct xb_device *xb, unsigned char c)
 static void send_command(struct xb_device *xb)
 {
 	int i=0;
+	int ret = 0;
 	unsigned char checksum = 0;
 	struct tty_struct *tty = xb->tty;
 
@@ -128,6 +129,15 @@ static void send_command(struct xb_device *xb)
 	print_hex_dump_bytes("send_buffer: ", DUMP_PREFIX_NONE, xb->send_buf.buffer, xb->send_buf.len);
 
 	tty->ops->write(tty, xb->send_buf.buffer, xb->send_buf.len);
+	tty_driver_flush_buffer(tty);
+
+	ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 100);
+	if(!ret) {
+			pr_debug("rett %d\n", ret);
+	}
+	else {
+			pr_debug("retf %d\n", ret);
+	}
 }
 
 static void new_send_command(struct xb_device *xb, unsigned short paylen, unsigned char type)
@@ -192,7 +202,13 @@ cleanup(struct xb_device *zbdev)
  */
 static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
 				       u8 page, u8 channel){
-	pr_debug("%s\n", __func__);
+	pr_debug("%s page=%u channel=%u\n", __func__, page, channel);
+
+	struct xb_device *xb = dev->priv;
+	pr_debug("call send_at_command\n");
+	send_at_command(xb, 0x4348, &channel, 1);
+	tty_driver_flush_buffer(xb->tty);
+
     return 0;
 }
 
@@ -600,7 +616,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	seq_buf_init(&xbdev->send_buf, xbdev->payload, 128);
 
 	mutex_init(&xbdev->mutex);
-//	init_completion(&xbdev->cmd_resp_done);
+	init_completion(&xbdev->cmd_resp_done);
 	init_waitqueue_head(&xbdev->frame_waitq);
 
 	dev->extra_tx_headroom = 0;
@@ -632,9 +648,6 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 		goto err;
 	}
 
-	pr_debug("call send_at_command\n");
-	send_at_command(xbdev, 0x5652, NULL, 0);
-	tty_driver_flush_buffer(tty);
 
 	//char buf[] = { 0x7e, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4e };
 	//pr_debug("tty_write\n");
@@ -730,7 +743,7 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 	char c;
 	int ret;
 	struct sk_buff *skb;
-//	pr_debug("%s count=%d \n", __func__, count);
+	pr_debug("%s count=%d \n", __func__, count);
 
 	/* Debug info */
 #ifdef DEBUG
@@ -800,7 +813,7 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 
 	/* peak at frame to check if completed */
 
-	if (xbee_frame_peak_done(xbdev) ) {
+	if (xbee_frame_peak_done(xbdev)) {
 		ret = xbee_frm_new(xbdev, &skb);
 		if (ret){
 //		if (unlikely(ret))
