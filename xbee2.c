@@ -7,6 +7,8 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/seq_buf.h>
+#include <uapi/linux/nl80211.h>
+#include <net/regulatory.h>
 #include <net/mac802154.h>
 
 #define N_IEEE802154_XBEE 29
@@ -49,6 +51,7 @@ struct xb_device {
 //	struct list_head frame_pend;
 	/* Command (rx) processing */
 	int			state;
+	char		frameid;
 
 	unsigned short firmware_version;
 };
@@ -105,12 +108,12 @@ static int _seq_buf_putc(struct seq_buf* sb, unsigned char c)
 
 }
 
-static int append_send_buf(struct xb_device *xb, unsigned char c)
+static int xbee_frame_append_send_buf(struct xb_device *xb, unsigned char c)
 {
 	return _seq_buf_putc(&xb->send_buf, c);
 }
 
-static void send_command(struct xb_device *xb)
+static void xbee_frame_send(struct xb_device *xb)
 {
 	int i=0;
 	int ret = 0;
@@ -124,7 +127,7 @@ static void send_command(struct xb_device *xb)
 	}
 	checksum = 0xFF - checksum;
 
-	append_send_buf(xb, checksum);
+	xbee_frame_append_send_buf(xb, checksum);
 
 	print_hex_dump_bytes("send_buffer: ", DUMP_PREFIX_NONE, xb->send_buf.buffer, xb->send_buf.len);
 
@@ -140,29 +143,29 @@ static void send_command(struct xb_device *xb)
 	}
 }
 
-static void new_send_command(struct xb_device *xb, unsigned short paylen, unsigned char type)
+static void xbee_frame_new_send_frame(struct xb_device *xb, unsigned short paylen, unsigned char type)
 {
 	seq_buf_clear(&xb->send_buf);
-	append_send_buf(xb, 0x7e);
-	append_send_buf(xb, (paylen+1)>>8&0xFF);
-	append_send_buf(xb, (paylen+1)&0xFF);
-	append_send_buf(xb, type);
-	append_send_buf(xb, 1); ///frameid
+	xbee_frame_append_send_buf(xb, 0x7e);
+	xbee_frame_append_send_buf(xb, (paylen+1)>>8&0xFF);
+	xbee_frame_append_send_buf(xb, (paylen+1)&0xFF);
+	xbee_frame_append_send_buf(xb, type);
+	xbee_frame_append_send_buf(xb, 1); ///frameid
 }
 
-static void send_at_command(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
+static void xbee_frame_sendrecv_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	int i=0;
-	new_send_command(xb, buflen+3, 0x08);
-	append_send_buf(xb, atcmd>>8&0xFF);
-	append_send_buf(xb, atcmd&0xFF);
+	xbee_frame_new_send_frame(xb, buflen+3, 0x08);
+	xbee_frame_append_send_buf(xb, atcmd>>8&0xFF);
+	xbee_frame_append_send_buf(xb, atcmd&0xFF);
 
 	for(i=0; i<buflen; i++) {
-		append_send_buf(xb, buf[i]);
+		xbee_frame_append_send_buf(xb, buf[i]);
 	}
 
 	pr_debug("send_command\n");
-	send_command(xb);
+	xbee_frame_send(xb);
 }
 
 static void
@@ -201,12 +204,13 @@ cleanup(struct xb_device *zbdev)
  * @channel: ...
  */
 static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
-				       u8 page, u8 channel){
+				       u8 page, u8 channel)
+{
+	struct xb_device *xb = dev->priv;
+
 	pr_debug("%s page=%u channel=%u\n", __func__, page, channel);
 
-	struct xb_device *xb = dev->priv;
-	pr_debug("call send_at_command\n");
-	send_at_command(xb, 0x4348, &channel, 1);
+	xbee_frame_sendrecv_at(xb, 0x4348, &channel, 1);
 	tty_driver_flush_buffer(xb->tty);
 
     return 0;
@@ -218,9 +222,95 @@ static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
  * @dev: ...
  * @level: ...
  */
-static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level){
+static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level)
+{
+	struct xb_device *xb = dev->priv;
 	pr_debug("%s\n", __func__);
+
+	xbee_frame_sendrecv_at(xb, 0x4544, NULL, 0);
+	tty_driver_flush_buffer(xb->tty);
+
     return 0;
+}
+
+/**
+ * xbee_ieee802154_set_frame_retries - Handler that 802.15.4 module calls to set frame retries.
+ *
+ * @dev: ...
+ * @level: ...
+ */
+static int xbee_ieee802154_set_frame_retries(struct ieee802154_hw *dev, s8 retries)
+{
+	struct xb_device *xb = dev->priv;
+	unsigned char u_retries = retries;
+
+	pr_debug("%s\n", __func__);
+
+	xbee_frame_sendrecv_at(xb, 0x5252, &u_retries, 1);
+	tty_driver_flush_buffer(xb->tty);
+
+    return 0;
+}
+
+static int xbee_ieee802154_set_txpower(struct ieee802154_hw *dev, s32 mbm)
+{
+	struct xb_device *xb = dev->priv;
+	s32 dbm;
+	u8 pl, pm;
+
+	pr_debug("%s mbm=%d\n", __func__, mbm);
+
+	dbm  = MBM_TO_DBM(mbm);
+
+	if(dbm <= -5) {
+		pl=0; pm=0;
+	} else if(dbm <= -2) {
+		pl=0; pm=1;
+	} else if(dbm <= -1) {
+		pl=1; pm=0;
+	} else if(dbm <= 1) {
+		pl=2; pm=0;
+	} else if(dbm <= 2) {
+		pl=1; pm=1;
+	} else if(dbm <= 3) {
+		pl=3; pm=0;
+	} else if(dbm <= 4) {
+		pl=2; pm=1;
+	} else if(dbm <= 5) {
+		pl=4; pm=0;
+	} else if(dbm <= 6) {
+		pl=3; pm=1;
+	} else {
+		pl=4; pm=1;
+	}
+
+	xbee_frame_sendrecv_at(xb, 0x504C, &pl, 1);
+	tty_driver_flush_buffer(xb->tty);
+	xbee_frame_sendrecv_at(xb, 0x504D, &pm, 1);
+	tty_driver_flush_buffer(xb->tty);
+
+	return 0;
+}
+
+static int xbee_ieee802154_set_cca_mode(struct ieee802154_hw *dev, const struct wpan_phy_cca *cca)
+{
+	//cca->mode;
+	//cca->opt;
+	return 0;
+}
+
+static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *dev, s32 mbm)
+{
+   struct xb_device *xb = dev->priv;
+    u8 ca;
+
+    pr_debug("%s mbm=%d\n", __func__, mbm);
+
+    ca = MBM_TO_DBM(mbm);
+
+    xbee_frame_sendrecv_at(xb, 0x4341, &ca, 1);
+    tty_driver_flush_buffer(xb->tty);
+	return 0;
 }
 
 /**
@@ -555,12 +645,12 @@ static struct ieee802154_ops xbee_ieee802154_ops = {
 	.ed		= xbee_ieee802154_ed,
 	.set_channel	= xbee_ieee802154_set_channel,
 	.set_hw_addr_filt = xbee_ieee802154_filter,
-	.set_txpower = NULL,
+	.set_txpower = xbee_ieee802154_set_txpower,
 	.set_lbt = NULL,
-	.set_cca_mode = NULL,
-	.set_cca_ed_level = NULL,
+	.set_cca_mode = xbee_ieee802154_set_cca_mode,
+	.set_cca_ed_level = xbee_ieee802154_set_cca_ed_level,
 	.set_csma_params = NULL,
-	.set_frame_retries = NULL,
+	.set_frame_retries = xbee_ieee802154_set_frame_retries,
 	.set_promiscuous_mode = NULL,
 	.start		= xbee_ieee802154_start,
 	.stop		= xbee_ieee802154_stop,
