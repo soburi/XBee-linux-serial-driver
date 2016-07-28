@@ -7,11 +7,11 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/seq_buf.h>
-#include <uapi/linux/nl80211.h>
-#include <net/regulatory.h>
+#include <linux/nl80211.h>
 #include <net/mac802154.h>
+#include <net/regulatory.h>
 
-#define N_IEEE802154_XBEE 29
+#define N_IEEE802154_XBEE 25
 #define VERSION 1
 
 #define XBEE_CHAR_NEWFRM 0x7e
@@ -43,8 +43,8 @@ struct xb_device {
 	/* command completition */
     wait_queue_head_t frame_waitq;
 
-	unsigned char payload[128];
     struct sk_buff *frame;
+	unsigned char payload[128];
     struct seq_buf send_buf;
     int frame_esc;
     int frame_len;
@@ -113,7 +113,7 @@ static int xbee_frame_append_send_buf(struct xb_device *xb, unsigned char c)
 	return _seq_buf_putc(&xb->send_buf, c);
 }
 
-static void xbee_frame_send(struct xb_device *xb)
+static void xbee_frame_sendrecv(struct xb_device *xb)
 {
 	int i=0;
 	int ret = 0;
@@ -165,7 +165,7 @@ static void xbee_frame_sendrecv_at(struct xb_device *xb, unsigned short atcmd, c
 	}
 
 	pr_debug("send_command\n");
-	xbee_frame_send(xb);
+	xbee_frame_sendrecv(xb);
 }
 
 static void
@@ -211,7 +211,6 @@ static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
 	pr_debug("%s page=%u channel=%u\n", __func__, page, channel);
 
 	xbee_frame_sendrecv_at(xb, 0x4348, &channel, 1);
-	tty_driver_flush_buffer(xb->tty);
 
     return 0;
 }
@@ -228,7 +227,6 @@ static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level)
 	pr_debug("%s\n", __func__);
 
 	xbee_frame_sendrecv_at(xb, 0x4544, NULL, 0);
-	tty_driver_flush_buffer(xb->tty);
 
     return 0;
 }
@@ -247,7 +245,6 @@ static int xbee_ieee802154_set_frame_retries(struct ieee802154_hw *dev, s8 retri
 	pr_debug("%s\n", __func__);
 
 	xbee_frame_sendrecv_at(xb, 0x5252, &u_retries, 1);
-	tty_driver_flush_buffer(xb->tty);
 
     return 0;
 }
@@ -285,9 +282,7 @@ static int xbee_ieee802154_set_txpower(struct ieee802154_hw *dev, s32 mbm)
 	}
 
 	xbee_frame_sendrecv_at(xb, 0x504C, &pl, 1);
-	tty_driver_flush_buffer(xb->tty);
 	xbee_frame_sendrecv_at(xb, 0x504D, &pm, 1);
-	tty_driver_flush_buffer(xb->tty);
 
 	return 0;
 }
@@ -309,7 +304,6 @@ static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *dev, s32 mbm)
     ca = MBM_TO_DBM(mbm);
 
     xbee_frame_sendrecv_at(xb, 0x4341, &ca, 1);
-    tty_driver_flush_buffer(xb->tty);
 	return 0;
 }
 
@@ -389,18 +383,10 @@ static int xbee_frm_xbee_verify(struct sk_buff *skb){
                 checksum += *(skb->data+i+2);
             }
             checksum = 0xFF - checksum;
-            if (checksum==*(skb->data+length+3-1)) {
+            if (checksum==*(skb->data+length+3-1))
                 return 0;
-			}
         }
-		else {
-			//print_hex_dump_bytes("sk_buff: ", DUMP_PREFIX_NONE, skb->data, skb->len);
-		}
     }
-	else
-	{
-//		pr_debug("%s skb->len %d\n", __func__, skb->len);
-	}
     return 1;
 }
 
@@ -561,6 +547,7 @@ static void xbee_frm_xbee_recv(struct xb_device *xbdev,
 			       struct sk_buff *skb)
 {
 	u8 id;
+    int err;
 
 	pr_debug("%s\n", __func__);
 #if 0
@@ -620,11 +607,18 @@ static int xbee_frm_new(struct xb_device *xbdev,
 
 	new_skb = alloc_skb(SKB_MAX_ALLOC, GFP_KERNEL);
 	if (new_skb == NULL) {
+//		XBEE_ERR("failed to allocate new skb");
         printk(KERN_ERR "%s: failed to allocate new skb\n", __func__);
 		return 1;
 	} else {
+//        pr_debug("%s 1 skb %d\n", __func__, skb);
+//        pr_debug("%s 1 *skb %d\n", __func__, *skb);
 		*skb = xbdev->frame;
+//        pr_debug("%s 2 skb %d\n", __func__, skb);
+//        pr_debug("%s 2 *skb %d\n", __func__, *skb);
 		xbdev->frame = new_skb;
+////		*skb = old_skb;
+
 		xbdev->frame_len = 0;
 		return 0;
 	}
@@ -711,7 +705,33 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	dev->extra_tx_headroom = 0;
 	/* only 2.4 GHz band */
+	dev->phy->current_channel = 11;
+	dev->phy->current_page = 0;
 	dev->phy->supported.channels[0] = 0x7fff800;
+	dev->phy->supported.cca_modes = 0;
+	dev->phy->supported.cca_opts = 0;
+	dev->phy->supported.iftypes = 0;
+	dev->phy->supported.lbt = 0;
+	dev->phy->supported.min_minbe = 0;
+	dev->phy->supported.max_minbe = 0;
+	dev->phy->supported.min_maxbe = 0;
+	dev->phy->supported.max_maxbe = 0;
+	dev->phy->supported.min_csma_backoffs = 0;
+	dev->phy->supported.max_csma_backoffs = 0;
+	dev->phy->supported.min_frame_retries = 0;
+	dev->phy->supported.max_frame_retries = 0;
+	dev->phy->supported.tx_powers_size = 0;
+	dev->phy->supported.cca_ed_levels_size = 0;
+/*
+	dev->phy->transmit_power = 0;
+	dev->phy->cca = 0;
+	dev->phy->cca_ed_level = 0;
+	dev->phy->symbol_duration = 0;
+	dev->phy->lifs_period = 0;
+	dev->phy->sifs_period = 0;
+*/
+
+
 
 	dev->flags = IEEE802154_HW_OMIT_CKSUM;
 
@@ -737,11 +757,6 @@ static int xbee_ldisc_open(struct tty_struct *tty)
         printk(KERN_ERR "%s: device register failed\n", __func__);
 		goto err;
 	}
-
-
-	//char buf[] = { 0x7e, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4e };
-	//pr_debug("tty_write\n");
-	//tty->ops->write(tty, buf, 8);
 
 	return 0;
 
@@ -829,6 +844,7 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 				const unsigned char *cp,
 				char *fp, int count)
 {
+//	struct ieee802154_dev *dev;
 	struct xb_device *xbdev;
 	char c;
 	int ret;
@@ -836,6 +852,8 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 	pr_debug("%s count=%d \n", __func__, count);
 
 	/* Debug info */
+//	printk(KERN_INFO "%s, received %d bytes\n", __func__,
+//			count);
 #ifdef DEBUG
 //	print_hex_dump_bytes("ieee802154_tty_receive ", DUMP_PREFIX_NONE,
 //			cp, count);
@@ -867,9 +885,20 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 //			    xbdev->frame_esc = 1;
 //			    break;
 		    case XBEE_CHAR_NEWFRM: /* new frame */
+//			    XBEE_INFO("new frame");
                 pr_debug("new frame\n");
+			    /* switch to new frame buffer */
+//                pr_debug("1 xbdev->frame->len %d\n", xbdev->frame->len);
+//                pr_debug("1 xbdev->frame %d\n", xbdev->frame);
+//                pr_debug("skb %d\n", skb);
+//                pr_debug("&skb %d\n", &skb);
 			    ret = xbee_frm_new(xbdev, &skb);
-#if 0
+//                pr_debug("2 xbdev->frame->len %d\n", xbdev->frame->len);
+//                pr_debug("2 &xbdev->frame %d\n", xbdev->frame);
+//                pr_debug("skb %d\n", skb);
+//                pr_debug("&skb %d\n", &skb);
+//                pr_debug("skb->len %d\n", skb->len);
+//			    if (unlikely(ret))
 			    if (ret){
 //				    XBEE_ERR("derp");
 			    /* submit old frame buffer to stack */
@@ -880,7 +909,6 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 			    }
 			    /* reset overflow status */
 //			    overflow = 0;
-#endif
 			    break;
 		    default:
 //                pr_debug("append to frame buffer\n");
