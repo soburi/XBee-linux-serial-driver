@@ -77,11 +77,20 @@
 #include <linux/skbuff.h>
 #include <linux/sched.h>
 #include <linux/workqueue.h>
+#include <linux/wait.h>
 #include <linux/mutex.h>
+#include <linux/if_arp.h>
+#include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
+#include <net/netlink.h>
+#include <linux/nl802154.h>
 
 #define N_IEEE802154_XBEE 255
+
+#define VERSION 1
+
+#define XBEE_INFO(...) printk(KERN_INFO __VA_ARGS__) 
+#define XBEE_ERROR(...) printk(KERN_ERR __VA_ARGS__) 
 
 //module_param(mode, bool, 0);
 //MODULE_PARM_DESC(mode, "Use API mode");
@@ -90,12 +99,14 @@
 
 /*********************************************************************/
 
-struct xbee_device {
+struct xb_device {
 	struct tty_struct *tty;
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *dev;
 
-	struct wait_queue_head_t frame_wq;
+	wait_queue_head_t frame_wq;
 	struct list_head frame_pend;
+
+	struct sk_buff* frame;
 };
 
 struct xbee_frame {
@@ -111,8 +122,8 @@ struct xbee_frame {
 	u8 fid;
 	u8 status;
 	unsigned char cmd[2];
-	u8 addr[IEEE802154_ALEN];
-	u8 saddr[IEEE802154_SHORT_ALEN];
+	u8 addr[8];//[IEEE802154_ALEN];
+	u8 saddr[2];//[IEEE802154_SHORT_ALEN];
 	u8 flags;
 	u8 rssi;
 	unsigned char *data;
@@ -330,7 +341,7 @@ static u8 xbee_ieee802154_get_bsn(const struct net_device *dev);
 /*
  * Callbacks from mac802154 to the driver. Must handle xmit(). 
  *
- * See net/mac802154/ieee802154_dev.c, include/net/mac802154.h,
+ * See net/mac802154/ieee802154_hw.c, include/net/mac802154.h,
  * and net/mac802154/mac802154.h from linux-wsn.
  */
 
@@ -341,8 +352,8 @@ static u8 xbee_ieee802154_get_bsn(const struct net_device *dev);
  * @page: ...
  * @channel: ...
  */
-static int xbee_ieee802154_set_channel(struct ieee802154_dev *dev,
-				       int page, int channel);
+static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
+				       u8 page, u8 channel);
 
 /**
  * xbee_ieee802154_ed - Handler that 802.15.4 module calls for Energy Detection.
@@ -350,7 +361,15 @@ static int xbee_ieee802154_set_channel(struct ieee802154_dev *dev,
  * @dev: ...
  * @level: ...
  */
-static int xbee_ieee802154_ed(struct ieee802154_dev *dev, u8 *level);
+static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level);
+
+static int xbee_ieee802154_filter(struct ieee802154_hw *dev,
+                      struct ieee802154_hw_addr_filt *filt,
+                        unsigned long changed)
+{
+    pr_debug("%s\n", __func__);
+    return 0;
+}
 
 /**
  * xbee_ieee802154_addr - ...
@@ -358,8 +377,8 @@ static int xbee_ieee802154_ed(struct ieee802154_dev *dev, u8 *level);
  * @dev: ...
  * @addr: ...
  */
-static int xbee_ieee802154_addr(struct ieee802154_dev *dev,
-				u8 addr[IEEE802154_ALEN]);
+//static int xbee_ieee802154_addr(struct ieee802154_hw *dev,
+//				u8 addr[IEEE802154_ALEN]);
 
 /**
  * xbee_ieee802154_xmit - Handler that 802.15.4 module calls for each transmitted frame.
@@ -367,17 +386,17 @@ static int xbee_ieee802154_addr(struct ieee802154_dev *dev,
  * @dev: ...
  * @skb: ...
  */
-static int xbee_ieee802154_xmit(struct ieee802154_dev *dev,
+static int xbee_ieee802154_xmit(struct ieee802154_hw *dev,
 				struct sk_buff *skb)
 {
 	struct xb_device *xbdev;
 
 	// convert to XBee frame
-	xbee_frm_conv_ieee2xbee(skb);
+//	xbee_frm_conv_ieee2xbee(skb);
 
 	// send over tty
 	xbdev = dev->priv;
-	xbdev->tty->write(skb->data, skb->data_len);
+	xbdev->tty->ops->write(xbdev->tty, skb->data, skb->data_len);
 }
 
 /**
@@ -385,15 +404,15 @@ static int xbee_ieee802154_xmit(struct ieee802154_dev *dev,
  *
  * @dev: ...
  */
-static int xbee_ieee802154_start(struct ieee802154_dev *dev)
+static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 {
 	struct xb_device *xbdev = dev->priv;
 	int ret;
 
-	if (tty->ops->start)
-		tty->ops->start(tty);
+	if (xbdev->tty->ops->start)
+		xbdev->tty->ops->start(xbdev->tty);
 
-	ret = xbee_send_cmd(xbdev, XBEE_CMD_FR);
+//	ret = xbee_send_cmd(xbdev, XBEE_CMD_FR);
 
 	return ret;
 }
@@ -403,19 +422,53 @@ static int xbee_ieee802154_start(struct ieee802154_dev *dev)
  *
  * @dev: ...
  */
-static void xbee_ieee802154_stop(struct ieee802154_dev *dev);
+static void xbee_ieee802154_stop(struct ieee802154_hw *dev);
+
+/**
+ * xbee_ieee802154_ops - ieee802154 MCPS ops.
+ *
+ * This is part of linux-wsn. It is similar to netdev_ops.
+ */
+static struct ieee802154_ops xbee_ieee802154_ops = {
+	.owner		= THIS_MODULE,
+	.xmit_sync	= xbee_ieee802154_xmit,
+	.ed		= xbee_ieee802154_ed,
+	.set_channel	= xbee_ieee802154_set_channel,
+	.set_hw_addr_filt = xbee_ieee802154_filter,
+	.start		= xbee_ieee802154_start,
+	.stop		= xbee_ieee802154_stop,
+//	.ieee_addr	= xbee_ieee802154_addr,
+};
+
+/**
+ * xbee_ieee802154_mlme_ops - ieee802154 MLME ops.
+ *
+ * Relay MLME ops to HW.
+ */
+static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
+	.assoc_req	= xbee_ieee802154_assoc_req,
+	.assoc_resp	= xbee_ieee802154_assoc_resp,
+	.disassoc_req	= xbee_ieee802154_disassoc_req,
+	.start_req	= xbee_ieee802154_start_req,
+	.scan_req	= xbee_ieee802154_scan_req,
+//	.wpan_ops.get_phy = xbee_ieee802154_get_phy,
+//	.get_pan_id	= xbee_ieee802154_get_pan_id,
+//	.get_short_addr	= xbee_ieee802154_get_short_addr,
+//	.get_dsn	= xbee_ieee802154_get_dsn,
+//	.get_bsn	= xbee_ieee802154_get_bsn,
+};
 
 /**
  * xbee_netdev_reg - Upon net_dev registration.
  *
  * XXX: obsolete
  */
-static void xbee_netdev_reg(struct net_dev *dev)
+static void xbee_netdev_reg(struct net_device *dev)
 {
 	dev->addr_len           = IEEE802154_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
-	dev->hard_header_len    = MAC802154_MAX_MHR_SIZE;
-	dev->header_ops         = &mac802154_header_ops;
+//	dev->hard_header_len    = MAC802154_MAX_MHR_SIZE;
+//	dev->header_ops         = &mac802154_header_ops;
 	dev->needed_tailroom    = 2; /* FCS */
 	dev->mtu                = IEEE802154_MTU;
 	dev->tx_queue_len       = 10;
@@ -424,8 +477,8 @@ static void xbee_netdev_reg(struct net_dev *dev)
 	dev->watchdog_timeo     = 0;
 
 	dev->destructor         = free_netdev;
-	dev->netdev_ops         = &mac802154_wpan_ops;
-	dev->ml_priv            = &mac802154_mlme_wpan.wpan_ops;
+//	dev->netdev_ops         = &mac802154_wpan_ops;
+//	dev->priv            = &mac802154_mlme_wpan.wpan_ops;
 
 	priv                    = netdev_priv(dev);
 	priv->type              = IEEE802154_DEV_WPAN;
@@ -462,6 +515,7 @@ static int xbee_frame_send_cmd(struct xb_device *xbdev,
 			 const unsigned char cmd[2],
 			 const unsigned char *data, size_t len);
 
+static void xbee_state_frm_resp_enqueue(struct sk_buff *skb);
 /**
  * xbee_send_frame - ...
  *
@@ -471,13 +525,15 @@ static int xbee_frame_send_cmd(struct xb_device *xbdev,
 static void xbee_frm_xbee_send(struct xb_device *xbdev,
 			       struct sk_buff *skb)
 {
+	int ret;
+	struct sk_buff* frame;
 //	struct tty_struct *tty = xbdev->tty;
 
 	/* expect XBee API frame ACK */
 	xbee_state_frm_resp_enqueue(skb);
 
 	/* write frame to TTY */
-	xbdev->tty->write(skb->data, skb->data_len);
+	xbdev->tty->ops->write(xbdev->tty, skb->data, skb->data_len);
 
 	/* block if blocking */
 	if (1) {
@@ -493,16 +549,16 @@ static void xbee_frm_xbee_send(struct xb_device *xbdev,
 
 static void xbee_state_frm_resp_enqueue(struct sk_buff *skb)
 {
-	struct *xbee_frm_resp *resp;
+	struct xbee_frm_resp *resp;
 
 	// resp = ...
 	// resp->timestamp = ...
 
 	// fid = ...
-	xbee_frm_xbee_add_fid(skb, fid);
+//	xbee_frm_xbee_add_fid(skb, fid);
 	// resp->fid = fid
 
-	list_add_tail(resp, xbdev->frame_pend);
+//	list_add_tail(resp, xbdev->frame_pend);
 }
 
 /**
@@ -587,7 +643,7 @@ static void xbee_pkt_recv_rx64(struct sk_buff *skb)
 	opts = (u8)*(skb->data + 13);
 
 	/* get our MAC address (is dst addr) */
-	dst = xbee_get
+//	dst = xbee_get
 
 	/* prepend 10 bytes to skb, append 1 byte, view skb as IEEE pkt */
 
@@ -648,6 +704,7 @@ static void xbee_frm_xbee_recv(struct xb_device *xbdev,
 			       struct sk_buff *skb)
 {
 	u8 *id;
+	int err;
 
 	/* verify length and checksum */
 	err = xbee_frm_xbee_verify(skb);
@@ -739,7 +796,7 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 				const unsigned char *cp,
 				char *fp, int count)
 {
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *dev;
 	struct xb_device *xbdev;
 	char c;
 	struct sk_buff *skb;
@@ -831,10 +888,11 @@ static void xbee_ldisc_close(struct tty_struct *tty);
  */
 static int xbee_ldisc_hangup(struct tty_struct *tty)
 {
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *dev;
 	
 	dev = tty->dev;
-	return ieee802154_unregister_device(dev);
+	ieee802154_unregister_hw(dev);
+	retrurn 0;
 }
 
 /**
@@ -849,7 +907,7 @@ static int xbee_ldisc_hangup(struct tty_struct *tty)
  */
 static int xbee_ldisc_open(struct tty_struct *tty)
 {
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *dev;
 	struct xb_device *xbdev;
 	int err;
 
@@ -873,27 +931,27 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	tty_driver_flush_buffer(tty);
 
-	dev = ieee802154_alloc_device(sizeof(*xbdev), &xbee_ieee802154_ops);
+	dev = ieee802154_alloc_hw(sizeof(*xbdev), &xbee_ieee802154_ops);
 	if (!dev)
 		return -ENOMEM;
 
 	xbdev = dev->priv;
 	xbdev->tty = tty_kref_get(tty);
 	xbdev->dev = dev;
-	mutex_init(&xbdev->mutex);
+//	mutex_init(&xbdev->mutex);
 //	init_completion(&xbdev->cmd_resp_done);
-	init_waitqueue_head(&xbdev->frame_waitq);
+//	init_waitqueue_head(&xbdev->frame_waitq);
 
 	dev->extra_tx_headroom = 0;
-	dev->phy->channels_supported[0] = 0x7fff800;
+	dev->phy->supported.channels[0] = 0x7fff800;
 
 	dev->flags = IEEE802154_HW_OMIT_CKSUM;
 
 	dev->parent = tty->dev;
 
-	dev->ml_priv = &xbee_ieee802154_mlme_ops;
+	dev->priv = &xbee_ieee802154_mlme_ops;
 
-	err = ieee802154_register_device(dev);
+	err = ieee802154_register_hw(dev);
 	if (err) {
 		XBEE_ERROR("%s: device register failed\n", __func__);
 		goto err;
@@ -906,7 +964,7 @@ err:
 	tty_kref_put(tty);
 	xbdev->tty = NULL;
 
-	ieee802154_free_device(xbdev->dev);
+	ieee802154_unregister_hw(xbdev->dev);
 
 	return err;
 }
@@ -926,40 +984,6 @@ static struct tty_ldisc_ops xbee_ldisc_ops = {
 	.ioctl		= xbee_ldisc_ioctl,
  	.hangup		= xbee_ldisc_hangup,
 	.receive_buf	= xbee_ldisc_recv_buf,
-};
-
-/**
- * xbee_ieee802154_ops - ieee802154 MCPS ops.
- *
- * This is part of linux-wsn. It is similar to netdev_ops.
- */
-static struct ieee802154_ops xbee_ieee802154_ops = {
-	.owner		= THIS_MODULE,
-	.xmit		= xbee_ieee802154_xmit,
-	.ed		= xbee_ieee802154_ed,
-	.set_channel	= xbee_ieee802154_set_channel,
-	.set_hw_addr_filt = xbee_ieee802154_filter,
-	.start		= xbee_ieee802154_start,
-	.stop		= xbee_ieee802154_stop,
-	.ieee_addr	= xbee_ieee802154_addr,
-};
-
-/**
- * xbee_ieee802154_mlme_ops - ieee802154 MLME ops.
- *
- * Relay MLME ops to HW.
- */
-static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
-	.assoc_req	= xbee_ieee802154_assoc_req,
-	.assoc_resp	= xbee_ieee802154_assoc_resp,
-	.disassoc_req	= xbee_ieee802154_disassoc_req,
-	.start_req	= xbee_ieee802154_start_req,
-	.scan_req	= xbee_ieee802154_scan_req,
-	.wpan_ops.get_phy = xbee_ieee802154_get_phy,
-	.get_pan_id	= xbee_ieee802154_get_pan_id,
-	.get_short_addr	= xbee_ieee802154_get_short_addr,
-	.get_dsn	= xbee_ieee802154_get_dsn,
-	.get_bsn	= xbee_ieee802154_get_bsn,
 };
 
 static int __init xbee_init(void)
