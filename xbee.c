@@ -892,7 +892,7 @@ static int xbee_ldisc_hangup(struct tty_struct *tty)
 	
 	dev = tty->dev;
 	ieee802154_unregister_hw(dev);
-	retrurn 0;
+	return 0;
 }
 
 /**
