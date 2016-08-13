@@ -34,6 +34,7 @@ enum {
 /*********************************************************************/
 
 struct xb_device {
+	struct work_struct work;
 	struct tty_struct *tty;
 	struct ieee802154_hw *dev;
 
@@ -42,8 +43,10 @@ struct xb_device {
 	struct completion	cmd_resp_done;
 	/* command completition */
     wait_queue_head_t frame_waitq;
+	struct workqueue_struct    *recv_workq;
 
     struct sk_buff *frame;
+    struct sk_buff_head recv_queue;
 	unsigned char payload[128];
     struct seq_buf send_buf;
     int frame_esc;
@@ -136,11 +139,13 @@ static void xbee_frame_sendrecv(struct xb_device *xb)
 
 	ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 100);
 	if(!ret) {
-			pr_debug("rett %d\n", ret);
+		pr_debug("rett %d\n", ret);
 	}
 	else {
-			pr_debug("retf %d\n", ret);
+		pr_debug("retf %d\n", ret);
 	}
+
+	//mutex_unlock(&xb->mutex);
 }
 
 static void xbee_frame_new_send_frame(struct xb_device *xb, unsigned short paylen, unsigned char type)
@@ -156,6 +161,9 @@ static void xbee_frame_new_send_frame(struct xb_device *xb, unsigned short payle
 static void xbee_frame_sendrecv_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	int i=0;
+
+	//mutex_lock(&xb->mutex);
+
 	xbee_frame_new_send_frame(xb, buflen+3, 0x08);
 	xbee_frame_append_send_buf(xb, atcmd>>8&0xFF);
 	xbee_frame_append_send_buf(xb, atcmd&0xFF);
@@ -229,6 +237,13 @@ static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level)
 	xbee_frame_sendrecv_at(xb, 0x4544, NULL, 0);
 
     return 0;
+}
+
+static int xbee_ieee802154_set_csma_params(struct ieee802154_hw *dev, u8 min_be, u8 max_be, u8 retries)
+{
+	pr_debug("%s\n", __func__);
+
+		return 0;
 }
 
 /**
@@ -325,6 +340,19 @@ static int xbee_ieee802154_filter(struct ieee802154_hw *dev,
 					    unsigned long changed)
 {
 	pr_debug("%s\n", __func__);
+
+	/*
+	if(changed & IEEE802154_AFILT_SADDR_CHANGED) {
+		filt->short_addr;
+	} else if(IEEE802154_AFILT_IEEEADDR_CHANGED) {
+		filt->ieee_addr;
+	} else if(IEEE802154_AFILT_PANID_CHANGED) {
+		filt->pan_id;
+	} else if(IEEE802154_AFILT_PANC_CHANGED) {
+		filt->pan_coord;
+	}
+	*/
+
     return 0;
 }
 
@@ -337,6 +365,7 @@ static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 {
 	struct xb_device *zbdev;
 	int ret = 0;
+	u8 channel = 11;
 
 	pr_debug("%s\n", __func__);
 
@@ -345,6 +374,13 @@ static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return -EINVAL;
 	}
+
+	pr_debug("send 0x4348\n");
+	channel = 11;
+	xbee_frame_sendrecv_at(zbdev, 0x4348, &channel, 1);
+	pr_debug("end send 0x4348\n");
+
+
 
 	pr_debug("%s end (retval: %d)\n", __func__, ret);
 	return ret;
@@ -644,7 +680,7 @@ static struct ieee802154_ops xbee_ieee802154_ops = {
 	.set_cca_mode = xbee_ieee802154_set_cca_mode,
 	.set_cca_ed_level = xbee_ieee802154_set_cca_ed_level,
 	.set_csma_params = NULL,
-	.set_frame_retries = xbee_ieee802154_set_frame_retries,
+	.set_frame_retries = NULL,
 	.set_promiscuous_mode = NULL,
 	.start		= xbee_ieee802154_start,
 	.stop		= xbee_ieee802154_stop,
@@ -698,30 +734,49 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	xbdev = dev->priv;
 	xbdev->dev = dev;
 	seq_buf_init(&xbdev->send_buf, xbdev->payload, 128);
+	skb_queue_head_init(&xbdev->recv_queue);
 
 	mutex_init(&xbdev->mutex);
 	init_completion(&xbdev->cmd_resp_done);
 	init_waitqueue_head(&xbdev->frame_waitq);
+	xbdev->recv_workq = create_workqueue("recv_workq");
 
 	dev->extra_tx_headroom = 0;
 	/* only 2.4 GHz band */
+	dev->phy->flags = WPAN_PHY_FLAG_TXPOWER |
+			          WPAN_PHY_FLAG_CCA_ED_LEVEL |
+					  WPAN_PHY_FLAG_CCA_MODE;
 	dev->phy->current_channel = 11;
 	dev->phy->current_page = 0;
 	dev->phy->supported.channels[0] = 0x7fff800;
-	dev->phy->supported.cca_modes = 0;
-	dev->phy->supported.cca_opts = 0;
+	dev->phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY);
+	dev->phy->supported.cca_opts = NL802154_CCA_ENERGY;
 	dev->phy->supported.iftypes = 0;
 	dev->phy->supported.lbt = 0;
 	dev->phy->supported.min_minbe = 0;
-	dev->phy->supported.max_minbe = 0;
-	dev->phy->supported.min_maxbe = 0;
-	dev->phy->supported.max_maxbe = 0;
-	dev->phy->supported.min_csma_backoffs = 0;
-	dev->phy->supported.max_csma_backoffs = 0;
+	dev->phy->supported.max_minbe = 3;
+	dev->phy->supported.min_maxbe = 5; /* N/A */
+	dev->phy->supported.max_maxbe = 5; /* N/A */
+	dev->phy->supported.min_csma_backoffs = 0; /* N/A */
+	dev->phy->supported.max_csma_backoffs = 0; /* N/A */
 	dev->phy->supported.min_frame_retries = 0;
-	dev->phy->supported.max_frame_retries = 0;
+	dev->phy->supported.max_frame_retries = 6;
 	dev->phy->supported.tx_powers_size = 0;
-	dev->phy->supported.cca_ed_levels_size = 0;
+/*
+	dev->phy->supported.cca_ed_levels_size = 41;
+	dev->phy->supported.cca_ed_levels = {
+		DBM_TO_MBM(-0x28), DBM_TO_MBM(-0x29), DBM_TO_MBM(-0x2A), DBM_TO_MBM(-0x2B),
+		DBM_TO_MBM(-0x2C), DBM_TO_MBM(-0x2D), DBM_TO_MBM(-0x2E), DBM_TO_MBM(-0x2F),
+		DBM_TO_MBM(-0x30), DBM_TO_MBM(-0x31), DBM_TO_MBM(-0x32), DBM_TO_MBM(-0x33),
+		DBM_TO_MBM(-0x34), DBM_TO_MBM(-0x35), DBM_TO_MBM(-0x36), DBM_TO_MBM(-0x37),
+		DBM_TO_MBM(-0x38), DBM_TO_MBM(-0x39), DBM_TO_MBM(-0x3A), DBM_TO_MBM(-0x3B),
+		DBM_TO_MBM(-0x3C), DBM_TO_MBM(-0x3D), DBM_TO_MBM(-0x3E), DBM_TO_MBM(-0x3F),
+		DBM_TO_MBM(-0x40), DBM_TO_MBM(-0x41), DBM_TO_MBM(-0x42), DBM_TO_MBM(-0x43),
+		DBM_TO_MBM(-0x44), DBM_TO_MBM(-0x45), DBM_TO_MBM(-0x46), DBM_TO_MBM(-0x47),
+		DBM_TO_MBM(-0x48), DBM_TO_MBM(-0x49), DBM_TO_MBM(-0x4A), DBM_TO_MBM(-0x4B),
+		DBM_TO_MBM(-0x4C), DBM_TO_MBM(-0x4D), DBM_TO_MBM(-0x4E), DBM_TO_MBM(-0x4F),
+		DBM_TO_MBM(-0x50), };
+*/
 /*
 	dev->phy->transmit_power = 0;
 	dev->phy->cca = 0;
@@ -733,7 +788,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 
 
-	dev->flags = IEEE802154_HW_OMIT_CKSUM;
+	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
 
 	dev->parent = tty->dev;
 
@@ -827,6 +882,16 @@ static int xbee_ldisc_hangup(struct tty_struct *tty)
 	pr_debug("%s\n", __func__);
     return 0;
 }
+
+static void recv_work_fn( struct work_struct *work)
+{
+	pr_debug("%s\n", __func__);
+
+			//if(atcmd == send_at) {
+			//	complete(&xbdev->cmd_resp_done);
+			//}
+}
+
 
 /**
  * xbee_ldisc_recv_buf - Receive serial bytes.
@@ -932,6 +997,15 @@ static void xbee_ldisc_recv_buf(struct tty_struct *tty,
 	/* peak at frame to check if completed */
 
 	if (xbee_frame_peak_done(xbdev)) {
+        pr_debug("skd_append\n");
+		skb_append( skb_peek_tail(&xbdev->recv_queue), xbdev->frame, &xbdev->recv_queue);
+
+        pr_debug("INIT_WORK\n");
+		INIT_WORK( (struct work_struct*)xbdev, recv_work_fn);
+        pr_debug("queue_work\n");
+		ret = queue_work(xbdev->recv_workq, (struct work_struct*)xbdev);
+
+        pr_debug("xbee_frm_new\n");
 		ret = xbee_frm_new(xbdev, &skb);
 		if (ret){
 //		if (unlikely(ret))
