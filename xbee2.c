@@ -115,7 +115,7 @@ static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t
 	return 0xFF - checksum;
 }
 
-static int buffer_find_delimiter(const unsigned char* buf, const size_t len)
+static int buffer_find_delimiter_unescaped(const unsigned char* buf, const size_t len)
 {
 	int i=0;
 	for(i=0; i<len; i++) {
@@ -123,6 +123,26 @@ static int buffer_find_delimiter(const unsigned char* buf, const size_t len)
 	}
 	return -1;
 }
+
+static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
+{
+	int i=0;
+	bool esc = false;
+	for(i=0; i<len; i++) {
+		if(buf[i] == 0x7D) {
+			esc = true; continue;
+		}
+		else if(buf[i] == 0x5E && esc) {
+			return i-1;
+		}
+		else if(buf[i] == 0x7E && !esc) {
+			return i;
+		}
+		esc = false;
+	}
+	return -1;
+}
+
 
 static size_t buffer_unescape(unsigned char* buf, const size_t len)
 {
@@ -163,20 +183,20 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 	return new_skb;
 }
 
-static const unsigned char frame_payload_length(struct sk_buff* recv_buf)
+static const unsigned char frame_payload_length(struct sk_buff* frame)
 {
-	struct xb_frameheader* frm = (struct xb_frameheader*)recv_buf->data;
+	struct xb_frameheader* frm = (struct xb_frameheader*)frame->data;
 	return htons(frm->length);
 }
 
-static const unsigned char* frame_payload_buffer(struct sk_buff* recv_buf)
+static const unsigned char* frame_payload_buffer(struct sk_buff* frame)
 {
-	return recv_buf->data + 3;
+	return frame->data + 3;
 }
 
-static unsigned char frame_calc_checksum(struct sk_buff* recv_buf)
+static unsigned char frame_calc_checksum(struct sk_buff* frame)
 {
-	return buffer_calc_checksum(frame_payload_buffer(recv_buf), frame_payload_length(recv_buf) );
+	return buffer_calc_checksum(frame_payload_buffer(frame), frame_payload_length(frame) );
 }
 
 static int frame_verify(struct sk_buff* recv_buf)
@@ -199,7 +219,7 @@ static int frame_verify(struct sk_buff* recv_buf)
 
 	if (checksum!=recv_buf->data[length+3]) return -EINVAL;
 
-    return length+4; //TODO
+    return length+4;
 }
 
 static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf)
@@ -212,7 +232,7 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 	unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
 	skb_trim(recv_buf, unesc_len);
 
-	i = buffer_find_delimiter(recv_buf->data, unesc_len);
+	i = buffer_find_delimiter_unescaped(recv_buf->data, unesc_len);
 	if(i<0) {
 		skb_trim(recv_buf, 0);
 	}

@@ -38,7 +38,7 @@ int buffer_find_delimiter_exists(void* arg) {
 	const char buf[] = {0x23, 0x7E, 0x11};
 	const int count = 3;
 	int ret = 0;
-	ret = buffer_find_delimiter(buf, count);
+	ret = buffer_find_delimiter_unescaped(buf, count);
 	if(ret != 1) return -1;
 	return 0;
 }
@@ -49,7 +49,7 @@ int buffer_find_delimiter_non_exists(void* arg) {
 	const char buf[] = {0x23, 0x70, 0x11};
 	const int count = 3;
 	int ret = 0;
-	ret = buffer_find_delimiter(buf, count);
+	ret = buffer_find_delimiter_unescaped(buf, count);
 	if(ret != -1) return -1;
 	return 0;
 }
@@ -253,7 +253,7 @@ int frame_verify_length_zero_valid_large(void* arg) {
 }
 
 
-//#define TEST1 frame_enqueue_zerobyte
+#define TEST18 frame_enqueue_zerobyte
 int frame_enqueue_zerobyte(void* arg) {
 	int ret = 0;
 	const char buf[] = {};
@@ -270,7 +270,7 @@ int frame_enqueue_zerobyte(void* arg) {
 	return 0;
 }
 
-//#define TEST2 frame_enqueue_non_startmark
+#define TEST19 frame_enqueue_non_startmark
 int frame_enqueue_non_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x11 };
@@ -287,7 +287,7 @@ int frame_enqueue_non_startmark(void* arg) {
 	return 0;
 }
 
-//#define TEST3 frame_enqueue_startmark
+#define TEST20 frame_enqueue_startmark
 int frame_enqueue_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e };
@@ -304,7 +304,7 @@ int frame_enqueue_startmark(void* arg) {
 	return 0;
 }
 
-//#define TEST4 frame_enqueue_startmark_len
+#define TEST21 frame_enqueue_startmark_len
 int frame_enqueue_startmark_len(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e , 0x00, 0x3 };
@@ -320,6 +320,52 @@ int frame_enqueue_startmark_len(void* arg) {
 	if(xbdev->recv_buf->len != 3) return -1;
 	return 0;
 }
+
+
+#define TEST22 buffer_find_delimiter_escaped_exists
+int buffer_find_delimiter_escaped_exists(void* arg) {
+	const char buf[] = {0x23, 0x7E, 0x11};
+	const int count = 3;
+	int ret = 0;
+	ret = buffer_find_delimiter_escaped(buf, count);
+	if(ret != 1) return -1;
+	return 0;
+}
+
+
+#define TEST23 buffer_find_delimiter_escaped_non_exists
+int buffer_find_delimiter_escaped_non_exists(void* arg) {
+	const char buf[] = {0x23, 0x70, 0x11};
+	const int count = 3;
+	int ret = 0;
+	ret = buffer_find_delimiter_escaped(buf, count);
+	if(ret != -1) return -1;
+	return 0;
+}
+
+
+#define TEST24 buffer_find_delimiter_escaped_exists_escape
+int buffer_find_delimiter_escaped_exists_escape(void* arg) {
+	const char buf[] = {0x23, 0x7D, 0x5E, 0x11};
+	const int count = 3;
+	int ret = 0;
+	ret = buffer_find_delimiter_escaped(buf, count);
+	if(ret != 1) return -1;
+	return 0;
+}
+
+#define TEST25 buffer_find_delimiter_escaped_non_exists_escape
+int buffer_find_delimiter_escaped_non_exists_escape(void* arg) {
+	const char buf[] = {0x23, 0x7D, 0x31, 0x11};
+	const int count = 3;
+	int ret = 0;
+	ret = buffer_find_delimiter_escaped(buf, count);
+	if(ret != -1) return -1;
+	return 0;
+}
+
+
+
 #if 0
 #define TEST7 actual_length_escaped_zero
 int actual_length_escaped_zero(void* arg) {
