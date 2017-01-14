@@ -157,19 +157,12 @@ static int actual_length_escaped(unsigned char* buf, size_t buflen, size_t datal
 	bool next_escape = 0;
 	int escape = 0;
 	for(i=0; i<buflen&&(i-escape)<datalen; i++) {
-		if(next_escape) {
-			escape++;
-			next_escape =false;
-		}
-		if(buf[i] == 0x7D) next_escape = true;
-
-		//if(buf[i] == 0x7E || buf[i] == 0x7D || buf[i] == 0x11 || buf[i] == 0x13)
-
+		if(buf[i] == 0x7D) escape++;
 	}
 
 	if(next_escape) return -EINVAL; //end with escape
 
-	if(datalen+escape < buflen) return -EINVAL;
+	if(buflen < datalen+escape) return -EINVAL;
 
 	return i;
 }
