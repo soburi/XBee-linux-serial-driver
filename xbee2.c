@@ -105,21 +105,6 @@ enum {
 	XBEE_FRM_RCMDR = 0x97,
 };
 
-static struct sk_buff* frame_new(size_t paylen, uint8_t type)
-{
-	struct sk_buff* new_skb = NULL;
-	struct xb_frameheader* frm = NULL;
-
-	pr_debug("%s\n", __func__);
-	new_skb = alloc_skb(paylen+4, GFP_KERNEL); //delimiter, length, checksum
-
-	frm = (struct xb_frameheader*)new_skb->data;
-	frm->start_delimiter  = XBEE_CHAR_NEWFRM;
-	frm->length = htons(paylen+1);
-	frm->type = type;
-	return new_skb;
-}
-
 static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t len)
 {
 	int i=0;
@@ -163,6 +148,37 @@ static size_t buffer_unescape(unsigned char* buf, const size_t len)
 	return len-escape_count;
 }
 
+static struct sk_buff* frame_new(size_t paylen, uint8_t type)
+{
+	struct sk_buff* new_skb = NULL;
+	struct xb_frameheader* frm = NULL;
+
+	pr_debug("%s\n", __func__);
+	new_skb = alloc_skb(paylen+4, GFP_KERNEL); //delimiter, length, checksum
+
+	frm = (struct xb_frameheader*)new_skb->data;
+	frm->start_delimiter  = XBEE_CHAR_NEWFRM;
+	frm->length = htons(paylen+1);
+	frm->type = type;
+	return new_skb;
+}
+
+static unsigned char frame_calc_checksum(struct sk_buff* recv_buf)
+{
+	size_t len = 0;
+	unsigned char* buf = NULL;
+	int i=0;
+	unsigned char checksum = 0;
+
+	len = recv_buf->len  - 3;
+	buf = recv_buf->head + 3;
+
+	for(i=0; i<len; i++) {
+		checksum += buf[i];
+	}
+	return 0xFF - checksum;
+}
+
 static int frame_verify(struct sk_buff* recv_buf)
 {
     unsigned short length;
@@ -182,7 +198,7 @@ static int frame_verify(struct sk_buff* recv_buf)
 
 	if (received < length+3) return -EAGAIN;
 
-	checksum = buffer_calc_checksum(recv_buf->head+3, received-3);
+	checksum = frame_calc_checksum(recv_buf);
 
 	if (checksum==recv_buf->head[length+3]) return -EINVAL;
 
@@ -243,7 +259,7 @@ static int frame_sendrecv(struct xb_device *xb, struct sk_buff* skb)
 	return ret;
 }
 #endif
-static void frame_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
+static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uint8_t id, char* buf, unsigned short buflen)
 {
 	struct sk_buff* newskb = NULL;
 	struct xb_at_frame* atfrm = NULL;
@@ -255,15 +271,20 @@ static void frame_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, ch
 	newskb = frame_new(buflen, XBEE_FRM_CMD);
 	atfrm = (struct xb_at_frame*)newskb->data;
 
-	atfrm->id = xb->frameid++;
+	atfrm->id = id;//xb->frameid++;
 	atfrm->command = htons(atcmd);
 
 	memcpy(atfrm->payload, buf, buflen);
 
-	checksum = buffer_calc_checksum(buf+3, buflen);
+	checksum = frame_calc_checksum(newskb);
 	newskb->data[buflen+4] = checksum;
 
-	frame_enqueue_send(&xb->send_queue, newskb);
+	frame_enqueue_send(send_queue, newskb);
+}
+
+static void xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
+{
+	frame_enqueue_send_at(&xb->send_queue, atcmd, xb->frameid++, buf, buflen);
 }
 
 static bool xb_process_send(struct xb_device* xb)
@@ -542,7 +563,7 @@ static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
 
 	xb = dev->priv;
 
-	frame_enqueue_send_at(xb, 0x4348, &channel, 1);
+	xb_enqueue_send_at(xb, 0x4348, &channel, 1);
     return 0;
 }
 
@@ -559,7 +580,7 @@ static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level)
 	pr_debug("%s\n", __func__);
 
 	xb = dev->priv;
-	frame_enqueue_send_at(xb, 0x4544, NULL, 0);
+	xb_enqueue_send_at(xb, 0x4544, NULL, 0);
 
     return 0;
 }
@@ -584,7 +605,7 @@ static int xbee_ieee802154_set_frame_retries(struct ieee802154_hw *dev, s8 retri
 	pr_debug("%s\n", __func__);
 
 	xb = dev->priv;
-	frame_enqueue_send_at(xb, 0x5252, &u_retries, 1);
+	xb_enqueue_send_at(xb, 0x5252, &u_retries, 1);
 
     return 0;
 }
@@ -621,8 +642,8 @@ static int xbee_ieee802154_set_txpower(struct ieee802154_hw *dev, s32 mbm)
 		pl=4; pm=1;
 	}
 
-	frame_enqueue_send_at(xb, 0x504C, &pl, 1);
-	frame_enqueue_send_at(xb, 0x504D, &pm, 1);
+	xb_enqueue_send_at(xb, 0x504C, &pl, 1);
+	xb_enqueue_send_at(xb, 0x504D, &pm, 1);
 
 	return 0;
 }
@@ -642,7 +663,7 @@ static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *dev, s32 mbm)
 
     ca = MBM_TO_DBM(mbm);
 
-    frame_enqueue_send_at(xb, 0x4341, &ca, 1);
+    xb_enqueue_send_at(xb, 0x4341, &ca, 1);
 	return 0;
 }
 
