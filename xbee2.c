@@ -199,7 +199,7 @@ static int frame_verify(struct sk_buff* recv_buf)
 
 	if (checksum!=recv_buf->data[length+3]) return -EINVAL;
 
-    return 1; //TODO
+    return length+4; //TODO
 }
 
 static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf)

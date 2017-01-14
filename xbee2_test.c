@@ -229,10 +229,29 @@ int frame_verify_length_zero_valid(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != 1) return -1;
+	if(ret != 4) return -1;
 
 	return 0;
 }
+
+#define TEST17 frame_verify_length_zero_valid_large
+int frame_verify_length_zero_valid_large(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7e, 0x00, 0x00, 0xFF, 0x01};
+	const int count = 5;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+
+	ret = frame_verify(xbdev->recv_buf);
+
+	if(ret != 4) return -1;
+
+	return 0;
+}
+
 
 //#define TEST1 frame_enqueue_zerobyte
 int frame_enqueue_zerobyte(void* arg) {
