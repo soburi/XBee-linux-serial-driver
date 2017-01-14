@@ -229,7 +229,6 @@ static int frame_sendrecv_at(struct xb_device *xb, unsigned short atcmd, char* b
 	return frame_sendrecv(xb, newskb);
 }
 
-//static struct sk_buff* frm_xbee_verify(struct seq_buf *recv_seq_buf){
 static int frame_verify(struct sk_buff* recv_buf)
 {
     unsigned short length;
@@ -238,10 +237,7 @@ static int frame_verify(struct sk_buff* recv_buf)
 	unsigned int escapedlen = 0;
 	struct xb_frameheader* header = NULL;
 
-	//received = seq_buf_used(recv_seq_buf);
 	received = recv_buf->len;
-
-	// trim escape
 
 	if(received < 1) return -EAGAIN;
 	header = (struct xb_frameheader*)recv_buf->head;
@@ -256,7 +252,6 @@ static int frame_verify(struct sk_buff* recv_buf)
 	escapedlen = frame_escaped_length(recv_buf->head, received);
 	checksum = frame_calc_checksum(recv_buf->head, received);
 
-	//if (checksum==recv_seq_buf->buffer[escapedlen+3]) return NULL;
 	if (checksum==recv_buf->head[escapedlen+3]) return -EINVAL;
 
     return escapedlen+3;
