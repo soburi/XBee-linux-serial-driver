@@ -155,7 +155,7 @@ int actual_length_escaped_too_short(void* arg) {
 
 	ret = actual_length_escaped(buf, 1, 2);
 
-	if(ret != 1) return -1;
+	if(ret != -EINVAL) return -1;
 
 	return 0;
 }
@@ -169,6 +169,30 @@ int actual_length_escaped_end_with_escape(void* arg) {
 	ret = actual_length_escaped(buf, 1, 1);
 
 	if(ret != -EINVAL) return -1;
+
+	return 0;
+}
+
+#define TEST11 actual_length_escaped_equal_buf_data
+int actual_length_escaped_equal_buf_data(void* arg) {
+	const char buf[] = { 0x7D, 0x11 };
+	int ret = 0;
+
+	ret = actual_length_escaped(buf, 2, 1);
+
+	if(ret != 2) return -1;
+
+	return 0;
+}
+
+#define TEST12 actual_length_escaped_larger_buf
+int actual_length_escaped_larger_buf(void* arg) {
+	const char buf[] = { 0x7D, 0x11, 0x12 };
+	int ret = 0;
+
+	ret = actual_length_escaped(buf, 3, 1);
+
+	if(ret != 2) return -1;
 
 	return 0;
 }
