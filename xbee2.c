@@ -11,6 +11,9 @@
 #include <net/mac802154.h>
 #include <net/regulatory.h>
 
+#include "modtest.h"
+
+
 #define N_IEEE802154_XBEE 25
 #define VERSION 1
 
@@ -43,10 +46,11 @@ struct xb_device {
     struct sk_buff_head send_queue;
     //struct seq_buf recv_seq_buf;
     struct sk_buff* recv_buf;
-	uint8_t recv_buffer[128];
+	//uint8_t recv_buffer[128];
 	uint8_t frameid;
-
 	unsigned short firmware_version;
+
+	DECL_MODTEST_STRUCT();
 };
 
 struct xbee_frame {
@@ -793,6 +797,8 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	xbdev->comm_workq = create_workqueue("comm_workq");
 	INIT_WORK( (struct work_struct*)xbdev, comm_work_fn);
 
+	INIT_MODTEST(xbdev);
+
 	dev->extra_tx_headroom = 0;
 	/* only 2.4 GHz band */
 	dev->phy->flags = WPAN_PHY_FLAG_TXPOWER |
@@ -863,6 +869,8 @@ static int xbee_ldisc_open(struct tty_struct *tty)
         printk(KERN_ERR "%s: device register failed\n", __func__);
 		goto err;
 	}
+
+	RUN_MODTEST(xbdev);
 
 	return 0;
 
@@ -1020,6 +1028,9 @@ static void __exit xbee_exit(void)
 		printk(KERN_CRIT "failed to unregister ZigBee line discipline.\n");
 	}
 }
+
+#include "xbee2_test.c"
+DECL_TESTS_ARRAY();
 
 module_init(xbee_init);
 module_exit(xbee_exit);

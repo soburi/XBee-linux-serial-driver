@@ -1,7 +1,11 @@
 TARGET := xbee2.ko
-VERBOSITY = 0
+V = 0
+
 EXTRA_CFLAGS += -Wformat=2
 EXTRA_CFLAGS += -DDEBUG
+ifneq ($(MODTEST_ENABLE),)
+EXTRA_CFLAGS += -DMODTEST_ENABLE=$(MODTEST_ENABLE)
+endif
 KVER ?= `uname -r`
 
 KBUILD = /lib/modules/$(KVER)/build
@@ -9,11 +13,15 @@ INSTALL_DIR = /lib/modules/$(KVER)/kernel/drivers/video
 
 all: ${TARGET}
 
+ifneq ($(MODTEST_ENABLE),)
+xbee2.ko: xbee2.c xbee2_test.c
+else
 xbee2.ko: xbee2.c
-	make -C $(KBUILD) M=`pwd` V=$(VERBOSITY) modules
+endif
+	make -C $(KBUILD) M=`pwd` V=$(V) modules
 
 clean:
-	make -C $(KBUILD) M=`pwd` V=$(VERBOSITY) clean
+	make -C $(KBUILD) M=`pwd` V=$(V) clean
 
 obj-m := xbee2.o
 
