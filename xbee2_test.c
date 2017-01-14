@@ -13,7 +13,99 @@ int modtest_check(void* arg) {
 	return 0;
 }
 
-#define TEST1 frame_enqueue_zerobyte
+#define TEST1 buffer_calc_checksum_zero
+int buffer_calc_checksum_zero(void* arg) {
+	const char buf[] = {};
+	const int count = 0;
+	int ret = 0;
+	ret = buffer_calc_checksum(buf, count);
+	if(ret != 0xFF) return -1;
+	return 0;
+}
+
+#define TEST2 buffer_calc_checksum_example
+int buffer_calc_checksum_example(void* arg) {
+	const char buf[] = {0x23, 0x11};
+	const int count = 2;
+	int ret = 0;
+	ret = buffer_calc_checksum(buf, count);
+	if(ret != 0xCB) return -1;
+	return 0;
+}
+
+#define TEST3 buffer_find_delimiter_exists
+int buffer_find_delimiter_exists(void* arg) {
+	const char buf[] = {0x23, 0x7E, 0x11};
+	const int count = 3;
+	int ret = 0;
+	ret = buffer_find_delimiter(buf, count);
+	if(ret != 1) return -1;
+	return 0;
+}
+
+
+#define TEST4 buffer_find_delimiter_non_exists
+int buffer_find_delimiter_non_exists(void* arg) {
+	const char buf[] = {0x23, 0x70, 0x11};
+	const int count = 3;
+	int ret = 0;
+	ret = buffer_find_delimiter(buf, count);
+	if(ret != -1) return -1;
+	return 0;
+}
+
+#define TEST5 buffer_unescape_zero
+int buffer_unescape_zero(void* arg) {
+	char buf[] = {};
+	const int count = 0;
+	int ret = 0;
+	ret = buffer_unescape(buf, count);
+	if(ret != 0) return -1;
+	return 0;
+}
+
+#define TEST6 buffer_unescape_example
+int buffer_unescape_example(void* arg) {
+	char buf[] = {0x7E, 0x00, 0x02, 0x23, 0x7D, 0x31, 0xCB};
+	char ans[] = {0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB};
+	const int count = 7;
+	int ret = 0;
+	ret = buffer_unescape(buf, count);
+
+	if(ret != 6) return -1;
+	if( memcmp(buf, ans, 6) != 0) return -1;
+	return 0;
+}
+
+#define TEST7 buffer_unescape_end_escape
+int buffer_unescape_end_escape(void* arg) {
+	char buf[] = {0x7E, 0x00, 0x02, 0x23, 0x7D, 0x31, 0x7D};
+	char ans[] = {0x7E, 0x00, 0x02, 0x23, 0x11, 0x7D};
+	const int count = 7;
+	int ret = 0;
+	ret = buffer_unescape(buf, count);
+
+	if(ret != 6) return -1;
+	if( memcmp(buf, ans, 6) != 0) return -1;
+	return 0;
+}
+
+#define TEST8 frame_new_test
+int frame_new_test(void* arg) {
+	struct sk_buff* skb = frame_new(0x0102, 9);
+	struct xb_frameheader* frm = NULL;
+
+	frm = (struct xb_frameheader*)skb->data;
+
+	if(skb->data[0] != 0x7E) return -1;
+	if(skb->data[1] != 0x03) return -1;
+	if(skb->data[2] != 0x01) return -1;
+	if(skb->data[3] != 0x09) return -1;
+
+	return 0;
+}
+
+//#define TEST1 frame_enqueue_zerobyte
 int frame_enqueue_zerobyte(void* arg) {
 	int ret = 0;
 	const char buf[] = {};
@@ -30,7 +122,7 @@ int frame_enqueue_zerobyte(void* arg) {
 	return 0;
 }
 
-#define TEST2 frame_enqueue_non_startmark
+//#define TEST2 frame_enqueue_non_startmark
 int frame_enqueue_non_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x11 };
@@ -47,7 +139,7 @@ int frame_enqueue_non_startmark(void* arg) {
 	return 0;
 }
 
-#define TEST3 frame_enqueue_startmark
+//#define TEST3 frame_enqueue_startmark
 int frame_enqueue_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e };
@@ -81,7 +173,7 @@ int frame_enqueue_startmark_len(void* arg) {
 	return 0;
 }
 
-#define TEST4 frame_verify_zerobyte
+//#define TEST4 frame_verify_zerobyte
 int frame_verify_zerobyte(void* arg) {
 	int ret = 0;
 	struct xb_device* xbdev = (struct xb_device*)arg;
@@ -92,7 +184,7 @@ int frame_verify_zerobyte(void* arg) {
 	return 0;
 }
 
-#define TEST5 frame_verify_non_startmark
+//#define TEST5 frame_verify_non_startmark
 int frame_verify_non_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x11 };
@@ -109,7 +201,7 @@ int frame_verify_non_startmark(void* arg) {
 	return 0;
 }
 
-#define TEST6 frame_verify_startmark
+//#define TEST6 frame_verify_startmark
 int frame_verify_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e };

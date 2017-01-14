@@ -78,14 +78,14 @@ struct xb_frameheader {
 	uint8_t start_delimiter; // 0x7e
 	uint16_t length;
 	uint8_t type;
-};
+} __attribute__((packed));
 
 struct xb_at_frame {
 	struct xb_frameheader hd;
 	uint8_t id;
 	uint16_t command;
 	uint8_t* payload;
-};
+} __attribute__((packed));
 
 /* API frame types */
 enum {
@@ -158,7 +158,7 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 
 	frm = (struct xb_frameheader*)new_skb->data;
 	frm->start_delimiter  = XBEE_CHAR_NEWFRM;
-	frm->length = htons(paylen+1);
+	frm->length = paylen+1;
 	frm->type = type;
 	return new_skb;
 }
@@ -171,7 +171,7 @@ static unsigned char frame_calc_checksum(struct sk_buff* recv_buf)
 	unsigned char checksum = 0;
 
 	len = recv_buf->len  - 3;
-	buf = recv_buf->head + 3;
+	buf = recv_buf->data + 3;
 
 	for(i=0; i<len; i++) {
 		checksum += buf[i];
@@ -189,9 +189,9 @@ static int frame_verify(struct sk_buff* recv_buf)
 	received = recv_buf->len;
 
 	if(received < 1) return -EAGAIN;
-	header = (struct xb_frameheader*)recv_buf->head;
+	header = (struct xb_frameheader*)recv_buf->data;
 
-	if(recv_buf->head[0] != XBEE_CHAR_NEWFRM) return -EINVAL;
+	if(recv_buf->data[0] != XBEE_CHAR_NEWFRM) return -EINVAL;
 
 	if(received < 3) return -EAGAIN;
 	length = htons(header->length);
@@ -200,7 +200,7 @@ static int frame_verify(struct sk_buff* recv_buf)
 
 	checksum = frame_calc_checksum(recv_buf);
 
-	if (checksum==recv_buf->head[length+3]) return -EINVAL;
+	if (checksum==recv_buf->data[length+3]) return -EINVAL;
 
     return 1; //TODO
 }
@@ -212,10 +212,10 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 	int frame_len = 0;
 	int unesc_len = 0;
 
-	unesc_len = buffer_unescape(recv_buf->head, recv_buf->len);
+	unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
 	skb_trim(recv_buf, unesc_len);
 
-	i = buffer_find_delimiter(recv_buf->head, unesc_len);
+	i = buffer_find_delimiter(recv_buf->data, unesc_len);
 	if(i<0) {
 		skb_trim(recv_buf, 0);
 	}
@@ -461,7 +461,7 @@ static void frame_recv_rx16(struct sk_buff *skb)
  */
 static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 {
-	struct xb_frameheader* frm = (struct xb_frameheader*)skb->head;
+	struct xb_frameheader* frm = (struct xb_frameheader*)skb->data;
 
 	pr_debug("%s\n", __func__);
 
