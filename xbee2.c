@@ -158,11 +158,9 @@ static unsigned char frame_calc_checksum(unsigned char* buf, size_t len)
 	unsigned char* csum_ptr = NULL;
 	size_t paylen = 0;
 	int i = 0;
-	struct xb_frameheader* frm = NULL;
+	struct xb_frameheader* frm = (struct xb_frameheader*)buf;
 	
 	pr_debug("%s\n", __func__);
-
-	frm = (struct xb_frameheader*)buf;
 
 	paylen = htons(frm->length);
 	csum_ptr = buf+3;
@@ -211,6 +209,291 @@ static int frame_sendrecv_at(struct xb_device *xb, unsigned short atcmd, char* b
 
 	frame_update_checksum(newskb->data, newskb->len);
 	return frame_sendrecv(xb, newskb);
+}
+
+//static struct sk_buff* frm_xbee_verify(struct seq_buf *recv_seq_buf){
+static int frame_verify(struct sk_buff* recv_buf)
+{
+    unsigned short length;
+	uint8_t checksum = 0;
+	unsigned int received = 0;
+	unsigned int escapedlen = 0;
+	struct xb_frameheader* header = NULL;
+
+	//received = seq_buf_used(recv_seq_buf);
+	received = recv_buf->len;
+
+	// trim escape
+
+	if(received < 4) return -EINVAL;
+
+	//header = (struct xb_frameheader*)recv_seq_buf->buffer;
+	header = (struct xb_frameheader*)recv_buf->head;
+
+	if(header->start_delimiter != XBEE_CHAR_NEWFRM) return -EINVAL;
+
+	length = htons(header->length);
+
+	if (received < length) return -EINVAL;
+
+	//escapedlen = frame_escaped_length(recv_seq_buf->buffer, received);
+	escapedlen = frame_escaped_length(recv_buf->head, received);
+
+	//checksum = frame_calc_checksum(recv_seq_buf->buffer, received);
+	checksum = frame_calc_checksum(recv_buf->head, received);
+
+	//if (checksum==recv_seq_buf->buffer[escapedlen+3]) return NULL;
+	if (checksum==recv_buf->head[escapedlen+3]) return -EINVAL;
+
+    return escapedlen+3;
+}
+
+static int frame_enqueue(struct xb_device *xbdev, const unsigned char *buf, int count)
+{
+	int i = 0;
+	int frame_count = 0;
+	int frame_len = 0;
+
+	for(i=0; i<count; i++) {
+		//struct sk_buff *skb = NULL;
+		/* Discard received data until NEWFRM marker appeared. */
+		//if(seq_buf_used(&xbdev->recv_seq_buf) >= 1 || buf[i] == XBEE_CHAR_NEWFRM) {
+		if(xbdev->recv_buf->len >= 1 || buf[i] == XBEE_CHAR_NEWFRM) {
+			//ret = seq_buf_putc(&xbdev->recv_seq_buf, buf[i]);
+			unsigned char* tail = skb_put(xbdev->recv_buf, 1);
+			*tail = buf[i];
+		}
+		//if ((skb = frm_xbee_verify(&xbdev->recv_seq_buf)) != NULL) {
+		if ( (frame_len = frame_verify(xbdev->recv_buf)) > 0) {
+			pr_debug("skd_append\n");
+			skb_append( skb_peek_tail(&xbdev->recv_queue), xbdev->recv_buf, &xbdev->recv_queue);
+			xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
+			frame_count++;
+		}
+	}
+	return frame_count;
+}
+
+static void frame_recv_rx64(struct xb_device *xbdev,
+                    struct sk_buff *skb)
+{
+//    struct sk_buff *lskb;
+	pr_debug("%s\n", __func__);
+//    lskb = alloc_skb(skb->len, GFP_ATOMIC);
+//    skb_put(lskb, skb->len);
+//    skb_copy_to_linear_data(lskb, skb->data, skb->len);
+//	ieee802154_rx_irqsafe(xbdev->dev, lskb, skb->len);
+//	ieee802154_rx(xbdev->dev, skb, rssi);
+}
+
+static void frame_recv_stat(struct sk_buff *skb)
+{
+	pr_debug("%s\n", __func__);
+}
+
+static void frame_recv_atcmd(struct xb_device *xbdev, char frameid, unsigned short atcmd, char status, char* buf, unsigned long buflen)
+{
+	pr_debug("%s [%c%c] frameid=%d len=%lu\n", __func__, atcmd&0xFF, (atcmd>>8)&0xFF, frameid, buflen );
+	switch(atcmd) {
+#if 0
+	/* Special commands */
+	case XBEE_AT_AC: break;
+	case XBEE_AT_FR: break;
+	case XBEE_AT_RE: break;
+	case XBEE_AT_WR: break;
+	/* MAC/PHY Commands */
+	case XBEE_AT_CH: break;
+	case XBEE_AT_ID: break;
+	case XBEE_AT_MT: break;
+	case XBEE_AT_CA: break;
+	case XBEE_AT_PL: break;
+	case XBEE_AT_RR: break;
+	case XBEE_AT_ED: break;
+	case XBEE_AT_BC: break;
+	case XBEE_AT_DB: break;
+	case XBEE_AT_GD: break;
+	case XBEE_AT_EA: break;
+	case XBEE_AT_TR: break;
+	case XBEE_AT_UA: break;
+	case XBEE_AT_perH: break;
+	case XBEE_AT_per8: break;
+	/* Network commands */
+	case XBEE_AT_CE: break;
+	case XBEE_AT_BH: break;
+	case XBEE_AT_NH: break;
+	case XBEE_AT_DM: break;
+	case XBEE_AT_NN: break;
+	/* Addressing commands */
+	case XBEE_AT_SH: break;
+	case XBEE_AT_SL: break;
+	case XBEE_AT_DH: break;
+	case XBEE_AT_DL: break;
+	case XBEE_AT_NI: break;
+	case XBEE_AT_NT: break;
+	case XBEE_AT_NO: break;
+	case XBEE_AT_CI: break;
+	case XBEE_AT_DE: break;
+	case XBEE_AT_SE: break;
+	/* Diagnostic - addressing commands */
+	case XBEE_AT_Nquest: break;
+	/* Addressing discovery/configuration commands */
+	case XBEE_AT_AG: break;
+	case XBEE_AT_DN: break;
+	case XBEE_AT_ND: break;
+	case XBEE_AT_FN: break;
+	/* Security commands */
+	case XBEE_AT_EE: break;
+	case XBEE_AT_KY: break;
+	/* Serial interfacing commands */
+	case XBEE_AT_BD: break;
+	case XBEE_AT_NB: break;
+	case XBEE_AT_RO: break;
+	case XBEE_AT_FT: break;
+	case XBEE_AT_AP: break;
+	case XBEE_AT_AO: break;
+	/* I/O settings commands */
+	/* I/O sampling commands */
+	/* Sleep commands */
+	case XBEE_AT_SM: break;
+	case XBEE_AT_SO: break;
+	case XBEE_AT_SN: break;
+	case XBEE_AT_SP: break;
+	case XBEE_AT_ST: break;
+	case XBEE_AT_WH: break;
+	/* Diagnostic - sleep status/timing commands */
+	case XBEE_AT_SS: break;
+	case XBEE_AT_OS: break;
+	case XBEE_AT_OW: break;
+	case XBEE_AT_MS: break;
+	case XBEE_AT_SQ: break;
+	/* Command mode options */
+	case XBEE_AT_CC: break;
+	case XBEE_AT_CT: break;
+	case XBEE_AT_CN: break;
+	case XBEE_AT_GT: break;
+	case XBEE_AT_VL: break;
+#endif
+	case XBEE_AT_VR: xbdev->firmware_version = *((unsigned short*)buf); break;
+#if 0
+	case XBEE_AT_HV: break;
+	case XBEE_AT_DD: break;
+	case XBEE_AT_NP: break;
+	case XBEE_AT_CK: break;
+#endif
+	}
+
+
+}
+
+static void frame_recv_cmdr(struct xb_device *xbdev, struct sk_buff *skb)
+{
+	char frameid = *(skb->data+3);
+	unsigned short atcmd = *((unsigned short*)(skb->data+4));
+	char status = *(skb->data+6);
+	char* data = (skb->data)+7;
+	unsigned long datalen = (skb->len)-8;
+
+	pr_debug("%s\n", __func__);
+
+	print_hex_dump_bytes("data: ", DUMP_PREFIX_NONE, data, datalen);
+	frame_recv_atcmd(xbdev, frameid, atcmd, status, data, datalen);
+}
+
+static void frame_recv_rcmdr(struct sk_buff *skb)
+{
+	pr_debug("%s\n", __func__);
+}
+static void frame_recv_txstat(struct sk_buff *skb)
+{
+	pr_debug("%s\n", __func__);
+}
+static void frame_recv_rx16(struct sk_buff *skb)
+{
+	pr_debug("%s\n", __func__);
+}
+/**
+ * xbee_recv_frame - ...
+ *
+ * @xbdev: ...
+ * @frame: ...
+ *
+ * Verify the XBee frame, then take appropriate action depending on the
+ * frame type.
+ */
+static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
+{
+	struct xb_frameheader* frm = (struct xb_frameheader*)skb->head;
+
+	pr_debug("%s\n", __func__);
+
+	switch (frm->type) {
+	case XBEE_FRM_STAT:
+		frame_recv_stat(skb);
+		break;
+	case XBEE_FRM_CMDR:
+		frame_recv_cmdr(xbdev, skb);
+		break;
+	case XBEE_FRM_RCMDR:
+		frame_recv_rcmdr(skb);
+		break;
+	case XBEE_FRM_TXSTAT:
+		frame_recv_txstat(skb);
+		break;
+	case XBEE_FRM_RX64:
+		frame_recv_rx64(xbdev, skb);
+		break;
+	case XBEE_FRM_RX16:
+		frame_recv_rx16(skb);
+		break;
+	case XBEE_FRM_RX64IO:
+	case XBEE_FRM_RX16IO:
+		printk(KERN_WARNING "received unimplemented frame type 0x%x", frm->type);
+		//skb_free(skb);
+		break;
+	case XBEE_FRM_CMD:
+	case XBEE_FRM_CMDQ:
+	case XBEE_FRM_RCMD:
+	case XBEE_FRM_TX64:
+	case XBEE_FRM_TX16:
+		printk(KERN_WARNING "received tx-only frame type 0x%x", frm->type);
+		//skb_free(skb);
+		break;
+	default:
+//		XBEE_WARN("received unknown frame type 0x%x", id);
+	    pr_debug("%s received unknown frame type 0x%x\n", __func__,  frm->type);
+//		kfree_skb(skb);
+		break;
+	}
+}
+
+static void comm_work_fn(struct work_struct *param)
+{
+	struct xb_device* xb = NULL;
+	struct tty_struct *tty = NULL;
+
+	pr_debug("%s\n", __func__);
+
+	xb = (struct xb_device*)param;
+	tty = xb->tty;
+
+	if( skb_queue_empty(&xb->recv_queue) ) {
+		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
+
+		if(skb) {
+			frame_recv_dispatch(xb, skb);
+		}
+	}
+
+	if( skb_queue_empty(&xb->send_queue) ) {
+		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
+
+		if(skb) {
+			print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+			tty->ops->write(tty,  skb->data, skb->len);
+			tty_driver_flush_buffer(tty);
+		}
+	}
+
 }
 
 //static void cleanup(struct xb_device *xbdev)
@@ -388,7 +671,7 @@ static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 {
 	struct xb_device *zbdev;
 	int ret = 0;
-	u8 channel = 11;
+//	u8 channel = 11;
 
 	pr_debug("%s\n", __func__);
 
@@ -398,14 +681,12 @@ static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 		return -EINVAL;
 	}
 
-	pr_debug("send 0x4348\n");
-	channel = 11;
-	frame_sendrecv_at(zbdev, 0x4348, &channel, 1);
-	pr_debug("end send 0x4348\n");
+	//pr_debug("send 0x4348\n");
+	//channel = 11;
+	//frame_sendrecv_at(zbdev, 0x4348, &channel, 1);
+	//pr_debug("end send 0x4348\n");
 
-
-
-	pr_debug("%s end (retval: %d)\n", __func__, ret);
+	//pr_debug("%s end (retval: %d)\n", __func__, ret);
 	return ret;
 }
 
@@ -425,271 +706,6 @@ static void xbee_ieee802154_stop(struct ieee802154_hw *dev){
 	}
 
 	pr_debug("%s end\n", __func__);
-}
-
-//static struct sk_buff* frm_xbee_verify(struct seq_buf *recv_seq_buf){
-static struct sk_buff* frm_xbee_verify(struct sk_buff* recv_buf){
-    unsigned short length;
-	uint8_t checksum = 0;
-	unsigned int received = 0;
-	unsigned int escapedlen = 0;
-	struct xb_frameheader* header = NULL;
-    struct sk_buff* skb = NULL;
-
-	//received = seq_buf_used(recv_seq_buf);
-	received = recv_buf->len;
-
-	// trim escape
-
-	if(received < 4) return NULL;
-
-	//header = (struct xb_frameheader*)recv_seq_buf->buffer;
-	header = (struct xb_frameheader*)recv_buf->head;
-
-	if(header->start_delimiter != XBEE_CHAR_NEWFRM) return NULL;
-
-	length = htons(header->length);
-
-	if (received < length) return NULL;
-
-	//escapedlen = frame_escaped_length(recv_seq_buf->buffer, received);
-	escapedlen = frame_escaped_length(recv_buf->head, received);
-
-	//checksum = frame_calc_checksum(recv_seq_buf->buffer, received);
-	checksum = frame_calc_checksum(recv_buf->head, received);
-
-	//if (checksum==recv_seq_buf->buffer[escapedlen+3]) return NULL;
-	if (checksum==recv_buf->head[escapedlen+3]) return NULL;
-
-    skb = alloc_skb(received, GFP_ATOMIC);
-    return skb;
-}
-
-static int frm_xbee_type(struct sk_buff *skb){
-//	pr_debug("%s %x\n", __func__, *(skb->data+2));
-    return *(skb->data+2);
-}
-
-static void frame_recv_rx64(struct xb_device *xbdev,
-                    struct sk_buff *skb)
-{
-    struct sk_buff *lskb;
-	pr_debug("%s\n", __func__);
-    lskb = alloc_skb(skb->len, GFP_ATOMIC);
-    skb_put(lskb, skb->len);
-    skb_copy_to_linear_data(lskb, skb->data, skb->len);
-	ieee802154_rx_irqsafe(xbdev->dev, lskb, skb->len);
-//	ieee802154_rx(xbdev->dev, skb, rssi);
-}
-
-static void frame_recv_stat(struct sk_buff *skb)
-{
-	pr_debug("%s\n", __func__);
-}
-
-static void frame_recv_atcmd(struct xb_device *xbdev, char frameid, unsigned short atcmd, char status, char* buf, unsigned long buflen)
-{
-	pr_debug("%s [%c%c] frameid=%d len=%lu\n", __func__, atcmd&0xFF, (atcmd>>8)&0xFF, frameid, buflen );
-	switch(atcmd) {
-#if 0
-	/* Special commands */
-	case XBEE_AT_AC: break;
-	case XBEE_AT_FR: break;
-	case XBEE_AT_RE: break;
-	case XBEE_AT_WR: break;
-	/* MAC/PHY Commands */
-	case XBEE_AT_CH: break;
-	case XBEE_AT_ID: break;
-	case XBEE_AT_MT: break;
-	case XBEE_AT_CA: break;
-	case XBEE_AT_PL: break;
-	case XBEE_AT_RR: break;
-	case XBEE_AT_ED: break;
-	case XBEE_AT_BC: break;
-	case XBEE_AT_DB: break;
-	case XBEE_AT_GD: break;
-	case XBEE_AT_EA: break;
-	case XBEE_AT_TR: break;
-	case XBEE_AT_UA: break;
-	case XBEE_AT_perH: break;
-	case XBEE_AT_per8: break;
-	/* Network commands */
-	case XBEE_AT_CE: break;
-	case XBEE_AT_BH: break;
-	case XBEE_AT_NH: break;
-	case XBEE_AT_DM: break;
-	case XBEE_AT_NN: break;
-	/* Addressing commands */
-	case XBEE_AT_SH: break;
-	case XBEE_AT_SL: break;
-	case XBEE_AT_DH: break;
-	case XBEE_AT_DL: break;
-	case XBEE_AT_NI: break;
-	case XBEE_AT_NT: break;
-	case XBEE_AT_NO: break;
-	case XBEE_AT_CI: break;
-	case XBEE_AT_DE: break;
-	case XBEE_AT_SE: break;
-	/* Diagnostic - addressing commands */
-	case XBEE_AT_Nquest: break;
-	/* Addressing discovery/configuration commands */
-	case XBEE_AT_AG: break;
-	case XBEE_AT_DN: break;
-	case XBEE_AT_ND: break;
-	case XBEE_AT_FN: break;
-	/* Security commands */
-	case XBEE_AT_EE: break;
-	case XBEE_AT_KY: break;
-	/* Serial interfacing commands */
-	case XBEE_AT_BD: break;
-	case XBEE_AT_NB: break;
-	case XBEE_AT_RO: break;
-	case XBEE_AT_FT: break;
-	case XBEE_AT_AP: break;
-	case XBEE_AT_AO: break;
-	/* I/O settings commands */
-	/* I/O sampling commands */
-	/* Sleep commands */
-	case XBEE_AT_SM: break;
-	case XBEE_AT_SO: break;
-	case XBEE_AT_SN: break;
-	case XBEE_AT_SP: break;
-	case XBEE_AT_ST: break;
-	case XBEE_AT_WH: break;
-	/* Diagnostic - sleep status/timing commands */
-	case XBEE_AT_SS: break;
-	case XBEE_AT_OS: break;
-	case XBEE_AT_OW: break;
-	case XBEE_AT_MS: break;
-	case XBEE_AT_SQ: break;
-	/* Command mode options */
-	case XBEE_AT_CC: break;
-	case XBEE_AT_CT: break;
-	case XBEE_AT_CN: break;
-	case XBEE_AT_GT: break;
-	case XBEE_AT_VL: break;
-#endif
-	case XBEE_AT_VR: xbdev->firmware_version = *((unsigned short*)buf); break;
-#if 0
-	case XBEE_AT_HV: break;
-	case XBEE_AT_DD: break;
-	case XBEE_AT_NP: break;
-	case XBEE_AT_CK: break;
-#endif
-	}
-
-
-}
-
-static void frame_recv_cmdr(struct xb_device *xbdev, struct sk_buff *skb)
-{
-	char frameid = *(skb->data+3);
-	unsigned short atcmd = *((unsigned short*)(skb->data+4));
-	char status = *(skb->data+6);
-	char* data = (skb->data)+7;
-	unsigned long datalen = (skb->len)-8;
-
-	pr_debug("%s\n", __func__);
-
-	print_hex_dump_bytes("data: ", DUMP_PREFIX_NONE, data, datalen);
-	frame_recv_atcmd(xbdev, frameid, atcmd, status, data, datalen);
-}
-
-static void frame_recv_rcmdr(struct sk_buff *skb)
-{
-	pr_debug("%s\n", __func__);
-}
-static void frame_recv_txstat(struct sk_buff *skb)
-{
-	pr_debug("%s\n", __func__);
-}
-static void frame_recv_rx16(struct sk_buff *skb)
-{
-	pr_debug("%s\n", __func__);
-}
-/**
- * xbee_recv_frame - ...
- *
- * @xbdev: ...
- * @frame: ...
- *
- * Verify the XBee frame, then take appropriate action depending on the
- * frame type.
- */
-static void frm_xbee_recv(struct xb_device *xbdev, struct sk_buff *skb)
-{
-	u8 id;
-
-	pr_debug("%s\n", __func__);
-
-	switch (id = frm_xbee_type(skb)) {
-	case XBEE_FRM_STAT:
-		frame_recv_stat(skb);
-		break;
-	case XBEE_FRM_CMDR:
-		frame_recv_cmdr(xbdev, skb);
-		break;
-	case XBEE_FRM_RCMDR:
-		frame_recv_rcmdr(skb);
-		break;
-	case XBEE_FRM_TXSTAT:
-		frame_recv_txstat(skb);
-		break;
-	case XBEE_FRM_RX64:
-		frame_recv_rx64(xbdev, skb);
-		break;
-	case XBEE_FRM_RX16:
-		frame_recv_rx16(skb);
-		break;
-	case XBEE_FRM_RX64IO:
-	case XBEE_FRM_RX16IO:
-		printk(KERN_WARNING "received unimplemented frame type 0x%x", id);
-		//skb_free(skb);
-		break;
-	case XBEE_FRM_CMD:
-	case XBEE_FRM_CMDQ:
-	case XBEE_FRM_RCMD:
-	case XBEE_FRM_TX64:
-	case XBEE_FRM_TX16:
-		printk(KERN_WARNING "received tx-only frame type 0x%x", id);
-		//skb_free(skb);
-		break;
-	default:
-//		XBEE_WARN("received unknown frame type 0x%x", id);
-	    pr_debug("%s received unknown frame type 0x%x\n", __func__, id);
-//		kfree_skb(skb);
-		break;
-	}
-}
-
-static void comm_work_fn(struct work_struct *param)
-{
-	struct xb_device* xb = NULL;
-	struct tty_struct *tty = NULL;
-
-	pr_debug("%s\n", __func__);
-
-	xb = (struct xb_device*)param;
-	tty = xb->tty;
-
-	if( skb_queue_empty(&xb->recv_queue) ) {
-		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
-
-		if(skb) {
-			frm_xbee_recv(xb, skb);
-		}
-	}
-
-	if( skb_queue_empty(&xb->send_queue) ) {
-		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
-
-		if(skb) {
-			print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
-			tty->ops->write(tty,  skb->data, skb->len);
-			tty_driver_flush_buffer(tty);
-		}
-	}
-
 }
 
 /*****************************************************************************
@@ -879,7 +895,6 @@ static void xbee_ldisc_close(struct tty_struct *tty){
 	tty->disc_data = NULL;
 	tty_kref_put(tty);
 	zbdev->tty = NULL;
-//	mutex_destroy(&zbdev->mutex);
 
 	ieee802154_unregister_hw(zbdev->dev);
 
@@ -899,8 +914,10 @@ static void xbee_ldisc_close(struct tty_struct *tty){
  * @arg: ...
  */
 static int xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
-			    unsigned int cmd, unsigned long arg){
+			    unsigned int cmd, unsigned long arg)
+{
 	pr_debug("%s\n", __func__);
+	// TODO
     return 0;
 }
 
@@ -915,9 +932,9 @@ static int xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 static int xbee_ldisc_hangup(struct tty_struct *tty)
 {
 	pr_debug("%s\n", __func__);
+	xbee_ldisc_close(tty);
     return 0;
 }
-
 
 /**
  * xbee_ldisc_recv_buf - Receive serial bytes.
@@ -936,36 +953,23 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 				char *cflags, int count)
 {
 	int ret = 0;
-	int i = 0;
 	struct xb_device *xbdev = NULL;
 	pr_debug("%s count=%d \n", __func__, count);
 
 	print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, buf, count);
 	
-	xbdev = tty->disc_data;
-	if (NULL == xbdev) {
+	if (tty->disc_data) {
 		printk(KERN_ERR "%s(): record for tty is not found\n", __func__);
 		return 0;
 	}
 
-	for(i=0; i<count; i++) {
-		struct sk_buff *skb = NULL;
-		/* Discard received data until NEWFRM marker appeared. */
-		//if(seq_buf_used(&xbdev->recv_seq_buf) >= 1 || buf[i] == XBEE_CHAR_NEWFRM) {
-		if(xbdev->recv_buf->len >= 1 || buf[i] == XBEE_CHAR_NEWFRM) {
-			//ret = seq_buf_putc(&xbdev->recv_seq_buf, buf[i]);
-			unsigned char* tail = skb_put(xbdev->recv_buf, 1);
-			*tail = buf[i];
-		}
-		//if ((skb = frm_xbee_verify(&xbdev->recv_seq_buf)) != NULL) {
-		if ((skb = frm_xbee_verify(xbdev->recv_buf)) != NULL) {
-			pr_debug("skd_append\n");
-			skb_append( skb_peek_tail(&xbdev->recv_queue), skb, &xbdev->recv_queue);
-		}
-	}
+	xbdev = tty->disc_data;
+	ret = frame_enqueue(xbdev, buf, count);
 
-	ret = queue_work(xbdev->comm_workq, (struct work_struct*)xbdev);
-	return i;
+	if(ret > 0) {
+		ret = queue_work(xbdev->comm_workq, (struct work_struct*)xbdev);
+	}
+	return count;
 }
 
 /*********************************************************************/
