@@ -197,7 +197,26 @@ int frame_verify_length_zero(void* arg) {
 	return 0;
 }
 
-#define TEST15 frame_verify_length_zero_valid
+#define TEST15 frame_verify_length_zero_invalid
+int frame_verify_length_zero_invalid(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7e, 0x00, 0x00, 0xFE };
+	const int count = 4;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+
+	ret = frame_verify(xbdev->recv_buf);
+
+	if(ret != -EINVAL) return -1;
+
+	return 0;
+}
+
+
+#define TEST16 frame_verify_length_zero_valid
 int frame_verify_length_zero_valid(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e, 0x00, 0x00, 0xFF };
