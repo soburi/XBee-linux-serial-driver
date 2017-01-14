@@ -105,6 +105,34 @@ int frame_new_test(void* arg) {
 	return 0;
 }
 
+#define TEST9 frame_calc_checksum_zero
+int frame_calc_checksum_zero(void* arg) {
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	const char buf[] = {0x7E, 0x00, 0x00 };
+	const int count = 3;
+	int ret = 0;
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_calc_checksum(xbdev->recv_buf);
+	if(ret != 0xFF) return -1;
+	return 0;
+}
+
+#define TEST10 frame_calc_checksum_example
+int frame_calc_checksum_example(void* arg) {
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	const char buf[] = {0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB};
+	const int count = 6;
+	int ret = 0;
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_calc_checksum(xbdev->recv_buf);
+	pr_debug("%d\n", ret);
+	if(ret != 0xCB) return -1;
+	return 0;
+}
+
+
 //#define TEST1 frame_enqueue_zerobyte
 int frame_enqueue_zerobyte(void* arg) {
 	int ret = 0;

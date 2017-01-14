@@ -163,20 +163,20 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 	return new_skb;
 }
 
+static const unsigned char frame_payload_length(struct sk_buff* recv_buf)
+{
+	struct xb_frameheader* frm = (struct xb_frameheader*)recv_buf->data;
+	return htons(frm->length);
+}
+
+static const unsigned char* frame_payload_buffer(struct sk_buff* recv_buf)
+{
+	return recv_buf->data + 3;
+}
+
 static unsigned char frame_calc_checksum(struct sk_buff* recv_buf)
 {
-	size_t len = 0;
-	unsigned char* buf = NULL;
-	int i=0;
-	unsigned char checksum = 0;
-
-	len = recv_buf->len  - 3;
-	buf = recv_buf->data + 3;
-
-	for(i=0; i<len; i++) {
-		checksum += buf[i];
-	}
-	return 0xFF - checksum;
+	return buffer_calc_checksum(frame_payload_buffer(recv_buf), frame_payload_length(recv_buf) );
 }
 
 static int frame_verify(struct sk_buff* recv_buf)
