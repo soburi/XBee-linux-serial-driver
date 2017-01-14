@@ -786,7 +786,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	xbdev = dev->priv;
 	xbdev->dev = dev;
-	//seq_buf_init(&xbdev->recv_seq_buf, xbdev->recv_buffer, 128);
+	xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
 	
 	skb_queue_head_init(&xbdev->recv_queue);
 	skb_queue_head_init(&xbdev->send_queue);
