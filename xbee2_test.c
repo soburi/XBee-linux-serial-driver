@@ -17,8 +17,13 @@ int modtest_check(void* arg) {
 int frame_enqueue_zerobyte(void* arg) {
 	int ret = 0;
 	const char buf[] = {};
+	const int count = 0;
 	struct xb_device* xbdev = (struct xb_device*)arg;
-	ret = frame_enqueue(xbdev, buf, 0);
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+
 	if(ret != 0) return -1;
 
 	if(xbdev->recv_buf->len != 0) return -1;
@@ -29,8 +34,13 @@ int frame_enqueue_zerobyte(void* arg) {
 int frame_enqueue_non_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x11 };
+	const int count = 1;
 	struct xb_device* xbdev = (struct xb_device*)arg;
-	ret = frame_enqueue(xbdev, buf, 1);
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+
 	if(ret != 0) return -1;
 
 	if(xbdev->recv_buf->len != 0) return -1;
@@ -41,8 +51,13 @@ int frame_enqueue_non_startmark(void* arg) {
 int frame_enqueue_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e };
+	const int count = 1;
 	struct xb_device* xbdev = (struct xb_device*)arg;
-	ret = frame_enqueue(xbdev, buf, 1);
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+
 	if(ret != 0) return -1;
 
 	if(xbdev->recv_buf->len != 1) return -1;
@@ -53,8 +68,13 @@ int frame_enqueue_startmark(void* arg) {
 int frame_enqueue_startmark_len(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e , 0x00, 0x3 };
+	const int count = 3;
 	struct xb_device* xbdev = (struct xb_device*)arg;
-	ret = frame_enqueue(xbdev, buf, 3);
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+
 	if(ret != 0) return -1;
 
 	if(xbdev->recv_buf->len != 3) return -1;

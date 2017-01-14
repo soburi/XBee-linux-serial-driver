@@ -105,37 +105,6 @@ enum {
 	XBEE_FRM_RCMDR = 0x97,
 };
 
-static bool frame_send(struct xb_device* xb, struct sk_buff* skb)
-{
-	bool already_on_queue = false;
-
-	pr_debug("%s\n", __func__);
-
-	skb_append( skb_peek_tail(&xb->send_queue), skb, &xb->send_queue);
-	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)xb);
-
-	return already_on_queue;
-}
-
-static int frame_sendrecv(struct xb_device *xb, struct sk_buff* skb)
-{
-	bool already_on_queue = false;
-	int ret = 0;
-	pr_debug("%s\n", __func__);
-
-	already_on_queue = frame_send(xb, skb);
-
-	//ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 100);
-
-	if(!ret) {
-		pr_debug("rett %d\n", ret);
-	}
-	else {
-		pr_debug("retf %d\n", ret);
-	}
-	return ret;
-}
-
 static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 {
 	struct sk_buff* new_skb = NULL;
@@ -151,103 +120,26 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 	return new_skb;
 }
 
-static int actual_length_escaped(const unsigned char* buf, const size_t buflen, const size_t datalen)
-{
-	int i=0;
-	bool next_escape = 0;
-	int escape = 0;
-	for(i=0; i<buflen&&(i-escape)<datalen; i++) {
-		if(buf[i] == 0x7D) escape++;
-	}
-
-	if(next_escape) return -EINVAL; //end with escape
-
-	if(buflen < datalen+escape) return -EINVAL;
-
-	return i;
-}
-
-static size_t frame_escaped_length(unsigned char* buf, size_t len) {
-		return 0;
-}
-
-static unsigned char frame_calc_checksum(const unsigned char* buf, const size_t len)
+static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t len)
 {
 	int i=0;
 	unsigned char checksum = 0;
-	for(i=0; i<len+1; i++) {
+	for(i=0; i<len; i++) {
 		checksum += buf[i];
 	}
 	return 0xFF - checksum;
 }
 
-static void frame_update_checksum(unsigned char* buf, size_t len)
+static int buffer_find_delimiter(const unsigned char* buf, const size_t len)
 {
-	unsigned char checksum = 0;
-	unsigned char* csum_ptr = NULL;
-	size_t paylen = 0;
-	int i = 0;
-	struct xb_frameheader* frm = NULL;
-	
-	pr_debug("%s\n", __func__);
-
-	frm = (struct xb_frameheader*)buf;
-
-	paylen = htons(frm->length);
-	csum_ptr = buf+3;
-
-	for(i=0; i<paylen+1; i++) {
-		checksum += csum_ptr[i];
+	int i=0;
+	for(i=0; i<len; i++) {
+		if(buf[i] == 0x7E) return i;
 	}
-	csum_ptr[i] = 0xFF - checksum;
+	return -1;
 }
 
-static int frame_sendrecv_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
-{
-	struct sk_buff* newskb = NULL;
-	struct xb_at_frame* atfrm = NULL;
-
-	pr_debug("%s\n", __func__);
-
-	newskb = frame_new(buflen, XBEE_FRM_CMD);
-	atfrm = (struct xb_at_frame*)newskb->data;
-
-	atfrm->id = xb->frameid++;
-	atfrm->command = htons(atcmd);
-
-	memcpy(atfrm->payload, buf, buflen);
-
-	frame_update_checksum(newskb->data, newskb->len);
-	return frame_sendrecv(xb, newskb);
-}
-
-static int frame_verify(struct sk_buff* recv_buf)
-{
-    unsigned short length;
-	uint8_t checksum = 0;
-	unsigned int received = 0;
-	struct xb_frameheader* header = NULL;
-
-	received = recv_buf->len;
-
-	if(received < 1) return -EAGAIN;
-	header = (struct xb_frameheader*)recv_buf->head;
-
-	if(recv_buf->head[0] != XBEE_CHAR_NEWFRM) return -EINVAL;
-
-	if(received < 3) return -EAGAIN;
-	length = htons(header->length);
-
-	if (received < length+3) return -EAGAIN;
-
-	checksum = frame_calc_checksum(recv_buf->head+3, received-3);
-
-	if (checksum==recv_buf->head[length+3]) return -EINVAL;
-
-    return 1; //TODO
-}
-
-static int unescape(unsigned char* buf, const size_t len)
+static size_t buffer_unescape(unsigned char* buf, const size_t len)
 {
 	int i=0;
 	int escape_count = 0;
@@ -271,44 +163,133 @@ static int unescape(unsigned char* buf, const size_t len)
 	return len-escape_count;
 }
 
-static int find_delimiter(const unsigned char* buf, const size_t len)
+static int frame_verify(struct sk_buff* recv_buf)
 {
-	int i=0;
-	for(i=0; i<len; i++) {
-		if(buf[i] == 0x7E) return i;
-	}
-	return -1;
+    unsigned short length;
+	uint8_t checksum = 0;
+	unsigned int received = 0;
+	struct xb_frameheader* header = NULL;
+
+	received = recv_buf->len;
+
+	if(received < 1) return -EAGAIN;
+	header = (struct xb_frameheader*)recv_buf->head;
+
+	if(recv_buf->head[0] != XBEE_CHAR_NEWFRM) return -EINVAL;
+
+	if(received < 3) return -EAGAIN;
+	length = htons(header->length);
+
+	if (received < length+3) return -EAGAIN;
+
+	checksum = buffer_calc_checksum(recv_buf->head+3, received-3);
+
+	if (checksum==recv_buf->head[length+3]) return -EINVAL;
+
+    return 1; //TODO
 }
 
-static int frame_enqueue(struct xb_device *xbdev, const unsigned char *buf, int count)
+static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf)
 {
 	int i = 0;
 	int frame_count = 0;
 	int frame_len = 0;
 	int unesc_len = 0;
 
-	unsigned char* tail = skb_put(xbdev->recv_buf, count);
-	memcpy(tail, buf, count);
+	unesc_len = buffer_unescape(recv_buf->head, recv_buf->len);
+	skb_trim(recv_buf, unesc_len);
 
-	unesc_len = unescape(tail, count);
-	skb_trim(xbdev->recv_buf, unesc_len);
-
-	i = find_delimiter(tail, unesc_len);
+	i = buffer_find_delimiter(recv_buf->head, unesc_len);
 	if(i<0) {
-		skb_trim(xbdev->recv_buf, 0);
+		skb_trim(recv_buf, 0);
 	}
 	else {
-		skb_pull(xbdev->recv_buf, i);
+		skb_pull(recv_buf, i);
 	}
 
-	if ( (frame_len = frame_verify(xbdev->recv_buf)) > 0) {
+	if ( (frame_len = frame_verify(recv_buf)) > 0) {
 		pr_debug("skd_append\n");
-		skb_append( skb_peek_tail(&xbdev->recv_queue), xbdev->recv_buf, &xbdev->recv_queue);
-		xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
+		skb_append( skb_peek_tail(recv_queue), recv_buf, recv_queue);
+		recv_buf = alloc_skb(128, GFP_ATOMIC);
 		frame_count++;
 	}
 
 	return frame_count;
+}
+
+static void frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_buf)
+{
+	pr_debug("%s\n", __func__);
+	skb_append( skb_peek_tail(send_queue), send_buf, send_queue);
+	//already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)xb);
+}
+#if 0
+static int frame_sendrecv(struct xb_device *xb, struct sk_buff* skb)
+{
+	bool already_on_queue = false;
+	int ret = 0;
+	pr_debug("%s\n", __func__);
+
+	already_on_queue = frame_enqueue_send(xb, skb);
+
+	//ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 100);
+
+	if(!ret) {
+		pr_debug("rett %d\n", ret);
+	}
+	else {
+		pr_debug("retf %d\n", ret);
+	}
+	return ret;
+}
+#endif
+static void frame_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
+{
+	struct sk_buff* newskb = NULL;
+	struct xb_at_frame* atfrm = NULL;
+
+	unsigned char checksum = 0;
+
+	pr_debug("%s\n", __func__);
+
+	newskb = frame_new(buflen, XBEE_FRM_CMD);
+	atfrm = (struct xb_at_frame*)newskb->data;
+
+	atfrm->id = xb->frameid++;
+	atfrm->command = htons(atcmd);
+
+	memcpy(atfrm->payload, buf, buflen);
+
+	checksum = buffer_calc_checksum(buf+3, buflen);
+	newskb->data[buflen+4] = checksum;
+
+	frame_enqueue_send(&xb->send_queue, newskb);
+}
+
+static bool xb_process_send(struct xb_device* xb)
+{
+	bool already_on_queue = false;
+
+	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)xb);
+
+	return already_on_queue;
+}
+
+static bool xb_process_sendrecv(struct xb_device* xb)
+{
+	int ret = 0;
+
+	xb_process_send(xb);
+
+	//ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 100);
+
+	if(!ret) {
+		pr_debug("rett %d\n", ret);
+	}
+	else {
+		pr_debug("retf %d\n", ret);
+	}
+	return ret;
 }
 
 static void frame_recv_rx64(struct xb_device *xbdev,
@@ -556,13 +537,12 @@ static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
 				       u8 page, u8 channel)
 {
 	struct xb_device *xb = NULL;
-	int ret = 0;
 	
 	pr_debug("%s page=%u channel=%u\n", __func__, page, channel);
 
 	xb = dev->priv;
 
-	ret = frame_sendrecv_at(xb, 0x4348, &channel, 1);
+	frame_enqueue_send_at(xb, 0x4348, &channel, 1);
     return 0;
 }
 
@@ -579,7 +559,7 @@ static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level)
 	pr_debug("%s\n", __func__);
 
 	xb = dev->priv;
-	frame_sendrecv_at(xb, 0x4544, NULL, 0);
+	frame_enqueue_send_at(xb, 0x4544, NULL, 0);
 
     return 0;
 }
@@ -604,7 +584,7 @@ static int xbee_ieee802154_set_frame_retries(struct ieee802154_hw *dev, s8 retri
 	pr_debug("%s\n", __func__);
 
 	xb = dev->priv;
-	frame_sendrecv_at(xb, 0x5252, &u_retries, 1);
+	frame_enqueue_send_at(xb, 0x5252, &u_retries, 1);
 
     return 0;
 }
@@ -641,8 +621,8 @@ static int xbee_ieee802154_set_txpower(struct ieee802154_hw *dev, s32 mbm)
 		pl=4; pm=1;
 	}
 
-	frame_sendrecv_at(xb, 0x504C, &pl, 1);
-	frame_sendrecv_at(xb, 0x504D, &pm, 1);
+	frame_enqueue_send_at(xb, 0x504C, &pl, 1);
+	frame_enqueue_send_at(xb, 0x504D, &pm, 1);
 
 	return 0;
 }
@@ -662,7 +642,7 @@ static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *dev, s32 mbm)
 
     ca = MBM_TO_DBM(mbm);
 
-    frame_sendrecv_at(xb, 0x4341, &ca, 1);
+    frame_enqueue_send_at(xb, 0x4341, &ca, 1);
 	return 0;
 }
 
@@ -994,8 +974,9 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 				char *cflags, int count)
 {
 	int ret = 0;
-	int escape = 0;
 	struct xb_device *xbdev = NULL;
+	unsigned char* tail = NULL;
+
 	pr_debug("%s count=%d \n", __func__, count);
 
 	print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, buf, count);
@@ -1006,13 +987,15 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 	}
 
 	xbdev = tty->disc_data;
-	if(buf[count-1] == 0x7D) escape = 1;
-	ret = frame_enqueue(xbdev, buf, count-escape);
+
+	tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
 	if(ret > 0) {
 		ret = queue_work(xbdev->comm_workq, (struct work_struct*)xbdev);
 	}
-	return count-escape;
+	return count;
 }
 
 /*********************************************************************/
