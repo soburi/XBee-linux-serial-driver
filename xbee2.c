@@ -234,7 +234,7 @@ static int frame_verify(struct sk_buff* recv_buf)
     unsigned short length;
 	uint8_t checksum = 0;
 	unsigned int received = 0;
-	unsigned int escapedlen = 0;
+	unsigned int actual_len= 0;
 	struct xb_frameheader* header = NULL;
 
 	received = recv_buf->len;
@@ -249,12 +249,12 @@ static int frame_verify(struct sk_buff* recv_buf)
 
 	if (received < length+3) return -EAGAIN;
 
-	escapedlen = frame_escaped_length(recv_buf->head, received);
+	actual_len = actual_length_escaped(recv_buf->head+3, received-3, length);
 	checksum = frame_calc_checksum(recv_buf->head, received);
 
-	if (checksum==recv_buf->head[escapedlen+3]) return -EINVAL;
+	if (checksum==recv_buf->head[actual_len+3]) return -EINVAL;
 
-    return escapedlen+3;
+    return 1; //TODO
 }
 
 static int frame_enqueue(struct xb_device *xbdev, const unsigned char *buf, int count)
