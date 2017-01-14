@@ -151,7 +151,7 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 	return new_skb;
 }
 
-static int actual_length_escaped(unsigned char* buf, size_t buflen, size_t datalen)
+static int actual_length_escaped(const unsigned char* buf, const size_t buflen, const size_t datalen)
 {
 	int i=0;
 	bool next_escape = 0;
