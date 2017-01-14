@@ -229,21 +229,17 @@ static int frame_verify(struct sk_buff* recv_buf)
 
 	// trim escape
 
-	if(received < 4) return -EINVAL;
-
-	//header = (struct xb_frameheader*)recv_seq_buf->buffer;
+	if(received < 1) return -EAGAIN;
 	header = (struct xb_frameheader*)recv_buf->head;
 
-	if(header->start_delimiter != XBEE_CHAR_NEWFRM) return -EINVAL;
+	if(recv_buf->head[0] != XBEE_CHAR_NEWFRM) return -EINVAL;
 
+	if(received < 3) return -EAGAIN;
 	length = htons(header->length);
 
-	if (received < length) return -EINVAL;
+	if (received < length+3) return -EAGAIN;
 
-	//escapedlen = frame_escaped_length(recv_seq_buf->buffer, received);
 	escapedlen = frame_escaped_length(recv_buf->head, received);
-
-	//checksum = frame_calc_checksum(recv_seq_buf->buffer, received);
 	checksum = frame_calc_checksum(recv_buf->head, received);
 
 	//if (checksum==recv_seq_buf->buffer[escapedlen+3]) return NULL;
