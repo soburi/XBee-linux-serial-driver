@@ -37,6 +37,18 @@ int frame_enqueue_non_startmark(void* arg) {
 	return 0;
 }
 
+#define TEST3 frame_enqueue_startmark
+int frame_enqueue_startmark(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7e };
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	ret = frame_enqueue(xbdev, buf, 1);
+	if(ret != 0) return -1;
+
+	if(xbdev->recv_buf->len != 1) return -1;
+	return 0;
+}
+
 #include "gen_modtest.h"
 
 #endif //MODTEST_ENABLE
