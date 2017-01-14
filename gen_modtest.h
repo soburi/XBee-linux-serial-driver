@@ -15,6 +15,7 @@
 
 #undef MODTEST_TESTS
 #define MODTEST_TESTS {\
+	E_TEST0 \
 	E_TEST1 \
 	E_TEST2 \
 	E_TEST3 \
@@ -272,8 +273,13 @@
 	E_TEST255 \
 }
 
+#ifdef TEST0
+#define E_TEST0 TEST0
+#else
+#define E_TEST0
+#endif
 #ifdef TEST1
-#define E_TEST1 TEST1
+#define E_TEST1 , TEST1
 #else
 #define E_TEST1
 #endif
