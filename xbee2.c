@@ -181,26 +181,23 @@ static unsigned char frame_calc_checksum(struct sk_buff* recv_buf)
 
 static int frame_verify(struct sk_buff* recv_buf)
 {
-    unsigned short length;
+	unsigned short length = 0;
 	uint8_t checksum = 0;
-	unsigned int received = 0;
 	struct xb_frameheader* header = NULL;
 
-	received = recv_buf->len;
-
-	if(received < 1) return -EAGAIN;
+	if(recv_buf->len < 1) return -EAGAIN;
 	header = (struct xb_frameheader*)recv_buf->data;
 
 	if(recv_buf->data[0] != XBEE_CHAR_NEWFRM) return -EINVAL;
 
-	if(received < 3) return -EAGAIN;
+	if(recv_buf->len < 3) return -EAGAIN;
 	length = htons(header->length);
 
-	if (received < length+3) return -EAGAIN;
+	if (recv_buf->len < length+4) return -EAGAIN;
 
 	checksum = frame_calc_checksum(recv_buf);
 
-	if (checksum==recv_buf->data[length+3]) return -EINVAL;
+	if (checksum!=recv_buf->data[length+3]) return -EINVAL;
 
     return 1; //TODO
 }
