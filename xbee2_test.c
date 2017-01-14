@@ -122,7 +122,7 @@ int frame_verify_length_zero(void* arg) {
 
 	return 0;
 }
-
+#if 0
 #define TEST7 actual_length_escaped_zero
 int actual_length_escaped_zero(void* arg) {
 	const char buf[] = { };
@@ -196,7 +196,7 @@ int actual_length_escaped_larger_buf(void* arg) {
 
 	return 0;
 }
-
+#endif
 #include "gen_modtest.h"
 
 #endif //MODTEST_ENABLE
