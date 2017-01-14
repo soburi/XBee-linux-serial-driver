@@ -222,23 +222,36 @@ static int frame_verify(struct sk_buff* recv_buf)
     return length+4;
 }
 
+static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char* buf, const size_t len)
+{
+	int delimiter_pos = 0;
+	unsigned char* tail = NULL;
+
+	delimiter_pos = buffer_find_delimiter_escaped(buf, len);
+
+	if(recv_buf->len == 0) {
+		if(delimiter_pos == -1) {
+			return 0;
+		}
+		tail = skb_put(recv_buf, len-delimiter_pos);
+		memcpy(tail, buf+delimiter_pos, len-delimiter_pos);
+		return len-delimiter_pos;
+	}
+	else {
+		tail = skb_put(recv_buf, len);
+		memcpy(tail, buf, len);
+		return len;
+	}
+}
+
 static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf)
 {
-	int i = 0;
 	int frame_count = 0;
 	int frame_len = 0;
 	int unesc_len = 0;
 
 	unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
 	skb_trim(recv_buf, unesc_len);
-
-	i = buffer_find_delimiter_unescaped(recv_buf->data, unesc_len);
-	if(i<0) {
-		skb_trim(recv_buf, 0);
-	}
-	else {
-		skb_pull(recv_buf, i);
-	}
 
 	if ( (frame_len = frame_verify(recv_buf)) > 0) {
 		pr_debug("skd_append\n");
@@ -1013,7 +1026,6 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 {
 	int ret = 0;
 	struct xb_device *xbdev = NULL;
-	unsigned char* tail = NULL;
 
 	pr_debug("%s count=%d \n", __func__, count);
 
@@ -1026,8 +1038,10 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 
 	xbdev = tty->disc_data;
 
-	tail = skb_put(xbdev->recv_buf, count);
-	memcpy(tail, buf, count);
+	ret = frame_put_received_data(xbdev->recv_buf, buf, count);
+
+	if(ret == 0) return count;
+
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
 	if(ret > 0) {

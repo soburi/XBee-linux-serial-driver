@@ -283,7 +283,7 @@ int frame_enqueue_non_startmark(void* arg) {
 
 	if(ret != 0) return -1;
 
-	if(xbdev->recv_buf->len != 0) return -1;
+	if(xbdev->recv_buf->len != 1) return -1;
 	return 0;
 }
 
