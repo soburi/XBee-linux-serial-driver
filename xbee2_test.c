@@ -123,8 +123,55 @@ int frame_verify_length_zero(void* arg) {
 	return 0;
 }
 
+#define TEST7 actual_length_escaped_zero
+int actual_length_escaped_zero(void* arg) {
+	const char buf[] = { };
+	int ret = 0;
+
+	ret = actual_length_escaped(buf, 0, 0);
+
+	if(ret != 0) return -1;
+
+	return 0;
+}
 
 
+#define TEST8 actual_length_escaped_1byte
+int actual_length_escaped_1byte(void* arg) {
+	const char buf[] = { 0x01 };
+	int ret = 0;
+
+	ret = actual_length_escaped(buf, 1, 1);
+
+	if(ret != 1) return -1;
+
+	return 0;
+}
+
+#define TEST9 actual_length_escaped_too_short
+int actual_length_escaped_too_short(void* arg) {
+	const char buf[] = { 0x01 };
+	int ret = 0;
+
+	ret = actual_length_escaped(buf, 1, 2);
+
+	if(ret != 1) return -1;
+
+	return 0;
+}
+
+
+#define TEST10 actual_length_escaped_end_with_escape
+int actual_length_escaped_end_with_escape(void* arg) {
+	const char buf[] = { 0x7D };
+	int ret = 0;
+
+	ret = actual_length_escaped(buf, 1, 1);
+
+	if(ret != -EINVAL) return -1;
+
+	return 0;
+}
 
 #include "gen_modtest.h"
 

@@ -151,9 +151,30 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 	return new_skb;
 }
 
-static size_t frame_escaped_length(unsigned char* buf, size_t len)
+static int actual_length_escaped(unsigned char* buf, size_t buflen, size_t datalen)
 {
-	return 0;
+	int i=0;
+	bool next_escape = 0;
+	int escape = 0;
+	for(i=0; i<buflen&&(i-escape)<datalen; i++) {
+		if(next_escape) {
+			escape++;
+			next_escape =false;
+		}
+		if(buf[i] == 0x7D) next_escape = true;
+
+		//if(buf[i] == 0x7E || buf[i] == 0x7D || buf[i] == 0x11 || buf[i] == 0x13)
+
+	}
+
+	if(next_escape) return -EINVAL; //end with escape
+
+	if(datalen+escape < buflen) return -EINVAL;
+
+	return i;
+}
+static size_t frame_escaped_length(unsigned char* buf, size_t len) {
+		return 0;
 }
 
 static unsigned char frame_calc_checksum(unsigned char* buf, size_t len)
