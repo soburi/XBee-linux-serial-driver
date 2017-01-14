@@ -166,25 +166,17 @@ static int actual_length_escaped(const unsigned char* buf, const size_t buflen, 
 
 	return i;
 }
+
 static size_t frame_escaped_length(unsigned char* buf, size_t len) {
 		return 0;
 }
 
-static unsigned char frame_calc_checksum(unsigned char* buf, size_t len)
+static unsigned char frame_calc_checksum(const unsigned char* buf, const size_t len)
 {
+	int i=0;
 	unsigned char checksum = 0;
-	unsigned char* csum_ptr = NULL;
-	size_t paylen = 0;
-	int i = 0;
-	struct xb_frameheader* frm = (struct xb_frameheader*)buf;
-	
-	pr_debug("%s\n", __func__);
-
-	paylen = htons(frm->length);
-	csum_ptr = buf+3;
-
-	for(i=0; i<paylen+1; i++) {
-		checksum += csum_ptr[i];
+	for(i=0; i<len+1; i++) {
+		checksum += buf[i];
 	}
 	return 0xFF - checksum;
 }
@@ -234,7 +226,6 @@ static int frame_verify(struct sk_buff* recv_buf)
     unsigned short length;
 	uint8_t checksum = 0;
 	unsigned int received = 0;
-	unsigned int actual_len= 0;
 	struct xb_frameheader* header = NULL;
 
 	received = recv_buf->len;
@@ -249,12 +240,44 @@ static int frame_verify(struct sk_buff* recv_buf)
 
 	if (received < length+3) return -EAGAIN;
 
-	actual_len = actual_length_escaped(recv_buf->head+3, received-3, length);
-	checksum = frame_calc_checksum(recv_buf->head, received);
+	checksum = frame_calc_checksum(recv_buf->head+3, received-3);
 
-	if (checksum==recv_buf->head[actual_len+3]) return -EINVAL;
+	if (checksum==recv_buf->head[length+3]) return -EINVAL;
 
     return 1; //TODO
+}
+
+static int unescape(unsigned char* buf, const size_t len)
+{
+	int i=0;
+	int escape_count = 0;
+	bool esc = false;
+
+	for(i=0; i<len; i++) {
+		if(buf[i] == 0x7D) {
+			esc = true;
+			escape_count++;
+			continue;
+		}
+		if(esc) buf[i-escape_count] = (buf[i] ^ 0x20);
+		else    buf[i-escape_count] =  buf[i];
+		esc = false;
+	}
+	if(esc) {
+		buf[i-escape_count] = 0x7D;
+		escape_count--;
+	}
+
+	return len-escape_count;
+}
+
+static int find_delimiter(const unsigned char* buf, const size_t len)
+{
+	int i=0;
+	for(i=0; i<len; i++) {
+		if(buf[i] == 0x7E) return i;
+	}
+	return -1;
 }
 
 static int frame_enqueue(struct xb_device *xbdev, const unsigned char *buf, int count)
@@ -262,24 +285,29 @@ static int frame_enqueue(struct xb_device *xbdev, const unsigned char *buf, int 
 	int i = 0;
 	int frame_count = 0;
 	int frame_len = 0;
+	int unesc_len = 0;
 
-	for(i=0; i<count; i++) {
-		//struct sk_buff *skb = NULL;
-		/* Discard received data until NEWFRM marker appeared. */
-		//if(seq_buf_used(&xbdev->recv_seq_buf) >= 1 || buf[i] == XBEE_CHAR_NEWFRM) {
-		if(xbdev->recv_buf->len >= 1 || buf[i] == XBEE_CHAR_NEWFRM) {
-			//ret = seq_buf_putc(&xbdev->recv_seq_buf, buf[i]);
-			unsigned char* tail = skb_put(xbdev->recv_buf, 1);
-			*tail = buf[i];
-		}
-		//if ((skb = frm_xbee_verify(&xbdev->recv_seq_buf)) != NULL) {
-		if ( (frame_len = frame_verify(xbdev->recv_buf)) > 0) {
-			pr_debug("skd_append\n");
-			skb_append( skb_peek_tail(&xbdev->recv_queue), xbdev->recv_buf, &xbdev->recv_queue);
-			xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
-			frame_count++;
-		}
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+
+	unesc_len = unescape(tail, count);
+	skb_trim(xbdev->recv_buf, unesc_len);
+
+	i = find_delimiter(tail, unesc_len);
+	if(i<0) {
+		skb_trim(xbdev->recv_buf, 0);
 	}
+	else {
+		skb_pull(xbdev->recv_buf, i);
+	}
+
+	if ( (frame_len = frame_verify(xbdev->recv_buf)) > 0) {
+		pr_debug("skd_append\n");
+		skb_append( skb_peek_tail(&xbdev->recv_queue), xbdev->recv_buf, &xbdev->recv_queue);
+		xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
+		frame_count++;
+	}
+
 	return frame_count;
 }
 
@@ -966,6 +994,7 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 				char *cflags, int count)
 {
 	int ret = 0;
+	int escape = 0;
 	struct xb_device *xbdev = NULL;
 	pr_debug("%s count=%d \n", __func__, count);
 
@@ -977,12 +1006,13 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 	}
 
 	xbdev = tty->disc_data;
-	ret = frame_enqueue(xbdev, buf, count);
+	if(buf[count-1] == 0x7D) escape = 1;
+	ret = frame_enqueue(xbdev, buf, count-escape);
 
 	if(ret > 0) {
 		ret = queue_work(xbdev->comm_workq, (struct work_struct*)xbdev);
 	}
-	return count;
+	return count-escape;
 }
 
 /*********************************************************************/
