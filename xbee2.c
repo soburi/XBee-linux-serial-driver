@@ -34,6 +34,7 @@ struct xb_work {
 };
 
 struct xb_device {
+	struct ieee802154_hw hw;
 	struct work_struct work;
 	struct tty_struct *tty;
 	struct ieee802154_hw *dev;
@@ -850,7 +851,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	tty_driver_flush_buffer(tty);
 
-	dev = ieee802154_alloc_hw(sizeof(*xbdev), &xbee_ieee802154_ops);
+	dev = ieee802154_alloc_hw(sizeof(struct xb_device), &xbee_ieee802154_ops);
 	if (!dev)
 		return -ENOMEM;
 
