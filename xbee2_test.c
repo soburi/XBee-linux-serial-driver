@@ -620,6 +620,44 @@ int xbee_ieee802154_set_cca_ed_level_test(void* arg) {
 }
 
 
+#define TEST35 xbee_ieee802154_set_csma_params_test
+int xbee_ieee802154_set_csma_params_test(void* arg) {
+	int ret = 0;
+	const char buf[] =  { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x52, 0x4E, 0x56 };
+	const int count = 8;
+	const char buf2[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x52, 0x52, 0x52 };
+	const int count2 = 8;
+	struct sk_buff* send_buf = NULL;
+	unsigned char* tail = NULL;
+	struct xb_device* xbdev = NULL;
+
+	xbdev = (struct xb_device*)arg;
+	xbee_ieee802154_set_csma_params((struct ieee802154_hw*)xbdev->dev, 2, 5, 1);
+
+	send_buf = alloc_skb(128, GFP_KERNEL);
+	tail = skb_put(send_buf, count);
+	memcpy(tail, buf, count);
+	frame_enqueue_send(&xbdev->send_queue, send_buf);
+
+	send_buf = alloc_skb(128, GFP_KERNEL);
+	tail = skb_put(send_buf, count);
+	memcpy(tail, buf2, count2);
+	frame_enqueue_send(&xbdev->send_queue, send_buf);
+
+	ret = xb_process_sendrecv(xbdev);
+
+	//if(ret != 1) return -1;
+
+	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
+
+	//if(xbdev->recv_buf->len != 0) return -1;
+
+	// TODO inspect received data
+
+	return 0;
+}
+
+
 #include "gen_modtest.h"
 
 #endif //MODTEST_ENABLE

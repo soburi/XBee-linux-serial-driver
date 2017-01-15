@@ -35,6 +35,8 @@ enum {
 	XBEE_AT_CA = AT_DECL('C','A'),
 	XBEE_AT_CH = AT_DECL('C','H'),
 	XBEE_AT_PL = AT_DECL('P','L'),
+	XBEE_AT_RN = AT_DECL('R','N'),
+	XBEE_AT_RR = AT_DECL('R','R'),
 };
 
 /*********************************************************************/
@@ -620,7 +622,14 @@ static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level)
 
 static int xbee_ieee802154_set_csma_params(struct ieee802154_hw *dev, u8 min_be, u8 max_be, u8 retries)
 {
+	struct xb_device *xb = NULL;
+
 	pr_debug("%s\n", __func__);
+
+	xb = dev->priv;
+	xb_enqueue_send_at(xb, XBEE_AT_RN, &min_be, 1);
+	xb_enqueue_send_at(xb, XBEE_AT_RR, &retries, 1);
+
 	return 0;
 }
 
@@ -633,12 +642,11 @@ static int xbee_ieee802154_set_csma_params(struct ieee802154_hw *dev, u8 min_be,
 static int xbee_ieee802154_set_frame_retries(struct ieee802154_hw *dev, s8 retries)
 {
 	struct xb_device *xb = NULL;
-	unsigned char u_retries = retries;
 
 	pr_debug("%s\n", __func__);
 
 	xb = dev->priv;
-	xb_enqueue_send_at(xb, 0x5252, &u_retries, 1);
+	//xb_enqueue_send_at(xb, XBEE_AT_RR, &u_retries, 1);
 
     return 0;
 }
@@ -671,6 +679,24 @@ static int xbee_ieee802154_set_txpower(struct ieee802154_hw *dev, s32 mbm)
 static int xbee_ieee802154_set_cca_mode(struct ieee802154_hw *dev, const struct wpan_phy_cca *cca)
 {
 	pr_debug("%s cca=%p\n", __func__, cca);
+
+#if 0
+	switch(cca->mode) {
+	case NL802154_CCA_ENERGY:
+	case NL802154_CCA_CARRIER:
+	case NL802154_CCA_ENERGY_CARRIER:
+	case NL802154_CCA_ALOHA:
+	case NL802154_CCA_UWB_SHR:
+	case NL802154_CCA_UWB_MULTIPLEXED:
+	default:
+	}
+
+	switch(cca->opts) {
+	case NL802154_CCA_OPT_ENERGY_CARRIER_AND:
+	case NL802154_CCA_OPT_ENERGY_CARRIER_OR:
+	default:
+	}
+#endif
 	return 0;
 }
 
@@ -863,7 +889,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	dev->phy->supported.min_csma_backoffs = 0; /* N/A */
 	dev->phy->supported.max_csma_backoffs = 0; /* N/A */
 	dev->phy->supported.min_frame_retries = 0;
-	dev->phy->supported.max_frame_retries = 6;
+	dev->phy->supported.max_frame_retries = 0;
 	dev->phy->supported.tx_powers_size = 0;
 /*
 	dev->phy->supported.cca_ed_levels_size = 41;
