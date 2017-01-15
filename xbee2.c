@@ -658,23 +658,20 @@ static int xbee_ieee802154_set_frame_retries(struct ieee802154_hw *hw, s8 retrie
     return 0;
 }
 
-static int xbee_ieee802154_set_txpower(struct ieee802154_hw *hw, s32 mbm)
+static int xbee_ieee802154_set_txpower(struct ieee802154_hw *hw, s32 dbm)
 {
 	struct xb_device *xb = hw->priv;
-	s32 dbm;
 	u8 pl;
 
-	pr_debug("%s mbm=%d\n", __func__, mbm);
+	pr_debug("%s mbm=%d\n", __func__, dbm);
 
-	dbm  = MBM_TO_DBM(mbm);
-
-	if(dbm >= 10) {
+	if(dbm >= 1000) {
 		pl=0;
-	} else if(dbm >= 6) {
+	} else if(dbm >= 600) {
 		pl=1;
-	} else if(dbm >= 4) {
+	} else if(dbm >= 400) {
 		pl=2;
-	} else if(dbm >= 2) {
+	} else if(dbm >= 200) {
 		pl=3;
 	} else {
 		pl=4;
@@ -709,14 +706,14 @@ static int xbee_ieee802154_set_cca_mode(struct ieee802154_hw *hw, const struct w
 	return 0;
 }
 
-static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *hw, s32 mbm)
+static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *hw, s32 dbm)
 {
 	struct xb_device *xb = hw->priv;
 	u8 ca;
 
-	pr_debug("%s mbm=%d\n", __func__, mbm);
+	pr_debug("%s dbm=%d ca=%d\n", __func__, dbm, -dbm/100);
 
-	ca = MBM_TO_DBM(mbm);
+	ca = -dbm/100;
 
 	xb_enqueue_send_at(xb, XBEE_AT_CA, &ca, 1);
 	return 0;
@@ -864,7 +861,7 @@ static void setup_dev(struct ieee802154_hw *hw)
 
 	{
 	static const s32 tx_powers[] = {
-		1000, 6000, 4000, 2000, 0
+		1000, 600, 400, 200, 0
 	};
 	hw->phy->supported.tx_powers = tx_powers;
 	hw->phy->supported.tx_powers_size = sizeof(tx_powers)/sizeof(tx_powers[0]);
