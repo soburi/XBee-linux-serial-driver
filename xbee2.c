@@ -142,12 +142,14 @@ enum {
 #define AT_DECL(x, y) ( x << 8 | y )
 
 enum {
-	XBEE_AT_VR = AT_DECL('V','R'),
 	XBEE_AT_CA = AT_DECL('C','A'),
 	XBEE_AT_CH = AT_DECL('C','H'),
+	XBEE_AT_ID = AT_DECL('I','D'),
+	XBEE_AT_MY = AT_DECL('M','Y'),
 	XBEE_AT_PL = AT_DECL('P','L'),
 	XBEE_AT_RN = AT_DECL('R','N'),
 	XBEE_AT_RR = AT_DECL('R','R'),
+	XBEE_AT_VR = AT_DECL('V','R'),
 };
 
 enum {
@@ -166,7 +168,7 @@ static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t
 	}
 	return 0xFF - checksum;
 }
-
+/*
 static int buffer_find_delimiter_unescaped(const unsigned char* buf, const size_t len)
 {
 	int i=0;
@@ -175,7 +177,7 @@ static int buffer_find_delimiter_unescaped(const unsigned char* buf, const size_
 	}
 	return -1;
 }
-
+*/
 static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
 {
 	int i=0;
@@ -736,17 +738,17 @@ static int xbee_ieee802154_filter(struct ieee802154_hw *hw,
 					  struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed)
 {
-	//struct xb_device *xbdev = hw->priv;
+	struct xb_device *xb = hw->priv;
 	pr_debug("%s filt.pan_id=%0x filt.short=%0x filt.ieee=%0llx filt.pan_coord=%x changed=%lx\n", __func__, filt->pan_id, filt->short_addr, filt->ieee_addr, filt->pan_coord, changed);
 
 	if(changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		unsigned short saddr = htons(filt->short_addr);
-		xb_enqueue_send_at(xb, XBEE_AT_MY, &saddr, 2);
+		xb_enqueue_send_at(xb, XBEE_AT_MY, (unsigned char*)&saddr, 2);
 	} else if(IEEE802154_AFILT_IEEEADDR_CHANGED) {
 		return -1; // 64bit address is readonly.
 	} else if(IEEE802154_AFILT_PANID_CHANGED) {
 		unsigned short panid = htons(filt->pan_id);
-		xb_enqueue_send_at(xb, XBEE_AT_ID, &panid, 2);
+		xb_enqueue_send_at(xb, XBEE_AT_ID, (unsigned char*)&panid, 2);
 	} else if(IEEE802154_AFILT_PANC_CHANGED) {
 		filt->pan_coord;
 	}
