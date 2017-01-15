@@ -32,6 +32,7 @@ enum {
 
 enum {
 	XBEE_AT_VR = AT_DECL('V','R'),
+	XBEE_AT_CA = AT_DECL('C','A'),
 	XBEE_AT_CH = AT_DECL('C','H'),
 	XBEE_AT_PL = AT_DECL('P','L'),
 };
@@ -648,8 +649,6 @@ static int xbee_ieee802154_set_txpower(struct ieee802154_hw *dev, s32 mbm)
 	s32 dbm;
 	u8 pl;
 
-	pr_debug("%s mbm=%d\n", __func__, mbm);
-
 	dbm  = MBM_TO_DBM(mbm);
 
 	if(dbm >= 10) {
@@ -680,11 +679,9 @@ static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *dev, s32 mbm)
 	struct xb_device *xb = dev->priv;
     u8 ca;
 
-    pr_debug("%s mbm=%d\n", __func__, mbm);
-
     ca = MBM_TO_DBM(mbm);
 
-    xb_enqueue_send_at(xb, 0x4341, &ca, 1);
+    xb_enqueue_send_at(xb, XBEE_AT_CA, &ca, 1);
 	return 0;
 }
 
