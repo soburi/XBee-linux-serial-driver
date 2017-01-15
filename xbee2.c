@@ -474,10 +474,10 @@ static void frame_recv_rcmdr(struct sk_buff *skb)
 {
 	pr_debug("%s\n", __func__);
 }
-static void frame_recv_txstat(struct sk_buff *skb)
-{
-	pr_debug("%s\n", __func__);
-}
+//static void frame_recv_txstat(struct sk_buff *skb)
+//{
+//	pr_debug("%s\n", __func__);
+//}
 static void frame_recv_rx16(struct sk_buff *skb)
 {
 	pr_debug("%s\n", __func__);
@@ -597,7 +597,7 @@ static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
 
 	pr_debug("xb_send_at %x\n", XBEE_AT_CH);
 	xb_enqueue_send_at(xb, XBEE_AT_CH, &channel, 1);
-	//xb_process_sendrecv(xb);
+	xb_process_sendrecv(xb);
     return 0;
 }
 
