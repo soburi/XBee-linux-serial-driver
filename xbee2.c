@@ -337,7 +337,7 @@ static bool xb_process_sendrecv(struct xb_device* xb)
 	ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 1000);
 
 	if(ret > 0) {
-		pr_debug("complete %d\n", ret);
+		//pr_debug("complete %d\n", ret);
 	}
 	else if(ret == -ERESTARTSYS) {
 		pr_debug("interrupted %d\n", ret);
@@ -368,7 +368,7 @@ static void frame_recv_stat(struct sk_buff *skb)
 
 static void frame_recv_atcmd(struct xb_device *xbdev, char frameid, unsigned short atcmd, char status, char* buf, unsigned long buflen)
 {
-	pr_debug("%s [%c%c] frameid=%d len=%lu\n", __func__, atcmd&0xFF, (atcmd>>8)&0xFF, frameid, buflen );
+	//pr_debug("%s [%c%c] frameid=%d len=%lu\n", __func__, atcmd&0xFF, (atcmd>>8)&0xFF, frameid, buflen );
 	switch(atcmd) {
 #if 0
 	/* Special commands */
@@ -468,9 +468,7 @@ static void frame_recv_cmdr(struct xb_device *xbdev, struct sk_buff *skb)
 	char* data = (skb->data)+7;
 	unsigned long datalen = (skb->len)-8;
 
-	pr_debug("%s\n", __func__);
-
-	print_hex_dump_bytes("data: ", DUMP_PREFIX_NONE, data, datalen);
+	//print_hex_dump_bytes("data: ", DUMP_PREFIX_NONE, data, datalen);
 	frame_recv_atcmd(xbdev, frameid, atcmd, status, data, datalen);
 }
 
@@ -498,8 +496,6 @@ static void frame_recv_rx16(struct sk_buff *skb)
 static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 {
 	struct xb_frameheader* frm = (struct xb_frameheader*)skb->data;
-
-	pr_debug("%s\n", __func__);
 
 	switch (frm->type) {
 	case XBEE_FRM_STAT:
@@ -624,11 +620,11 @@ static int xbee_ieee802154_set_csma_params(struct ieee802154_hw *dev, u8 min_be,
 {
 	struct xb_device *xb = NULL;
 
-	pr_debug("%s\n", __func__);
-
 	xb = dev->priv;
 	xb_enqueue_send_at(xb, XBEE_AT_RN, &min_be, 1);
+	xb_process_sendrecv(xb);
 	xb_enqueue_send_at(xb, XBEE_AT_RR, &retries, 1);
+	xb_process_sendrecv(xb);
 
 	return 0;
 }
