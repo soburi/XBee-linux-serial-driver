@@ -28,6 +28,11 @@ enum {
 
 /*********************************************************************/
 
+struct xb_work {
+	struct work_struct work;
+	struct xb_device* xb_device;
+};
+
 struct xb_device {
 	struct work_struct work;
 	struct tty_struct *tty;
@@ -44,6 +49,8 @@ struct xb_device {
 
 	uint8_t frameid;
 	unsigned short firmware_version;
+
+	struct xb_work xbwork;
 
 	DECL_MODTEST_STRUCT();
 };
@@ -318,7 +325,7 @@ static bool xb_process_send(struct xb_device* xb)
 {
 	bool already_on_queue = false;
 
-	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)xb);
+	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)&xb->xbwork.work);
 
 	return already_on_queue;
 }
@@ -533,10 +540,12 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 
 static void comm_work_fn(struct work_struct *param)
 {
+	struct xb_work* xbwork = NULL;
 	struct xb_device* xb = NULL;
 	struct tty_struct *tty = NULL;
 
-	xb = (struct xb_device*)param;
+	xbwork = (struct xb_work*)param;
+	xb = xbwork->xb_device;
 	tty = xb->tty;
 
 	if( !skb_queue_empty(&xb->recv_queue) ) {
@@ -857,7 +866,8 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	init_completion(&xbdev->cmd_resp_done);
 	//init_waitqueue_head(&xbdev->frame_waitq);
 	xbdev->comm_workq = create_workqueue("comm_workq");
-	INIT_WORK( (struct work_struct*)xbdev, comm_work_fn);
+	xbdev->xbwork.xb_device= xbdev;
+	INIT_WORK( (struct work_struct*)&xbdev->xbwork.work, comm_work_fn);
 
 	INIT_MODTEST(xbdev);
 
@@ -1041,7 +1051,7 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
 	if(ret > 0) {
-		ret = queue_work(xbdev->comm_workq, (struct work_struct*)xbdev);
+		ret = queue_work(xbdev->comm_workq, (struct work_struct*)&xbdev->xbwork.work);
 	}
 	return count;
 }
