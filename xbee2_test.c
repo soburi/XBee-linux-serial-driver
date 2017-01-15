@@ -137,15 +137,15 @@ int buffer_unescape_end_escape(void* arg) {
 
 #define TEST12 frame_new_test
 int frame_new_test(void* arg) {
-	struct sk_buff* skb = frame_new(0x0102, 9);
+	struct sk_buff* skb = frame_new(9, 0x0F);
 	struct xb_frameheader* frm = NULL;
 
 	frm = (struct xb_frameheader*)skb->data;
 
 	if(skb->data[0] != 0x7E) return -1;
-	if(skb->data[1] != 0x03) return -1;
-	if(skb->data[2] != 0x01) return -1;
-	if(skb->data[3] != 0x09) return -1;
+	if(skb->data[1] != 0x00) return -1;
+	if(skb->data[2] != 0x0a) return -1;
+	if(skb->data[3] != 0x0F) return -1;
 
 	return 0;
 }
@@ -500,7 +500,7 @@ int frame_enqueue_send_vr(void* arg) {
 	return 0;
 }
 
-
+#if 0
 #define TEST32 xb_process_sendrecv_vr
 int xb_process_sendrecv_vr(void* arg) {
 	int ret = 0;
@@ -521,6 +521,34 @@ int xb_process_sendrecv_vr(void* arg) {
 	if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
 
 	if(xbdev->recv_buf->len != 0) return -1;
+
+	return 0;
+}
+#endif
+
+#define TEST33 xbee_ieee802154_set_channel_test
+int xbee_ieee802154_set_channel_test(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x43, 0x41, 0x72 };
+	const int count = 8;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	xbee_ieee802154_set_channel((struct ieee802154_hw*)xbdev->dev, 0, 13);
+
+	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
+	unsigned char* tail = skb_put(send_buf, count);
+	memcpy(tail, buf, count);
+	frame_enqueue_send(&xbdev->send_queue, send_buf);
+
+	xb_process_sendrecv(xbdev);
+
+	//if(ret != 1) return -1;
+
+	if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
+
+	if(xbdev->recv_buf->len != 0) return -1;
+
+	// TODO inspect received data
 
 	return 0;
 }
