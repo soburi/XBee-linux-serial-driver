@@ -480,7 +480,7 @@ int frame_enqueue_valid_invalid(void* arg) {
 
 #define TEST31 frame_enqueue_send_vr
 int frame_enqueue_send_vr(void* arg) {
-	int ret = 0;
+	//int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4E };
 	const int count = 8;
 
@@ -531,16 +531,19 @@ int xbee_ieee802154_set_channel_test(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x43, 0x41, 0x72 };
 	const int count = 8;
+	struct sk_buff* send_buf = NULL;
+	unsigned char* tail = NULL;
+	struct xb_device* xbdev = NULL;
 
-	struct xb_device* xbdev = (struct xb_device*)arg;
+	xbdev = (struct xb_device*)arg;
 	xbee_ieee802154_set_channel((struct ieee802154_hw*)xbdev->dev, 0, 13);
 
-	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
-	unsigned char* tail = skb_put(send_buf, count);
+	send_buf = alloc_skb(128, GFP_KERNEL);
+	tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 
-	xb_process_sendrecv(xbdev);
+	ret = xb_process_sendrecv(xbdev);
 
 	//if(ret != 1) return -1;
 
