@@ -6,6 +6,7 @@ int xbee_test_setup(void* arg, int testno) {
 	xbdev = (struct xb_device*)arg;
 	skb_trim(xbdev->recv_buf, 0);
 	skb_queue_purge(&xbdev->recv_queue);
+	skb_queue_purge(&xbdev->send_queue);
 	return 0;
 }
 
@@ -171,7 +172,6 @@ int frame_calc_checksum_example(void* arg) {
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
 	ret = frame_calc_checksum(xbdev->recv_buf);
-	pr_debug("%d\n", ret);
 	if(ret != 0xCB) return -1;
 	return 0;
 }
@@ -472,6 +472,53 @@ int frame_enqueue_valid_invalid(void* arg) {
 	if(ret != 1) return -1;
 
 	if(skb_queue_len(&xbdev->recv_queue) != 1) return -1;
+
+	if(xbdev->recv_buf->len != 0) return -1;
+
+	return 0;
+}
+
+#define TEST31 frame_enqueue_send_vr
+int frame_enqueue_send_vr(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4E };
+	const int count = 8;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
+
+	unsigned char* tail = skb_put(send_buf, count);
+	memcpy(tail, buf, count);
+	frame_enqueue_send(&xbdev->send_queue, send_buf);
+
+	//if(ret != 1) return -1;
+
+	if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
+
+	if(xbdev->recv_buf->len != 0) return -1;
+
+	return 0;
+}
+
+
+#define TEST32 xb_process_sendrecv_vr
+int xb_process_sendrecv_vr(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4E };
+	const int count = 8;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
+
+	unsigned char* tail = skb_put(send_buf, count);
+	memcpy(tail, buf, count);
+	frame_enqueue_send(&xbdev->send_queue, send_buf);
+
+	xb_process_sendrecv(xbdev);
+
+	//if(ret != 1) return -1;
+
+	if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
 
 	if(xbdev->recv_buf->len != 0) return -1;
 
