@@ -711,7 +711,7 @@ static int xbee_ieee802154_filter(struct ieee802154_hw *dev,
 					  struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed)
 {
-	//struct xb_device *zbdev = dev->priv;
+	//struct xb_device *xbdev = dev->priv;
 	pr_debug("%s\n", __func__);
 
 	/*
@@ -736,12 +736,12 @@ static int xbee_ieee802154_filter(struct ieee802154_hw *dev,
  */
 static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 {
-	struct xb_device *zbdev = dev->priv;
+	struct xb_device *xbdev = dev->priv;
 	int ret = 0;
 
 	pr_debug("%s\n", __func__);
 
-	if (NULL == zbdev) {
+	if (NULL == xbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return -EINVAL;
 	}
@@ -755,10 +755,10 @@ static int xbee_ieee802154_start(struct ieee802154_hw *dev)
  * @dev: ...
  */
 static void xbee_ieee802154_stop(struct ieee802154_hw *dev){
-	struct xb_device *zbdev = dev->priv;
+	struct xb_device *xbdev = dev->priv;
 	pr_debug("%s\n", __func__);
 
-	if (NULL == zbdev) {
+	if (NULL == xbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return;
 	}
@@ -797,66 +797,9 @@ static struct ieee802154_ops xbee_ieee802154_ops = {
  * See Documentation/tty.txt for details.
  */
 
-/**
- * xbee_ldisc_open - Initialize line discipline and register with ieee802154.
- *
- * @tty: TTY info for line.
- *
- * Called from a process context to change the TTY line discipline.
- * Called from a process context 
- *
- * 
- */
-static int xbee_ldisc_open(struct tty_struct *tty)
+
+static void setup_dev(struct ieee802154_hw *dev)
 {
-
-	struct ieee802154_hw *dev;
-	struct xb_device *xbdev = tty->disc_data;
-	int err;
-
-	pr_debug("%s\n", __func__);
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	/*
-	 * TODO: The traditional method to check if another line discipline
-	 * is still installed has been to check tty->disc_data for a non-NULL
-	 * address, even though line disciplines are under no obligation
-	 * to clear it upon uninstallation.
-	 */
-
-	if (tty->disc_data != NULL)
-		return -EBUSY;
-
-//	if (tty->ops->stop)
-//		tty->ops->stop(tty);
-
-	tty_driver_flush_buffer(tty);
-
-	dev = ieee802154_alloc_hw(sizeof(struct xb_device), &xbee_ieee802154_ops);
-	if (!dev)
-		return -ENOMEM;
-
-	xbdev = dev->priv;
-	xbdev->dev = dev;
-	dev->parent = tty->dev;
-	tty->disc_data = xbdev;
-
-	xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
-	xbdev->frameid = 1; //TODO
-	
-	skb_queue_head_init(&xbdev->recv_queue);
-	skb_queue_head_init(&xbdev->send_queue);
-
-//	mutex_init(&xbdev->mutex);
-	init_completion(&xbdev->cmd_resp_done);
-	//init_waitqueue_head(&xbdev->frame_waitq);
-	xbdev->comm_workq = create_workqueue("comm_workq");
-	INIT_WORK( (struct work_struct*)xbdev, comm_work_fn);
-
-	INIT_MODTEST(xbdev);
-
 	dev->extra_tx_headroom = 0;
 	/* only 2.4 GHz band */
 	dev->phy->flags = WPAN_PHY_FLAG_TXPOWER |
@@ -904,6 +847,66 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
 
+}
+
+/**
+ * xbee_ldisc_open - Initialize line discipline and register with ieee802154.
+ *
+ * @tty: TTY info for line.
+ *
+ * Called from a process context to change the TTY line discipline.
+ * Called from a process context 
+ *
+ * 
+ */
+static int xbee_ldisc_open(struct tty_struct *tty)
+{
+	struct xb_device *xbdev = tty->disc_data;
+	struct ieee802154_hw *dev;
+
+	int err;
+
+	pr_debug("%s\n", __func__);
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	/*
+	 * TODO: The traditional method to check if another line discipline
+	 * is still installed has been to check tty->disc_data for a non-NULL
+	 * address, even though line disciplines are under no obligation
+	 * to clear it upon uninstallation.
+	 */
+
+	if (tty->disc_data != NULL)
+		return -EBUSY;
+
+//	if (tty->ops->stop)
+//		tty->ops->stop(tty);
+
+	tty_driver_flush_buffer(tty);
+
+	dev = ieee802154_alloc_hw(sizeof(struct xb_device), &xbee_ieee802154_ops);
+	if (!dev)
+		return -ENOMEM;
+
+	xbdev = dev->priv;
+	xbdev->dev = dev;
+	dev->parent = tty->dev;
+	tty->disc_data = xbdev;
+
+	xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
+	xbdev->frameid = 1; //TODO
+	
+	skb_queue_head_init(&xbdev->recv_queue);
+	skb_queue_head_init(&xbdev->send_queue);
+
+	init_completion(&xbdev->cmd_resp_done);
+	xbdev->comm_workq = create_workqueue("comm_workq");
+	INIT_WORK( (struct work_struct*)xbdev, comm_work_fn);
+
+	INIT_MODTEST(xbdev);
+
 	xbdev->tty = tty_kref_get(tty);
 
 //	tty->receive_room = MAX_DATA_SIZE;
@@ -939,27 +942,27 @@ err:
  *
  * @tty: TTY info for line.
  */
-static void xbee_ldisc_close(struct tty_struct *tty){
+static void xbee_ldisc_close(struct tty_struct *tty)
+{
+	struct xb_device *xbdev = tty->disc_data;
 
-	struct xb_device *zbdev;
 	pr_debug("%s\n", __func__);
-	zbdev = tty->disc_data;
-	if (NULL == zbdev) {
+
+	if (NULL == xbdev) {
 		printk(KERN_WARNING "%s: match is not found\n", __func__);
 		return;
 	}
 
 	tty->disc_data = NULL;
 	tty_kref_put(tty);
-	zbdev->tty = NULL;
+	xbdev->tty = NULL;
 
-	ieee802154_unregister_hw(zbdev->dev);
+	ieee802154_unregister_hw(xbdev->dev);
 
 	tty_ldisc_flush(tty);
 	tty_driver_flush_buffer(tty);
 
-	ieee802154_free_hw(zbdev->dev);
-
+	ieee802154_free_hw(xbdev->dev);
 }
 
 /**
@@ -1009,8 +1012,8 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 				const unsigned char *buf,
 				char *cflags, int count)
 {
+	struct xb_device *xbdev = tty->disc_data;
 	int ret = 0;
-	struct xb_device *xbdev = NULL;
 
 	//print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, buf, count);
 	
@@ -1019,7 +1022,6 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 		return 0;
 	}
 
-	xbdev = tty->disc_data;
 
 	ret = frame_put_received_data(xbdev->recv_buf, buf, count);
 
