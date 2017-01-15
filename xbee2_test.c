@@ -545,7 +545,7 @@ int xbee_ieee802154_set_channel_test(void* arg) {
 
 	ret = xb_process_sendrecv(xbdev);
 
-	//if(ret != 1) return -1;
+	if(ret <= 0) return -1;
 
 	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
 
@@ -576,7 +576,7 @@ int xbee_ieee802154_set_txpower_test(void* arg) {
 
 	ret = xb_process_sendrecv(xbdev);
 
-	//if(ret != 1) return -1;
+	if(ret <= 0) return -1;
 
 	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
 
@@ -608,7 +608,7 @@ int xbee_ieee802154_set_cca_ed_level_test(void* arg) {
 
 	ret = xb_process_sendrecv(xbdev);
 
-	//if(ret != 1) return -1;
+	if(ret <= 0) return -1;
 
 	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
 
@@ -646,7 +646,7 @@ int xbee_ieee802154_set_csma_params_test(void* arg) {
 
 	ret = xb_process_sendrecv(xbdev);
 
-	//if(ret != 1) return -1;
+	if(ret <= 0) return -1;
 
 	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
 

@@ -13,20 +13,7 @@
 
 #include "modtest.h"
 
-
 #define N_IEEE802154_XBEE 25
-#define VERSION 1
-
-#define XBEE_CHAR_NEWFRM 0x7e
-
-enum {
-	STATE_WAIT_START1,
-	STATE_WAIT_START2,
-	STATE_WAIT_COMMAND,
-	STATE_WAIT_PARAM1,
-	STATE_WAIT_PARAM2,
-	STATE_WAIT_DATA
-};
 
 #define AT_DECL(x, y) ( x << 8 | y )
 
@@ -113,6 +100,13 @@ enum {
 	XBEE_FRM_RCMDR	= 0x97,
 };
 
+enum {
+	XBEE_DELIMITER = 0x7E,
+	XBEE_ESCAPED_DELIMITER = 0x5E ,
+	XBEE_ESCAPE = 0x7D ,
+	XBEE_ESCMASK = 0x20 ,
+};
+
 static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t len)
 {
 	int i=0;
@@ -127,7 +121,7 @@ static int buffer_find_delimiter_unescaped(const unsigned char* buf, const size_
 {
 	int i=0;
 	for(i=0; i<len; i++) {
-		if(buf[i] == 0x7E) return i;
+		if(buf[i] == XBEE_DELIMITER) return i;
 	}
 	return -1;
 }
@@ -137,13 +131,13 @@ static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t 
 	int i=0;
 	bool esc = false;
 	for(i=0; i<len; i++) {
-		if(buf[i] == 0x7D) {
+		if(buf[i] == XBEE_ESCAPE) {
 			esc = true; continue;
 		}
-		else if(buf[i] == 0x5E && esc) {
+		else if(buf[i] == XBEE_ESCAPED_DELIMITER && esc) {
 			return i-1;
 		}
-		else if(buf[i] == 0x7E && !esc) {
+		else if(buf[i] == XBEE_DELIMITER && !esc) {
 			return i;
 		}
 		esc = false;
@@ -159,17 +153,17 @@ static size_t buffer_unescape(unsigned char* buf, const size_t len)
 	bool esc = false;
 
 	for(i=0; i<len; i++) {
-		if(buf[i] == 0x7D) {
+		if(buf[i] == XBEE_ESCAPE) {
 			esc = true;
 			escape_count++;
 			continue;
 		}
-		if(esc) buf[i-escape_count] = (buf[i] ^ 0x20);
+		if(esc) buf[i-escape_count] = (buf[i] ^ XBEE_ESCMASK);
 		else    buf[i-escape_count] =  buf[i];
 		esc = false;
 	}
 	if(esc) {
-		buf[i-escape_count] = 0x7D;
+		buf[i-escape_count] = XBEE_ESCAPE;
 		escape_count--;
 	}
 
@@ -186,7 +180,7 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 	tail = skb_put(new_skb, paylen+5);
 
 	frm = (struct xb_frameheader*)tail;
-	frm->start_delimiter  = XBEE_CHAR_NEWFRM;
+	frm->start_delimiter  = XBEE_DELIMITER;
 	frm->length = htons(paylen+1);
 	frm->type = type;
 	return new_skb;
@@ -217,7 +211,7 @@ static int frame_verify(struct sk_buff* recv_buf)
 	if(recv_buf->len < 1) return -EAGAIN;
 	header = (struct xb_frameheader*)recv_buf->data;
 
-	if(recv_buf->data[0] != XBEE_CHAR_NEWFRM) return -EINVAL;
+	if(recv_buf->data[0] != XBEE_DELIMITER) return -EINVAL;
 
 	if(recv_buf->len < 3) return -EAGAIN;
 
@@ -854,6 +848,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	xbdev = dev->priv;
 	xbdev->dev = dev;
 	xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
+	xbdev->frameid = 1; //TODO
 	
 	skb_queue_head_init(&xbdev->recv_queue);
 	skb_queue_head_init(&xbdev->send_queue);
