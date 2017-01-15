@@ -728,6 +728,7 @@ static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *hw, s32 dbm)
 static int xbee_ieee802154_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	pr_debug("%s\n", __func__);
+	print_hex_dump_bytes(" TX> ", DUMP_PREFIX_NONE, skb->data, skb->len);
     return 0;
 }
 
@@ -803,8 +804,8 @@ static struct ieee802154_ops xbee_ieee802154_ops = {
 	.owner				= THIS_MODULE,
 	.start				= xbee_ieee802154_start,
 	.stop				= xbee_ieee802154_stop,
-	.xmit_sync			= xbee_ieee802154_xmit,
-	.xmit_async			= NULL,
+	.xmit_sync			= NULL,
+	.xmit_async			= xbee_ieee802154_xmit,
 	.ed					= xbee_ieee802154_ed,
 	.set_channel		= xbee_ieee802154_set_channel,
 	.set_hw_addr_filt	= xbee_ieee802154_filter,
