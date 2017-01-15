@@ -536,7 +536,7 @@ static int xbee_ieee802154_set_channel_test(void* arg) {
 	struct xb_device* xbdev = NULL;
 
 	xbdev = (struct xb_device*)arg;
-	xbee_ieee802154_set_channel((struct ieee802154_hw*)xbdev->dev, 0, 13);
+	xbee_ieee802154_set_channel((struct ieee802154_hw*)xbdev->hw, 0, 13);
 
 	send_buf = alloc_skb(128, GFP_KERNEL);
 	tail = skb_put(send_buf, count);
@@ -567,7 +567,7 @@ static int xbee_ieee802154_set_txpower_test(void* arg) {
 	struct xb_device* xbdev = NULL;
 
 	xbdev = (struct xb_device*)arg;
-	xbee_ieee802154_set_txpower((struct ieee802154_hw*)xbdev->dev, 4);
+	xbee_ieee802154_set_txpower((struct ieee802154_hw*)xbdev->hw, 4);
 
 	send_buf = alloc_skb(128, GFP_KERNEL);
 	tail = skb_put(send_buf, count);
@@ -599,7 +599,7 @@ static int xbee_ieee802154_set_cca_ed_level_test(void* arg) {
 	struct xb_device* xbdev = NULL;
 
 	xbdev = (struct xb_device*)arg;
-	xbee_ieee802154_set_cca_ed_level((struct ieee802154_hw*)xbdev->dev, 0x25);
+	xbee_ieee802154_set_cca_ed_level((struct ieee802154_hw*)xbdev->hw, 0x25);
 
 	send_buf = alloc_skb(128, GFP_KERNEL);
 	tail = skb_put(send_buf, count);
@@ -632,7 +632,7 @@ static int xbee_ieee802154_set_csma_params_test(void* arg) {
 	struct xb_device* xbdev = NULL;
 
 	xbdev = (struct xb_device*)arg;
-	xbee_ieee802154_set_csma_params((struct ieee802154_hw*)xbdev->dev, 2, 5, 1);
+	xbee_ieee802154_set_csma_params((struct ieee802154_hw*)xbdev->hw, 2, 5, 1);
 
 	send_buf = alloc_skb(128, GFP_KERNEL);
 	tail = skb_put(send_buf, count);
