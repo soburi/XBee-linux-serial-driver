@@ -28,16 +28,11 @@ enum {
 
 /*********************************************************************/
 
-struct xb_work {
-	struct work_struct work;
-	struct xb_device* xb_device;
-};
-
 struct xb_device {
-	struct ieee802154_hw hw;
 	struct work_struct work;
-	struct tty_struct *tty;
+
 	struct ieee802154_hw *dev;
+	struct tty_struct *tty;
 
 	struct completion cmd_resp_done;
 	uint8_t wait_frameid;
@@ -50,8 +45,6 @@ struct xb_device {
 
 	uint8_t frameid;
 	unsigned short firmware_version;
-
-	struct xb_work xbwork;
 
 	DECL_MODTEST_STRUCT();
 };
@@ -326,7 +319,7 @@ static bool xb_process_send(struct xb_device* xb)
 {
 	bool already_on_queue = false;
 
-	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)&xb->xbwork.work);
+	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)xb);
 
 	return already_on_queue;
 }
@@ -541,13 +534,8 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 
 static void comm_work_fn(struct work_struct *param)
 {
-	struct xb_work* xbwork = NULL;
-	struct xb_device* xb = NULL;
-	struct tty_struct *tty = NULL;
-
-	xbwork = (struct xb_work*)param;
-	xb = xbwork->xb_device;
-	tty = xb->tty;
+	struct xb_device* xb = (struct xb_device*)param;
+	struct tty_struct* tty = xb->tty;
 
 	if( !skb_queue_empty(&xb->recv_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->recv_queue);
@@ -593,9 +581,7 @@ static void comm_work_fn(struct work_struct *param)
 static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
 				       u8 page, u8 channel)
 {
-	struct xb_device *xb = NULL;
-
-	xb = dev->priv;
+	struct xb_device *xb = dev->priv;
 
 	xb_enqueue_send_at(xb, XBEE_AT_CH, &channel, 1);
 	xb_process_sendrecv(xb);
@@ -610,11 +596,11 @@ static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
  */
 static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level)
 {
-	struct xb_device *xb = NULL;
+	struct xb_device *xb = dev->priv;
+
 	
 	pr_debug("%s\n", __func__);
 
-	xb = dev->priv;
 	xb_enqueue_send_at(xb, 0x4544, NULL, 0);
 
     return 0;
@@ -622,9 +608,8 @@ static int xbee_ieee802154_ed(struct ieee802154_hw *dev, u8 *level)
 
 static int xbee_ieee802154_set_csma_params(struct ieee802154_hw *dev, u8 min_be, u8 max_be, u8 retries)
 {
-	struct xb_device *xb = NULL;
+	struct xb_device *xb = dev->priv;
 
-	xb = dev->priv;
 	xb_enqueue_send_at(xb, XBEE_AT_RN, &min_be, 1);
 	xb_process_sendrecv(xb);
 	xb_enqueue_send_at(xb, XBEE_AT_RR, &retries, 1);
@@ -727,6 +712,7 @@ static int xbee_ieee802154_filter(struct ieee802154_hw *dev,
 					  struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed)
 {
+	//struct xb_device *zbdev = dev->priv;
 	pr_debug("%s\n", __func__);
 
 	/*
@@ -751,12 +737,11 @@ static int xbee_ieee802154_filter(struct ieee802154_hw *dev,
  */
 static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 {
-	struct xb_device *zbdev;
+	struct xb_device *zbdev = dev->priv;
 	int ret = 0;
 
 	pr_debug("%s\n", __func__);
 
-	zbdev = dev->priv;
 	if (NULL == zbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return -EINVAL;
@@ -771,10 +756,9 @@ static int xbee_ieee802154_start(struct ieee802154_hw *dev)
  * @dev: ...
  */
 static void xbee_ieee802154_stop(struct ieee802154_hw *dev){
-	struct xb_device *zbdev = NULL;
+	struct xb_device *zbdev = dev->priv;
 	pr_debug("%s\n", __func__);
 
-	zbdev = dev->priv;
 	if (NULL == zbdev) {
 		printk(KERN_ERR "%s: wrong phy\n", __func__);
 		return;
@@ -867,8 +851,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	init_completion(&xbdev->cmd_resp_done);
 	//init_waitqueue_head(&xbdev->frame_waitq);
 	xbdev->comm_workq = create_workqueue("comm_workq");
-	xbdev->xbwork.xb_device= xbdev;
-	INIT_WORK( (struct work_struct*)&xbdev->xbwork.work, comm_work_fn);
+	INIT_WORK( (struct work_struct*)xbdev, comm_work_fn);
 
 	INIT_MODTEST(xbdev);
 
@@ -1052,7 +1035,7 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
 	if(ret > 0) {
-		ret = queue_work(xbdev->comm_workq, (struct work_struct*)&xbdev->xbwork.work);
+		ret = queue_work(xbdev->comm_workq, (struct work_struct*)xbdev);
 	}
 	return count;
 }
