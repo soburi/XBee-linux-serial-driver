@@ -664,7 +664,7 @@ static int xbee_ieee802154_set_txpower(struct ieee802154_hw *hw, s32 mbm)
 	s32 dbm;
 	u8 pl;
 
-	pr_debug("%s\n", __func__);
+	pr_debug("%s mbm=%d\n", __func__, mbm);
 
 	dbm  = MBM_TO_DBM(mbm);
 
@@ -714,7 +714,7 @@ static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *hw, s32 mbm)
 	struct xb_device *xb = hw->priv;
 	u8 ca;
 
-	pr_debug("%s\n", __func__);
+	pr_debug("%s mbm=%d\n", __func__, mbm);
 
 	ca = MBM_TO_DBM(mbm);
 
@@ -739,7 +739,7 @@ static int xbee_ieee802154_filter(struct ieee802154_hw *hw,
 					    unsigned long changed)
 {
 	//struct xb_device *xbdev = hw->priv;
-	pr_debug("%s\n", __func__);
+	pr_debug("%s filt.pan_id=%0x filt.short=%0x filt.ieee=%0llx filt.pan_coord=%x changed=%lx\n", __func__, filt->pan_id, filt->short_addr, filt->ieee_addr, filt->pan_coord, changed);
 
 	/*
 	if(changed & IEEE802154_AFILT_SADDR_CHANGED) {
