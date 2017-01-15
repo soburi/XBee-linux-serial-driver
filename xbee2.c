@@ -739,17 +739,17 @@ static int xbee_ieee802154_filter(struct ieee802154_hw *hw,
 	//struct xb_device *xbdev = hw->priv;
 	pr_debug("%s filt.pan_id=%0x filt.short=%0x filt.ieee=%0llx filt.pan_coord=%x changed=%lx\n", __func__, filt->pan_id, filt->short_addr, filt->ieee_addr, filt->pan_coord, changed);
 
-	/*
 	if(changed & IEEE802154_AFILT_SADDR_CHANGED) {
-		filt->short_addr;
+		unsigned short saddr = htons(filt->short_addr);
+		xb_enqueue_send_at(xb, XBEE_AT_MY, &saddr, 2);
 	} else if(IEEE802154_AFILT_IEEEADDR_CHANGED) {
-		filt->ieee_addr;
+		return -1; // 64bit address is readonly.
 	} else if(IEEE802154_AFILT_PANID_CHANGED) {
-		filt->pan_id;
+		unsigned short panid = htons(filt->pan_id);
+		xb_enqueue_send_at(xb, XBEE_AT_ID, &panid, 2);
 	} else if(IEEE802154_AFILT_PANC_CHANGED) {
 		filt->pan_coord;
 	}
-	*/
 
     return 0;
 }
