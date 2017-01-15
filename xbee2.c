@@ -178,8 +178,8 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 	struct xb_frameheader* frm = NULL;
 	unsigned char* tail = NULL;
 
-	new_skb = alloc_skb(paylen+4, GFP_KERNEL); //delimiter, length, checksum
-	tail = skb_put(new_skb, paylen+4);
+	new_skb = alloc_skb(paylen+5, GFP_KERNEL); //delimiter, length, checksum
+	tail = skb_put(new_skb, paylen+5);
 
 	frm = (struct xb_frameheader*)tail;
 	frm->start_delimiter  = XBEE_CHAR_NEWFRM;
@@ -590,12 +590,9 @@ static int xbee_ieee802154_set_channel(struct ieee802154_hw *dev,
 				       u8 page, u8 channel)
 {
 	struct xb_device *xb = NULL;
-	
-	pr_debug("%s page=%u channel=%u\n", __func__, page, channel);
 
 	xb = dev->priv;
 
-	pr_debug("xb_send_at %x\n", XBEE_AT_CH);
 	xb_enqueue_send_at(xb, XBEE_AT_CH, &channel, 1);
 	xb_process_sendrecv(xb);
     return 0;
