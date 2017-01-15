@@ -33,6 +33,7 @@ enum {
 enum {
 	XBEE_AT_VR = AT_DECL('V','R'),
 	XBEE_AT_CH = AT_DECL('C','H'),
+	XBEE_AT_PL = AT_DECL('P','L'),
 };
 
 /*********************************************************************/
@@ -645,36 +646,25 @@ static int xbee_ieee802154_set_txpower(struct ieee802154_hw *dev, s32 mbm)
 {
 	struct xb_device *xb = dev->priv;
 	s32 dbm;
-	u8 pl, pm;
+	u8 pl;
 
 	pr_debug("%s mbm=%d\n", __func__, mbm);
 
 	dbm  = MBM_TO_DBM(mbm);
 
-	if(dbm <= -5) {
-		pl=0; pm=0;
-	} else if(dbm <= -2) {
-		pl=0; pm=1;
-	} else if(dbm <= -1) {
-		pl=1; pm=0;
-	} else if(dbm <= 1) {
-		pl=2; pm=0;
-	} else if(dbm <= 2) {
-		pl=1; pm=1;
-	} else if(dbm <= 3) {
-		pl=3; pm=0;
-	} else if(dbm <= 4) {
-		pl=2; pm=1;
-	} else if(dbm <= 5) {
-		pl=4; pm=0;
-	} else if(dbm <= 6) {
-		pl=3; pm=1;
+	if(dbm >= 10) {
+		pl=0;
+	} else if(dbm >= 6) {
+		pl=1;
+	} else if(dbm >= 4) {
+		pl=2;
+	} else if(dbm >= 2) {
+		pl=3;
 	} else {
-		pl=4; pm=1;
+		pl=4;
 	}
 
-	xb_enqueue_send_at(xb, 0x504C, &pl, 1);
-	xb_enqueue_send_at(xb, 0x504D, &pm, 1);
+	xb_enqueue_send_at(xb, XBEE_AT_PL, &pl, 1);
 
 	return 0;
 }
@@ -740,7 +730,6 @@ static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 {
 	struct xb_device *zbdev;
 	int ret = 0;
-//	u8 channel = 11;
 
 	pr_debug("%s\n", __func__);
 
@@ -750,12 +739,6 @@ static int xbee_ieee802154_start(struct ieee802154_hw *dev)
 		return -EINVAL;
 	}
 
-	//pr_debug("send 0x4348\n");
-	//channel = 11;
-	//frame_sendrecv_at(zbdev, 0x4348, &channel, 1);
-	//pr_debug("end send 0x4348\n");
-
-	//pr_debug("%s end (retval: %d)\n", __func__, ret);
 	return ret;
 }
 
