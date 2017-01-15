@@ -146,7 +146,6 @@ static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t 
 	return -1;
 }
 
-
 static size_t buffer_unescape(unsigned char* buf, const size_t len)
 {
 	int i=0;
@@ -841,6 +840,9 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	xbdev = dev->priv;
 	xbdev->dev = dev;
+	dev->parent = tty->dev;
+	tty->disc_data = xbdev;
+
 	xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
 	xbdev->frameid = 1; //TODO
 	
@@ -900,21 +902,12 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	dev->phy->sifs_period = 0;
 */
 
-
-
 	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
-
-	dev->parent = tty->dev;
 
 	xbdev->tty = tty_kref_get(tty);
 
-//    cleanup(xbdev);
-
-	tty->disc_data = xbdev;
 //	tty->receive_room = MAX_DATA_SIZE;
 	tty->receive_room = 65536;
-
-//	dev->ml_priv = &xbee_ieee802154_mlme_ops;
 
 	if (tty->ldisc->ops->flush_buffer)
 		tty->ldisc->ops->flush_buffer(tty);
