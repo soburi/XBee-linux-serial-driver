@@ -813,32 +813,32 @@ static struct ieee802154_ops xbee_ieee802154_ops = {
  */
 
 
-static void setup_dev(struct ieee802154_hw *dev)
+static void setup_dev(struct ieee802154_hw *hw)
 {
-	dev->extra_tx_headroom = 0;
+	hw->extra_tx_headroom = 0;
 	/* only 2.4 GHz band */
-	dev->phy->flags = WPAN_PHY_FLAG_TXPOWER |
+	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER |
 			          WPAN_PHY_FLAG_CCA_ED_LEVEL |
 					  WPAN_PHY_FLAG_CCA_MODE;
-	dev->phy->current_channel = 11;
-	dev->phy->current_page = 0;
-	dev->phy->supported.channels[0] = 0x7fff800;
-	dev->phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY);
-	dev->phy->supported.cca_opts = NL802154_CCA_ENERGY;
-	dev->phy->supported.iftypes = 0;
-	dev->phy->supported.lbt = 0;
-	dev->phy->supported.min_minbe = 0;
-	dev->phy->supported.max_minbe = 3;
-	dev->phy->supported.min_maxbe = 5; /* N/A */
-	dev->phy->supported.max_maxbe = 5; /* N/A */
-	dev->phy->supported.min_csma_backoffs = 0; /* N/A */
-	dev->phy->supported.max_csma_backoffs = 0; /* N/A */
-	dev->phy->supported.min_frame_retries = 0;
-	dev->phy->supported.max_frame_retries = 0;
-	dev->phy->supported.tx_powers_size = 0;
+	hw->phy->current_channel = 11;
+	hw->phy->current_page = 0;
+	hw->phy->supported.channels[0] = 0x7fff800;
+	hw->phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY);
+	hw->phy->supported.cca_opts = NL802154_CCA_ENERGY;
+	hw->phy->supported.iftypes = 0;
+	hw->phy->supported.lbt = 0;
+	hw->phy->supported.min_minbe = 0;
+	hw->phy->supported.max_minbe = 3;
+	hw->phy->supported.min_maxbe = 5; /* N/A */
+	hw->phy->supported.max_maxbe = 5; /* N/A */
+	hw->phy->supported.min_csma_backoffs = 0; /* N/A */
+	hw->phy->supported.max_csma_backoffs = 0; /* N/A */
+	hw->phy->supported.min_frame_retries = 0;
+	hw->phy->supported.max_frame_retries = 0;
+	hw->phy->supported.tx_powers_size = 0;
 /*
-	dev->phy->supported.cca_ed_levels_size = 41;
-	dev->phy->supported.cca_ed_levels = {
+	hw->phy->supported.cca_ed_levels_size = 41;
+	hw->phy->supported.cca_ed_levels = {
 		DBM_TO_MBM(-0x28), DBM_TO_MBM(-0x29), DBM_TO_MBM(-0x2A), DBM_TO_MBM(-0x2B),
 		DBM_TO_MBM(-0x2C), DBM_TO_MBM(-0x2D), DBM_TO_MBM(-0x2E), DBM_TO_MBM(-0x2F),
 		DBM_TO_MBM(-0x30), DBM_TO_MBM(-0x31), DBM_TO_MBM(-0x32), DBM_TO_MBM(-0x33),
@@ -852,15 +852,15 @@ static void setup_dev(struct ieee802154_hw *dev)
 		DBM_TO_MBM(-0x50), };
 */
 /*
-	dev->phy->transmit_power = 0;
-	dev->phy->cca = 0;
-	dev->phy->cca_ed_level = 0;
-	dev->phy->symbol_duration = 0;
-	dev->phy->lifs_period = 0;
-	dev->phy->sifs_period = 0;
+	hw->phy->transmit_power = 0;
+	hw->phy->cca = 0;
+	hw->phy->cca_ed_level = 0;
+	hw->phy->symbol_duration = 0;
+	hw->phy->lifs_period = 0;
+	hw->phy->sifs_period = 0;
 */
 
-	dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
+	hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
 
 }
 
