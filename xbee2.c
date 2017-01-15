@@ -211,13 +211,12 @@ static int frame_verify(struct sk_buff* recv_buf)
 	if(recv_buf->data[0] != XBEE_CHAR_NEWFRM) return -EINVAL;
 
 	if(recv_buf->len < 3) return -EAGAIN;
-	length = htons(header->length);
 
-	if (recv_buf->len < length+4) return -EAGAIN;
+	length = htons(header->length);
+	if(recv_buf->len < length+4) return -EAGAIN;
 
 	checksum = frame_calc_checksum(recv_buf);
-
-	if (checksum!=recv_buf->data[length+3]) return -EINVAL;
+	if(checksum!=recv_buf->data[length+3]) return -EINVAL;
 
     return length+4;
 }
@@ -247,17 +246,32 @@ static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char
 static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf)
 {
 	int frame_count = 0;
-	int frame_len = 0;
 	int unesc_len = 0;
+	int ret = 0;
 
 	unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
 	skb_trim(recv_buf, unesc_len);
 
-	if ( (frame_len = frame_verify(recv_buf)) > 0) {
-		pr_debug("skd_append\n");
-		skb_append( skb_peek_tail(recv_queue), recv_buf, recv_queue);
-		recv_buf = alloc_skb(128, GFP_ATOMIC);
+	while ( (ret = frame_verify(recv_buf)) > 0) {
+		int verified_len = ret;
+		int remains = recv_buf->len - verified_len;
+		unsigned char* append = NULL;
+		struct sk_buff* newframe = NULL;
+
+		newframe = alloc_skb(128, GFP_ATOMIC);
+
+		append = skb_put(newframe, verified_len);
+		memcpy(append, recv_buf->data, verified_len);
+		skb_queue_tail(recv_queue, newframe);
+
+		memmove(recv_buf->data, recv_buf->data+verified_len,  remains);
+		skb_trim(recv_buf, remains);
+
 		frame_count++;
+	}
+
+	if (ret == -EINVAL) {
+		skb_trim(recv_buf, 0);
 	}
 
 	return frame_count;
