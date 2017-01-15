@@ -11,7 +11,9 @@
 #include <net/mac802154.h>
 #include <net/regulatory.h>
 
+#ifdef MODTEST_ENABLE
 #include "modtest.h"
+#endif
 
 #define N_IEEE802154_XBEE 25
 
@@ -28,14 +30,16 @@ struct xb_device {
 
 	struct workqueue_struct    *comm_workq;
 
-    struct sk_buff_head recv_queue;
-    struct sk_buff_head send_queue;
-    struct sk_buff* recv_buf;
+	struct sk_buff_head recv_queue;
+	struct sk_buff_head send_queue;
+	struct sk_buff* recv_buf;
 
 	uint8_t frameid;
 	unsigned short firmware_version;
 
+#ifdef MODTEST_ENABLE
 	DECL_MODTEST_STRUCT();
+#endif
 };
 
 struct xbee_frame {
@@ -221,7 +225,7 @@ static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 	struct xb_frame_header* frm = NULL;
 	unsigned char* tail = NULL;
 
-	new_skb = alloc_skb(paylen+5, GFP_KERNEL); //delimiter, length, checksum
+	new_skb = dev_alloc_skb(paylen+5); //delimiter, length, checksum
 	tail = skb_put(new_skb, paylen+5);
 
 	frm = (struct xb_frame_header*)tail;
@@ -306,7 +310,7 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 		unsigned char* append = NULL;
 		struct sk_buff* newframe = NULL;
 
-		newframe = alloc_skb(128, GFP_ATOMIC);
+		newframe = dev_alloc_skb(128);
 
 		append = skb_put(newframe, verified_len);
 		memcpy(append, recv_buf->data, verified_len);
@@ -568,6 +572,7 @@ static void comm_work_fn(struct work_struct *param)
 			print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
 			tty->ops->write(tty,  skb->data, skb->len);
 			tty_driver_flush_buffer(tty);
+			kfree_skb(skb);
 		}
 	}
 
@@ -597,6 +602,8 @@ static int xbee_ieee802154_set_channel(struct ieee802154_hw *hw,
 {
 	struct xb_device *xb = hw->priv;
 
+	pr_debug("%s\n", __func__);
+
 	xb_enqueue_send_at(xb, XBEE_AT_CH, &channel, 1);
 	xb_process_sendrecv(xb);
     return 0;
@@ -612,7 +619,6 @@ static int xbee_ieee802154_ed(struct ieee802154_hw *hw, u8 *level)
 {
 	struct xb_device *xb = hw->priv;
 
-	
 	pr_debug("%s\n", __func__);
 
 	xb_enqueue_send_at(xb, 0x4544, NULL, 0);
@@ -623,6 +629,8 @@ static int xbee_ieee802154_ed(struct ieee802154_hw *hw, u8 *level)
 static int xbee_ieee802154_set_csma_params(struct ieee802154_hw *hw, u8 min_be, u8 max_be, u8 retries)
 {
 	struct xb_device *xb = hw->priv;
+
+	pr_debug("%s\n", __func__);
 
 	xb_enqueue_send_at(xb, XBEE_AT_RN, &min_be, 1);
 	xb_process_sendrecv(xb);
@@ -655,6 +663,8 @@ static int xbee_ieee802154_set_txpower(struct ieee802154_hw *hw, s32 mbm)
 	struct xb_device *xb = hw->priv;
 	s32 dbm;
 	u8 pl;
+
+	pr_debug("%s\n", __func__);
 
 	dbm  = MBM_TO_DBM(mbm);
 
@@ -702,11 +712,13 @@ static int xbee_ieee802154_set_cca_mode(struct ieee802154_hw *hw, const struct w
 static int xbee_ieee802154_set_cca_ed_level(struct ieee802154_hw *hw, s32 mbm)
 {
 	struct xb_device *xb = hw->priv;
-    u8 ca;
+	u8 ca;
 
-    ca = MBM_TO_DBM(mbm);
+	pr_debug("%s\n", __func__);
 
-    xb_enqueue_send_at(xb, XBEE_AT_CA, &ca, 1);
+	ca = MBM_TO_DBM(mbm);
+
+	xb_enqueue_send_at(xb, XBEE_AT_CA, &ca, 1);
 	return 0;
 }
 
@@ -836,21 +848,28 @@ static void setup_dev(struct ieee802154_hw *hw)
 	hw->phy->supported.min_frame_retries = 0;
 	hw->phy->supported.max_frame_retries = 0;
 	hw->phy->supported.tx_powers_size = 0;
-/*
+
 	hw->phy->supported.cca_ed_levels_size = 41;
-	hw->phy->supported.cca_ed_levels = {
-		DBM_TO_MBM(-0x28), DBM_TO_MBM(-0x29), DBM_TO_MBM(-0x2A), DBM_TO_MBM(-0x2B),
-		DBM_TO_MBM(-0x2C), DBM_TO_MBM(-0x2D), DBM_TO_MBM(-0x2E), DBM_TO_MBM(-0x2F),
-		DBM_TO_MBM(-0x30), DBM_TO_MBM(-0x31), DBM_TO_MBM(-0x32), DBM_TO_MBM(-0x33),
-		DBM_TO_MBM(-0x34), DBM_TO_MBM(-0x35), DBM_TO_MBM(-0x36), DBM_TO_MBM(-0x37),
-		DBM_TO_MBM(-0x38), DBM_TO_MBM(-0x39), DBM_TO_MBM(-0x3A), DBM_TO_MBM(-0x3B),
-		DBM_TO_MBM(-0x3C), DBM_TO_MBM(-0x3D), DBM_TO_MBM(-0x3E), DBM_TO_MBM(-0x3F),
-		DBM_TO_MBM(-0x40), DBM_TO_MBM(-0x41), DBM_TO_MBM(-0x42), DBM_TO_MBM(-0x43),
-		DBM_TO_MBM(-0x44), DBM_TO_MBM(-0x45), DBM_TO_MBM(-0x46), DBM_TO_MBM(-0x47),
-		DBM_TO_MBM(-0x48), DBM_TO_MBM(-0x49), DBM_TO_MBM(-0x4A), DBM_TO_MBM(-0x4B),
-		DBM_TO_MBM(-0x4C), DBM_TO_MBM(-0x4D), DBM_TO_MBM(-0x4E), DBM_TO_MBM(-0x4F),
-		DBM_TO_MBM(-0x50), };
-*/
+
+	{
+	static const s32 ed_levels [] = {
+		-3600, -3700, -3800, -3900, -4000,
+		-4100, -4200, -4300, -4400, -4500, -4600, -4700, -4800, -4900, -5000,
+		-5100, -5200, -5300, -5400, -5500, -5600, -5700, -5800, -5900, -6000,
+		-6100, -6200, -6300, -6400, -6500, -6600, -6700, -6800, -6900, -8000,
+	};
+	hw->phy->supported.cca_ed_levels = ed_levels;
+	hw->phy->supported.cca_ed_levels_size = sizeof(ed_levels)/sizeof(ed_levels[0]);
+	}
+
+	{
+	static const s32 tx_powers[] = {
+		1000, 6000, 4000, 2000, 0
+	};
+	hw->phy->supported.tx_powers = tx_powers;
+	hw->phy->supported.tx_powers_size = sizeof(tx_powers)/sizeof(tx_powers[0]);
+	}
+
 /*
 	hw->phy->transmit_power = 0;
 	hw->phy->cca = 0;
@@ -910,7 +929,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	hw->parent = tty->dev;
 	tty->disc_data = xbdev;
 
-	xbdev->recv_buf = alloc_skb(128, GFP_ATOMIC);
+	xbdev->recv_buf = dev_alloc_skb(128);
 	xbdev->frameid = 1; //TODO
 	
 	skb_queue_head_init(&xbdev->recv_queue);
@@ -920,7 +939,9 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	xbdev->comm_workq = create_workqueue("comm_workq");
 	INIT_WORK( (struct work_struct*)xbdev, comm_work_fn);
 
+#ifdef MODTEST_ENABLE
 	INIT_MODTEST(xbdev);
+#endif
 
 	xbdev->tty = tty_kref_get(tty);
 
@@ -931,13 +952,17 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
+	setup_dev(hw);
+
 	err = ieee802154_register_hw(hw);
 	if (err) {
         printk(KERN_ERR "%s: device register failed\n", __func__);
 		goto err;
 	}
 
+#ifdef MODTEST_ENABLE
 	RUN_MODTEST(xbdev);
+#endif
 
 	return 0;
 
@@ -1058,7 +1083,7 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 static struct tty_ldisc_ops xbee_ldisc_ops = {
 	.owner			= THIS_MODULE,
 	.magic			= TTY_LDISC_MAGIC,
- 	.name			= "n_ieee802154_xbee",
+	.name			= "n_ieee802154_xbee",
 	.num			= 0,
 	.flags			= 0,
 	.open			= xbee_ldisc_open,
@@ -1070,7 +1095,7 @@ static struct tty_ldisc_ops xbee_ldisc_ops = {
 	.compat_ioctl	= NULL,
 	.set_termios	= NULL,
 	.poll			= NULL,
- 	.hangup			= xbee_ldisc_hangup,
+	.hangup			= xbee_ldisc_hangup,
 	.receive_buf	= NULL,
 	.write_wakeup	= NULL,
 	.dcd_change		= NULL,
@@ -1099,8 +1124,10 @@ static void __exit xbee_exit(void)
 	}
 }
 
+#ifdef MODTEST_ENABLE
 #include "xbee2_test.c"
 DECL_TESTS_ARRAY();
+#endif
 
 module_init(xbee_init);
 module_exit(xbee_exit);
