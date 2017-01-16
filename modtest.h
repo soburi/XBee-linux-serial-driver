@@ -94,6 +94,8 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #define ALL_MODTESTS {}
 
+#define FAIL_NOT_EQ(expected, val) if(expected != val) { return -1;} 
+#define FAIL_IF_ERROR(err) if((err) < 0) { return err;} 
 #define FAIL_IF(cond) if((cond)) { return -1;} 
 #define TEST_IS_NULL(obj) { return (((obj)) == NULL) ? 0 : -1; }
 #define TEST_FAIL() { return -1; }
