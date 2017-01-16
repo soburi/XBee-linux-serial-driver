@@ -69,6 +69,13 @@ struct xb_frame_header {
 	uint8_t type;
 } __attribute__((aligned(1), packed));
 
+struct xb_frame_header_id {
+	uint8_t start_delimiter; // 0x7e
+	uint16_t length;
+	uint8_t type;
+	uint8_t id;
+} __attribute__((aligned(1), packed));
+
 struct xb_at_frame {
 	struct xb_frame_header hd;
 	uint8_t id;
@@ -295,6 +302,32 @@ static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char
 		memcpy(tail, buf, len);
 		return len;
 	}
+}
+
+static struct sk_buff* frame_dequeue_received(struct sk_buff_head *recv_queue, uint8_t frameid)
+{
+	struct sk_buff* skb = NULL;
+	skb = skb_peek(recv_queue);
+
+	if(!skb) return NULL;
+
+	do {
+		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
+		if( hd->type != XBEE_FRM_RX64 &&
+			hd->type != XBEE_FRM_RX16 &&
+			hd->type != XBEE_FRM_RX64IO &&
+			hd->type != XBEE_FRM_RX16IO &&
+			hd->type != XBEE_FRM_MSTAT) {
+
+			if( hd->id == frameid) {
+				skb_unlink(skb, recv_queue);
+				return skb;
+			}
+		}
+		skb = skb_peek_next(skb, recv_queue);
+	} while( skb_queue_is_last(recv_queue, skb) );
+
+	return NULL;
 }
 
 static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf)
