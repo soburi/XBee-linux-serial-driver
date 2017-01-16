@@ -4,12 +4,11 @@
 
 struct modtest_result {
 	int err;
-	int line;
+	unsigned int line;
 	char* msg;
 };
 
-//typedef struct modtest_result (*fp_modtest)(void* data);
-typedef int (*fp_modtest)(void* data);
+typedef struct modtest_result (*fp_modtest)(void* data);
 typedef int (*fp_setup_teardown)(void* arg, int testnum);
 
 struct modtest {
@@ -41,14 +40,11 @@ static void modtest_work_fn(struct work_struct *param)
 	if(mt->test_count < mt->test_num) {
 		if(mt->tests[mt->test_count] != NULL) {
 			mt->setup(mt->data, mt->test_count);
-			//result = mt->tests[mt->test_count](mt->data);
-			err = mt->tests[mt->test_count](mt->data);
+			result = mt->tests[mt->test_count](mt->data);
 			mt->teardown(mt->data, mt->test_count);
 
-			if(err < 0)
-				pr_debug("TEST%lu: error=%d\n", mt->test_count, err);
-			//if(result->err < 0)
-			//	pr_debug("TEST%lu: line=%05d err=%d -- %s\n", mt->test_count, result->err, result->line, result->msg);
+			if(result.err < 0)
+				pr_debug("TEST%lu: line=%u err=%d -- %s\n", mt->test_count, result.line, result.err, result.msg);
 			else
 				mt->test_success++;
 		}
@@ -94,13 +90,15 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #define ALL_MODTESTS {}
 
-#define FAIL_NOT_EQ(expected, val) if(expected != val) { return -1;} 
-#define FAIL_IF_ERROR(err) if((err) < 0) { return err;} 
-#define FAIL_IF(cond) if((cond)) { return -1;} 
+#define RETURN_RESULT(err, line, msg) { struct modtest_result _rslt_ = {err,line,msg}; return _rslt_; }
+
+#define FAIL_NOT_EQ(expected, val) if(expected != val) RETURN_RESULT(-1, __LINE__, "")
+#define FAIL_IF_ERROR(err) if((err) < 0) RETURN_RESULT(err, __LINE__, "") 
+#define FAIL_IF(cond) if((cond)) RETURN_RESULT(-1, __LINE__, "")
 #define TEST_IS_NULL(obj) { return (((obj)) == NULL) ? 0 : -1; }
-#define TEST_FAIL() { return -1; }
-#define TEST_ERROR(err) { return err; }
-#define TEST_SUCCESS() { return 0; }
+#define TEST_FAIL() RETURN_RESULT(-1, __LINE__, "")
+#define TEST_ERROR(err) RETURN_RESULT(err, __LINE__, "")
+#define TEST_SUCCESS() RETURN_RESULT(0, __LINE__, "")
 
 #else
 
