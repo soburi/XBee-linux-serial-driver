@@ -101,6 +101,7 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 #define RUN_MODTEST(parent)
 
 #define TEST_IS_TRUE(cond) { return ((cond)) ? 0 : -1; }
+#define TEST_IS_NULL(obj) { return (((obj)) == NULL) ? 0 : -1; }
 #define TEST_FAIL() { return -1; }
 #define TEST_ERROR(err) { return err; }
 #define TEST_SUCCESS() { return 0; }
