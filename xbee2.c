@@ -304,7 +304,7 @@ static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char
 	}
 }
 
-static struct sk_buff* frame_dequeue_received(struct sk_buff_head *recv_queue, uint8_t frameid)
+static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
 {
 	struct sk_buff* skb = NULL;
 	skb = skb_peek(recv_queue);
