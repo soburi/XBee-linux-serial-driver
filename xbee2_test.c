@@ -35,6 +35,7 @@ static int buffer_calc_checksum_example(void* arg) {
 	return 0;
 }
 
+#if 0
 #define TEST3 buffer_find_delimiter_exists
 static int buffer_find_delimiter_exists(void* arg) {
 	const char buf[] = {0x23, 0x7E, 0x11};
@@ -55,6 +56,7 @@ static int buffer_find_delimiter_non_exists(void* arg) {
 	if(ret != -1) return -1;
 	return 0;
 }
+#endif
 
 #define TEST5 buffer_find_delimiter_escaped_exists
 static int buffer_find_delimiter_escaped_exists(void* arg) {

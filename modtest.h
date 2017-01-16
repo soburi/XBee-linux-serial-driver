@@ -8,6 +8,7 @@ struct modtest {
 	struct work_struct work;
 	struct workqueue_struct *workq;
 	size_t test_num;
+	size_t null_test_count;
 	size_t test_count;
 	size_t test_success;
 	const fp_modtest* tests;
@@ -29,20 +30,25 @@ static void modtest_work_fn(struct work_struct *param)
 	mt = (struct modtest*)param;
 
 	if(mt->test_count < mt->test_num) {
-		mt->setup(mt->data, mt->test_count);
-		err = mt->tests[mt->test_count](mt->data);
-		mt->teardown(mt->data, mt->test_count);
+		if(mt->tests[mt->test_count] != NULL) {
+			mt->setup(mt->data, mt->test_count);
+			err = mt->tests[mt->test_count](mt->data);
+			mt->teardown(mt->data, mt->test_count);
 
-		if(err)
-			pr_debug("TEST%lu is failed. error = %d\n", mt->test_count, err);
-		else
-			mt->test_success++;
+			if(err)
+				pr_debug("TEST%lu is failed. error = %d\n", mt->test_count, err);
+			else
+				mt->test_success++;
+		}
+		else {
+			mt->null_test_count++;
+		}
 
 		mt->test_count++;
 		err = queue_work(mt->workq, &mt->work);
 	}
 	else {
-		pr_debug("Finish test: %lu/%lu\n", mt->test_success, mt->test_num);
+		pr_debug("Finish test: %lu/%lu\n", mt->test_success, mt->test_num - mt->null_test_count);
 	}
 }
 
@@ -60,6 +66,9 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 	parent->_modtest_.setup = modtest_setup; \
 	parent->_modtest_.tests = modtest_tests; \
 	parent->_modtest_.teardown = modtest_teardown ; \
+	parent->_modtest_.test_success = 0; \
+	parent->_modtest_.test_count = 0; \
+	parent->_modtest_.null_test_count = 0; \
 }
 
 #define DECL_TESTS_ARRAY() \
