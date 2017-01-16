@@ -480,6 +480,38 @@ static int frame_enqueue_valid_invalid(void* arg) {
 	return 0;
 }
 
+
+
+#define TEST100 frame_deenqueue_list
+static int frame_deenqueue_list(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x04 ,0x08 ,0x01 ,0x49 ,0x44 ,0x69 };
+	const int count = 8;
+	struct sk_buff* dequeued = NULL;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	if(ret != 1) return -1;
+
+	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 1);
+
+	if(skb_queue_len(&xbdev->recv_queue) != 1) return -1;
+
+	if(xbdev->recv_buf->len != 0) return -1;
+
+	if(dequeued == NULL) return -1;
+
+	return 0;
+}
+
+
+
+
+
+
 #define TEST31 frame_enqueue_send_vr
 static int frame_enqueue_send_vr(void* arg) {
 	//int ret = 0;
