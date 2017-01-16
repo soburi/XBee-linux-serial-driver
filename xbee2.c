@@ -311,7 +311,7 @@ static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint
 
 	if(!skb) return NULL;
 
-	do {
+	skb_queue_walk(recv_queue, skb) {
 		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
 		if( hd->type != XBEE_FRM_RX64 &&
 			hd->type != XBEE_FRM_RX16 &&
@@ -324,8 +324,7 @@ static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint
 				return skb;
 			}
 		}
-		skb = skb_peek_next(skb, recv_queue);
-	} while( skb_queue_is_last(recv_queue, skb) );
+	}
 
 	return NULL;
 }
