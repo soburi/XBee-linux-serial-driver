@@ -12,7 +12,7 @@ static int xbee_test_setup(void* arg, int testno) {
 
 #define TEST0 modtest_check
 static int modtest_check(void* arg) {
-	return 0;
+	TEST_SUCCESS();
 }
 
 #define TEST1 buffer_calc_checksum_zero
@@ -21,8 +21,10 @@ static int buffer_calc_checksum_zero(void* arg) {
 	const int count = 0;
 	int ret = 0;
 	ret = buffer_calc_checksum(buf, count);
-	if(ret != 0xFF) return -1;
-	return 0;
+
+	FAIL_NOT_EQ(0xFF, ret);
+
+	TEST_SUCCESS();
 }
 
 #define TEST2 buffer_calc_checksum_example
@@ -31,8 +33,9 @@ static int buffer_calc_checksum_example(void* arg) {
 	const int count = 2;
 	int ret = 0;
 	ret = buffer_calc_checksum(buf, count);
-	if(ret != 0xCB) return -1;
-	return 0;
+	
+	FAIL_NOT_EQ(0xCB, ret);
+	TEST_SUCCESS();
 }
 
 #if 0
@@ -42,8 +45,8 @@ static int buffer_find_delimiter_exists(void* arg) {
 	const int count = 3;
 	int ret = 0;
 	ret = buffer_find_delimiter_unescaped(buf, count);
-	if(ret != 1) return -1;
-	return 0;
+	FAIL_NOT_EQ(1, ret);
+	TEST_SUCCESS();
 }
 
 
@@ -53,8 +56,8 @@ static int buffer_find_delimiter_non_exists(void* arg) {
 	const int count = 3;
 	int ret = 0;
 	ret = buffer_find_delimiter_unescaped(buf, count);
-	if(ret != -1) return -1;
-	return 0;
+	FAIL_NOT_EQ(-1, ret);
+	TEST_SUCCESS();
 }
 #endif
 
@@ -64,8 +67,9 @@ static int buffer_find_delimiter_escaped_exists(void* arg) {
 	const int count = 3;
 	int ret = 0;
 	ret = buffer_find_delimiter_escaped(buf, count);
-	if(ret != 1) return -1;
-	return 0;
+
+	FAIL_NOT_EQ(1, ret);
+	TEST_SUCCESS();
 }
 
 
@@ -75,8 +79,9 @@ static int buffer_find_delimiter_escaped_non_exists(void* arg) {
 	const int count = 3;
 	int ret = 0;
 	ret = buffer_find_delimiter_escaped(buf, count);
-	if(ret != -1) return -1;
-	return 0;
+
+	FAIL_NOT_EQ(-1, ret);
+	TEST_SUCCESS();
 }
 
 
@@ -86,8 +91,9 @@ static int buffer_find_delimiter_escaped_exists_escape(void* arg) {
 	const int count = 3;
 	int ret = 0;
 	ret = buffer_find_delimiter_escaped(buf, count);
-	if(ret != 1) return -1;
-	return 0;
+
+	FAIL_NOT_EQ(1, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST8 buffer_find_delimiter_escaped_non_exists_escape
@@ -96,8 +102,9 @@ static int buffer_find_delimiter_escaped_non_exists_escape(void* arg) {
 	const int count = 3;
 	int ret = 0;
 	ret = buffer_find_delimiter_escaped(buf, count);
-	if(ret != -1) return -1;
-	return 0;
+
+	FAIL_NOT_EQ(-1, ret);
+	TEST_SUCCESS();
 }
 
 
@@ -107,8 +114,9 @@ static int buffer_unescape_zero(void* arg) {
 	const int count = 0;
 	int ret = 0;
 	ret = buffer_unescape(buf, count);
-	if(ret != 0) return -1;
-	return 0;
+
+	FAIL_NOT_EQ(0, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST10 buffer_unescape_example
@@ -119,9 +127,9 @@ static int buffer_unescape_example(void* arg) {
 	int ret = 0;
 	ret = buffer_unescape(buf, count);
 
-	if(ret != 6) return -1;
-	if( memcmp(buf, ans, 6) != 0) return -1;
-	return 0;
+	FAIL_NOT_EQ(6, ret);
+	FAIL_NOT_EQ(0,  memcmp(buf, ans, 6));
+	TEST_SUCCESS();
 }
 
 #define TEST11 buffer_unescape_end_escape
@@ -132,9 +140,9 @@ static int buffer_unescape_end_escape(void* arg) {
 	int ret = 0;
 	ret = buffer_unescape(buf, count);
 
-	if(ret != 6) return -1;
-	if( memcmp(buf, ans, 6) != 0) return -1;
-	return 0;
+	FAIL_NOT_EQ(6, ret);
+	FAIL_NOT_EQ(0,  memcmp(buf, ans, 6));
+	TEST_SUCCESS();
 }
 
 #define TEST12 frame_new_test
@@ -144,12 +152,11 @@ static int frame_new_test(void* arg) {
 
 	frm = (struct xb_frameheader*)skb->data;
 
-	if(skb->data[0] != 0x7E) return -1;
-	if(skb->data[1] != 0x00) return -1;
-	if(skb->data[2] != 0x0a) return -1;
-	if(skb->data[3] != 0x0F) return -1;
-
-	return 0;
+	FAIL_NOT_EQ(0x7E, skb->data[0]);
+	FAIL_NOT_EQ(0x00, skb->data[1]);
+	FAIL_NOT_EQ(0x0a, skb->data[2]);
+	FAIL_NOT_EQ(0x0F, skb->data[3]);
+	TEST_SUCCESS();
 }
 
 #define TEST13 frame_calc_checksum_zero
@@ -161,8 +168,9 @@ static int frame_calc_checksum_zero(void* arg) {
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
 	ret = frame_calc_checksum(xbdev->recv_buf);
-	if(ret != 0xFF) return -1;
-	return 0;
+
+	FAIL_NOT_EQ(0xFF, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST14 frame_calc_checksum_example
@@ -174,8 +182,9 @@ static int frame_calc_checksum_example(void* arg) {
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
 	ret = frame_calc_checksum(xbdev->recv_buf);
-	if(ret != 0xCB) return -1;
-	return 0;
+
+	FAIL_NOT_EQ(0xCB, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST15 frame_verify_zerobyte
@@ -184,9 +193,8 @@ static int frame_verify_zerobyte(void* arg) {
 	struct xb_device* xbdev = (struct xb_device*)arg;
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != -EAGAIN) return -1;
-
-	return 0;
+	FAIL_NOT_EQ(-EAGAIN, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST16 frame_verify_non_startmark
@@ -202,9 +210,8 @@ static int frame_verify_non_startmark(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != -EINVAL) return -1;
-
-	return 0;
+	FAIL_NOT_EQ(-EINVAL, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST17 frame_verify_startmark
@@ -220,9 +227,8 @@ static int frame_verify_startmark(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != -EAGAIN) return -1;
-
-	return 0;
+	FAIL_NOT_EQ(-EAGAIN, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST18 frame_verify_length_zero
@@ -238,9 +244,8 @@ static int frame_verify_length_zero(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != -EAGAIN) return -1;
-
-	return 0;
+	FAIL_NOT_EQ(-EAGAIN, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST19 frame_verify_length_zero_invalid
@@ -256,9 +261,8 @@ static int frame_verify_length_zero_invalid(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != -EINVAL) return -1;
-
-	return 0;
+	FAIL_NOT_EQ(-EINVAL, ret);
+	TEST_SUCCESS();
 }
 
 
@@ -275,9 +279,8 @@ static int frame_verify_length_zero_valid(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != 4) return -1;
-
-	return 0;
+	FAIL_NOT_EQ(4, ret);
+	TEST_SUCCESS();
 }
 
 #define TEST21 frame_verify_length_zero_valid_large
@@ -293,9 +296,8 @@ static int frame_verify_length_zero_valid_large(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != 4) return -1;
-
-	return 0;
+	FAIL_NOT_EQ(4, ret);
+	TEST_SUCCESS();
 }
 
 
@@ -312,9 +314,9 @@ static int frame_verify_valid_example(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	if(ret != 6) return -1;
+	FAIL_NOT_EQ(6, ret);
 
-	return 0;
+	TEST_SUCCESS();
 }
 
 #define TEST23 frame_enqueue_zerobyte
@@ -328,12 +330,10 @@ static int frame_enqueue_zerobyte(void* arg) {
 	//memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
-	if(ret != 0) return -1;
-
-	if(skb_queue_len(&xbdev->recv_queue) != 0) return -1;
-
-	if(xbdev->recv_buf->len != 0) return -1;
-	return 0;
+	FAIL_NOT_EQ(0, ret);
+	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	TEST_SUCCESS();
 }
 
 #define TEST24 frame_enqueue_non_startmark
@@ -347,12 +347,10 @@ static int frame_enqueue_non_startmark(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
-	if(ret != 0) return -1;
-
-	if(skb_queue_len(&xbdev->recv_queue) != 0) return -1;
-
-	if(xbdev->recv_buf->len != 0) return -1;
-	return 0;
+	FAIL_NOT_EQ(0, ret);
+	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	TEST_SUCCESS();
 }
 
 #define TEST25 frame_enqueue_startmark
@@ -366,12 +364,10 @@ static int frame_enqueue_startmark(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
-	if(ret != 0) return -1;
-
-	if(skb_queue_len(&xbdev->recv_queue) != 0) return -1;
-
-	if(xbdev->recv_buf->len != 1) return -1;
-	return 0;
+	FAIL_NOT_EQ(0, ret);
+	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(1, xbdev->recv_buf->len);
+	TEST_SUCCESS();
 }
 
 #define TEST26 frame_enqueue_startmark_len
@@ -385,12 +381,10 @@ static int frame_enqueue_startmark_len(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
-	if(ret != 0) return -1;
-
-	if(skb_queue_len(&xbdev->recv_queue) != 0) return -1;
-
-	if(xbdev->recv_buf->len != 3) return -1;
-	return 0;
+	FAIL_NOT_EQ(0, ret);
+	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(3, xbdev->recv_buf->len);
+	TEST_SUCCESS();
 }
 
 #define TEST27 frame_enqueue_valid_example
@@ -405,13 +399,11 @@ static int frame_enqueue_valid_example(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
-	if(ret != 1) return -1;
+	FAIL_NOT_EQ(1, ret);
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
-	if(skb_queue_len(&xbdev->recv_queue) != 1) return -1;
-
-	if(xbdev->recv_buf->len != 0) return -1;
-
-	return 0;
+	TEST_SUCCESS();
 }
 
 
@@ -427,13 +419,11 @@ static int frame_enqueue_valid_example_two(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
-	if(ret != 2) return -1;
+	FAIL_NOT_EQ(2, ret);
+	FAIL_NOT_EQ(2, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
-	if(skb_queue_len(&xbdev->recv_queue) != 2) return -1;
-
-	if(xbdev->recv_buf->len != 0) return -1;
-
-	return 0;
+	TEST_SUCCESS();
 }
 
 
@@ -449,13 +439,11 @@ static int frame_enqueue_valid_partial(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
-	if(ret != 1) return -1;
+	FAIL_NOT_EQ(1, ret);
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(1, xbdev->recv_buf->len);
 
-	if(skb_queue_len(&xbdev->recv_queue) != 1) return -1;
-
-	if(xbdev->recv_buf->len != 1) return -1;
-
-	return 0;
+	TEST_SUCCESS();
 }
 
 
@@ -471,13 +459,11 @@ static int frame_enqueue_valid_invalid(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
-	if(ret != 1) return -1;
+	FAIL_NOT_EQ(1, ret);
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
-	if(skb_queue_len(&xbdev->recv_queue) != 1) return -1;
-
-	if(xbdev->recv_buf->len != 0) return -1;
-
-	return 0;
+	TEST_SUCCESS();
 }
 
 
@@ -494,17 +480,15 @@ static int frame_deenqueue_list(void* arg) {
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
-	if(ret != 1) return -1;
+	FAIL_NOT_EQ(1, ret);
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 1);
 
-	if(skb_queue_len(&xbdev->recv_queue) != 1) return -1;
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_IF(dequeued == NULL);
 
-	if(xbdev->recv_buf->len != 0) return -1;
-
-	if(dequeued == NULL) return -1;
-
-	return 0;
+	TEST_SUCCESS();
 }
 
 
@@ -525,12 +509,11 @@ static int frame_enqueue_send_vr(void* arg) {
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 
-	//if(ret != 1) return -1;
+	//FAIL_NOT_EQ(1, ret);
 
-	if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
-
-	if(xbdev->recv_buf->len != 0) return -1;
-
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	TEST_SUCCESS();
 	return 0;
 }
 
@@ -550,12 +533,11 @@ static int xb_process_sendrecv_vr(void* arg) {
 
 	xb_process_sendrecv(xbdev);
 
-	//if(ret != 1) return -1;
+	//FAIL_NOT_EQ(1, ret);
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
-	if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
-
-	if(xbdev->recv_buf->len != 0) return -1;
-
+	TEST_SUCCESS();
 	return 0;
 }
 #endif
@@ -579,14 +561,13 @@ static int xbee_ieee802154_set_channel_test(void* arg) {
 
 	ret = xb_process_sendrecv(xbdev);
 
-	if(ret <= 0) return -1;
+	FAIL_IF_ERROR(ret);
 
-	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
-
-	//if(xbdev->recv_buf->len != 0) return -1;
-
+	//FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	//FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 	// TODO inspect received data
 
+	TEST_SUCCESS();
 	return 0;
 }
 
@@ -610,14 +591,15 @@ static int xbee_ieee802154_set_txpower_test(void* arg) {
 
 	ret = xb_process_sendrecv(xbdev);
 
-	if(ret <= 0) return -1;
+	FAIL_IF_ERROR(ret);
 
-	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
+	//FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
 
-	//if(xbdev->recv_buf->len != 0) return -1;
+	//FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
 	// TODO inspect received data
 
+	TEST_SUCCESS();
 	return 0;
 }
 
@@ -642,14 +624,15 @@ static int xbee_ieee802154_set_cca_ed_level_test(void* arg) {
 
 	ret = xb_process_sendrecv(xbdev);
 
-	if(ret <= 0) return -1;
+	FAIL_IF_ERROR(ret);
 
-	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
+	//FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
 
-	//if(xbdev->recv_buf->len != 0) return -1;
+	//FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
 	// TODO inspect received data
 
+	TEST_SUCCESS();
 	return 0;
 }
 
@@ -680,14 +663,15 @@ static int xbee_ieee802154_set_csma_params_test(void* arg) {
 
 	ret = xb_process_sendrecv(xbdev);
 
-	if(ret <= 0) return -1;
+	FAIL_IF_ERROR(ret);
 
-	//if(skb_queue_len(&xbdev->send_queue) != 1) return -1;
+	//FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
 
-	//if(xbdev->recv_buf->len != 0) return -1;
+	//FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
 	// TODO inspect received data
 
+	TEST_SUCCESS();
 	return 0;
 }
 
