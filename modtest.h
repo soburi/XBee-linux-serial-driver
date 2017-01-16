@@ -94,17 +94,17 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #define ALL_MODTESTS {}
 
-#else
-
-#define DECL_MODTEST_STRUCT()
-#define INIT_MODTEST(parent)
-#define RUN_MODTEST(parent)
-
 #define TEST_IS_TRUE(cond) { return ((cond)) ? 0 : -1; }
 #define TEST_IS_NULL(obj) { return (((obj)) == NULL) ? 0 : -1; }
 #define TEST_FAIL() { return -1; }
 #define TEST_ERROR(err) { return err; }
 #define TEST_SUCCESS() { return 0; }
+
+#else
+
+#define DECL_MODTEST_STRUCT()
+#define INIT_MODTEST(parent)
+#define RUN_MODTEST(parent)
 
 #endif /* MODTEST_ENABLE */
 
