@@ -76,7 +76,7 @@ struct xb_frame_header_id {
 	uint8_t id;
 } __attribute__((aligned(1), packed));
 
-struct xb_frame_at {
+struct xb_frame_atcmd {
 	struct xb_frame_header hd;
 	uint8_t id;
 	uint16_t command;
@@ -123,11 +123,27 @@ struct xb_frame_txstat {
 	uint8_t options;
 } __attribute__((aligned(1), packed));
 
-struct xb_frame_stat {
+struct xb_frame_mstat {
 	struct xb_frame_header hd;
 	uint8_t status;
 } __attribute__((aligned(1), packed));
 
+struct xb_frame_rcmd {
+	struct xb_frame_header hd;
+	uint8_t id;
+	uint64_t destaddr64;
+	uint16_t destaddr16;
+	uint16_t command;
+} __attribute__((aligned(1), packed));
+
+struct xb_frame_rcmdr {
+	struct xb_frame_header hd;
+	uint8_t id;
+	uint64_t destaddr64;
+	uint16_t destaddr16;
+	uint16_t command;
+	uint8_t status;
+} __attribute__((aligned(1), packed));
 
 /* API frame types */
 enum {
@@ -371,20 +387,20 @@ static void frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* 
 static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uint8_t id, char* buf, unsigned short buflen)
 {
 	struct sk_buff* newskb = NULL;
-	struct xb_frame_at* atfrm = NULL;
+	struct xb_frame_atcmd* atfrm = NULL;
 
 	unsigned char checksum = 0;
 	int datalen = 0;
 
 	newskb = frame_new(buflen+3, XBEE_FRM_ATCMD);
-	atfrm = (struct xb_frame_at*)newskb->data;
+	atfrm = (struct xb_frame_atcmd*)newskb->data;
 
 	atfrm->id = id;
 	atfrm->command = htons(atcmd);
 
 	datalen = htons(atfrm->hd.length);
 
-	memmove(newskb->data + sizeof(struct xb_frame_at), buf, buflen);
+	memmove(newskb->data + sizeof(struct xb_frame_atcmd), buf, buflen);
 
 	checksum = frame_calc_checksum(newskb);
 	newskb->data[datalen+3] = checksum;
@@ -428,11 +444,16 @@ static bool xb_process_sendrecv(struct xb_device* xb)
 
 static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 {
-//    struct sk_buff *lskb;
-	pr_debug("%s\n", __func__);
-//    lskb = alloc_skb(skb->len, GFP_ATOMIC);
-//    skb_put(lskb, skb->len);
-//    skb_copy_to_linear_data(lskb, skb->data, skb->len);
+	struct xb_frame_rx64* rx64 = (struct xb_frame_rx64*)skb->data;
+	pr_debug("RX64: addr=%016llx rssi=%d options=%x\n", rx64->srcaddr, rx64->rssi, rx64->options);
+//	ieee802154_rx_irqsafe(xbdev->dev, lskb, skb->len);
+//	ieee802154_rx(xbdev->dev, skb, rssi);
+}
+
+static void frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_rx16* rx16 = (struct xb_frame_rx16*)skb->data;
+	pr_debug("RX16: addr=%04x rssi=%d options=%x\n", rx16->srcaddr, rx16->rssi, rx16->options);
 //	ieee802154_rx_irqsafe(xbdev->dev, lskb, skb->len);
 //	ieee802154_rx(xbdev->dev, skb, rssi);
 }
@@ -444,15 +465,64 @@ static void frame_recv_atcmdr(struct xb_device *xbdev, struct sk_buff *skb)
 	pr_debug("AT_R: id=0x%02x cmd=%c%c status=%d\n", atresp->id, atresp->command&0xFF, (atresp->command & 0xFF00)>>8 , atresp->status);
 }
 
-static void frame_recv_mstat(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
-static void frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
-static void frame_recv_rx64io(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
-static void frame_recv_rx16io(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
-static void frame_recv_atcmdX(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
-static void frame_recv_atcmdq(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
-static void frame_recv_rcmdr(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
-static void frame_recv_tx64(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
-static void frame_recv_tx16(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
+static void frame_recv_mstat(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_mstat* mstat = (struct xb_frame_mstat*)skb->data;
+	pr_debug("MSTA: status=%d\n", mstat->status);
+}
+
+static void frame_recv_txstat(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_txstat* txstat = (struct xb_frame_txstat*)skb->data;
+	pr_debug("TXST: id->0x%02x options=%x\n", txstat->id, txstat->options);
+}
+
+static void frame_recv_rx64io(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_rx64* rx64 = (struct xb_frame_rx64*)skb->data;
+	pr_debug("UNEXPECTED RX64IO: addr=%016llx rssi=%d options=%x\n", rx64->srcaddr, rx64->rssi, rx64->options);
+}
+
+static void frame_recv_rx16io(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_rx16* rx16 = (struct xb_frame_rx16*)skb->data;
+	pr_debug("UNEXPECTED RX16IO: addr=%04x rssi=%d options=%x\n", rx16->srcaddr, rx16->rssi, rx16->options);
+}
+
+static void frame_recv_atcmd(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
+	pr_debug("UNEXPECTED ATCMD: id=0x%02x cmd=%c%c\n", atcmd->id, atcmd->command&0xFF, (atcmd->command & 0xFF00)>>8);
+}
+
+static void frame_recv_atcmdq(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
+	pr_debug("UNEXPECTED ATCMDQ: id=0x%02x cmd=%c%c\n", atcmd->id, atcmd->command&0xFF, (atcmd->command & 0xFF00)>>8);
+}
+
+static void frame_recv_rcmd(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_rcmd* ratcmd = (struct xb_frame_rcmd*)skb->data;
+	pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c\n", ratcmd->id, ratcmd->destaddr64, ratcmd->destaddr16, ratcmd->command&0xFF, (ratcmd->command & 0xFF00)>>8);
+}
+
+static void frame_recv_rcmdr(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_rcmdr* ratcmdr = (struct xb_frame_rcmdr*)skb->data;
+	pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c status=%d\n", ratcmdr->id, ratcmdr->destaddr64, ratcmdr->destaddr16, ratcmdr->command&0xFF, (ratcmdr->command & 0xFF00)>>8, ratcmdr->status);
+}
+
+static void frame_recv_tx64(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_tx64* tx64 = (struct xb_frame_tx64*)skb->data;
+	pr_debug("UNEXPECTED TX64: id=0x%02x addr=%llx options=%x\n", tx64->id, tx64->destaddr, tx64->options);
+}
+static void frame_recv_tx16(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	struct xb_frame_tx16* tx16 = (struct xb_frame_tx16*)skb->data;
+	pr_debug("UNEXPECTED TX16: id=0x%02x addr=%04x options=%x\n", tx16->id, tx16->destaddr, tx16->options);
+}
 static void frame_recv_default(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
 
 /**
@@ -476,11 +546,12 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 	case XBEE_FRM_RX16:		frame_recv_rx16(xbdev, skb);	break;
 	case XBEE_FRM_RX64IO:   frame_recv_rx64io(xbdev, skb);	break;
 	case XBEE_FRM_RX16IO:   frame_recv_rx16io(xbdev, skb);	break;
-	case XBEE_FRM_ATCMD:	frame_recv_atcmdX(xbdev, skb);	break;
+	case XBEE_FRM_ATCMD:	frame_recv_atcmd(xbdev, skb);	break;
 	case XBEE_FRM_ATCMDQ:	frame_recv_atcmdq(xbdev, skb);	break;
-	case XBEE_FRM_RCMD:		frame_recv_rcmdr(xbdev, skb);	break;
+	case XBEE_FRM_RCMD:		frame_recv_rcmd(xbdev, skb);	break;
 	case XBEE_FRM_TX64:		frame_recv_tx64(xbdev, skb);	break;
 	case XBEE_FRM_TX16:		frame_recv_tx16(xbdev, skb);	break;
+	case XBEE_FRM_TXSTAT:	frame_recv_txstat(xbdev, skb);	break;
 	default:				frame_recv_default(xbdev, skb);	break;
 	}
 }
