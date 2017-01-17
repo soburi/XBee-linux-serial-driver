@@ -10,6 +10,7 @@
 #include <linux/nl80211.h>
 #include <net/mac802154.h>
 #include <net/regulatory.h>
+#include <net/ieee802154_netdev.h>
 
 #ifdef MODTEST_ENABLE
 #include "modtest.h"
@@ -796,10 +797,48 @@ static void xbee_ieee802154_stop(struct ieee802154_hw *hw){
 
 	pr_debug("%s end\n", __func__);
 }
+static int xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
+{
+	return 0;
+}
+static int xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr, __le16 short_addr, u8 status)
+{
+	return 0;
+}
+static int xbee_mlme_disassoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 reason)
+{
+	return 0;
+}
+static int xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx, u8 coord_realign)
+{
+	return 0;
+}
+static int xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 page, u8 duration)
+{
+	return 0;
+}
+static int xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802154_mac_params *params)
+{
+	return 0;
+}
+static void xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_mac_params *params)
+{
+	return;
+}
 
 /*****************************************************************************
  * Line discipline interface for IEEE 802.15.4 serial device
  *****************************************************************************/
+static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
+	.assoc_req = xbee_mlme_assoc_req,
+	.assoc_resp = xbee_mlme_assoc_resp,
+	.disassoc_req = xbee_mlme_disassoc_req,
+	.start_req = xbee_mlme_start_req,
+	.scan_req = xbee_mlme_scan_req,
+	.set_mac_params = xbee_mlme_set_mac_params,
+	.get_mac_params = xbee_mlme_get_mac_params,
+	.llsec = NULL,
+};
 
 /**
  * xbee_ieee802154_ops - ieee802154 MCPS ops.
