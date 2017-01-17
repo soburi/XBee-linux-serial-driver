@@ -76,54 +76,54 @@ struct xb_frame_header_id {
 	uint8_t id;
 } __attribute__((aligned(1), packed));
 
-struct xb_at_frame {
+struct xb_frame_at {
 	struct xb_frame_header hd;
 	uint8_t id;
 	uint16_t command;
 } __attribute__((aligned(1), packed));
 
-struct xb_at_resp_frame {
+struct xb_frame_atresp {
 	struct xb_frame_header hd;
 	uint8_t id;
 	uint16_t command;
 	uint8_t status;
 } __attribute__((aligned(1), packed));
 
-struct xb_tx64_frame {
+struct xb_frame_tx64 {
 	struct xb_frame_header hd;
 	uint8_t id;
 	uint64_t destaddr;
 	uint8_t options;
 } __attribute__((aligned(1), packed));
 
-struct xb_tx16_frame {
+struct xb_frame_tx16 {
 	struct xb_frame_header hd;
 	uint8_t id;
 	uint16_t destaddr;
 	uint8_t options;
 } __attribute__((aligned(1), packed));
 
-struct xb_rx64_frame {
+struct xb_frame_rx64 {
 	struct xb_frame_header hd;
 	uint64_t srcaddr;
 	uint8_t rssi;
 	uint8_t options;
 } __attribute__((aligned(1), packed));
 
-struct xb_rx16_frame {
+struct xb_frame_rx16 {
 	struct xb_frame_header hd;
 	uint16_t srcaddr;
 	uint8_t rssi;
 	uint8_t options;
 } __attribute__((aligned(1), packed));
 
-struct xb_txstat_frame {
+struct xb_frame_txstat {
 	struct xb_frame_header hd;
 	uint8_t id;
 	uint8_t options;
 } __attribute__((aligned(1), packed));
 
-struct xb_stat_frame {
+struct xb_frame_stat {
 	struct xb_frame_header hd;
 	uint8_t status;
 } __attribute__((aligned(1), packed));
@@ -371,20 +371,20 @@ static void frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* 
 static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uint8_t id, char* buf, unsigned short buflen)
 {
 	struct sk_buff* newskb = NULL;
-	struct xb_at_frame* atfrm = NULL;
+	struct xb_frame_at* atfrm = NULL;
 
 	unsigned char checksum = 0;
 	int datalen = 0;
 
 	newskb = frame_new(buflen+3, XBEE_FRM_ATCMD);
-	atfrm = (struct xb_at_frame*)newskb->data;
+	atfrm = (struct xb_frame_at*)newskb->data;
 
 	atfrm->id = id;
 	atfrm->command = htons(atcmd);
 
 	datalen = htons(atfrm->hd.length);
 
-	memmove(newskb->data + sizeof(struct xb_at_frame), buf, buflen);
+	memmove(newskb->data + sizeof(struct xb_frame_at), buf, buflen);
 
 	checksum = frame_calc_checksum(newskb);
 	newskb->data[datalen+3] = checksum;
@@ -426,100 +426,6 @@ static bool xb_process_sendrecv(struct xb_device* xb)
 	return ret;
 }
 
-static void frame_atcmd_responce(struct xb_device *xbdev, char frameid, unsigned short atcmd, char status, char* buf, unsigned long buflen)
-{
-	//pr_debug("%s [%c%c] frameid=%d len=%lu\n", __func__, atcmd&0xFF, (atcmd>>8)&0xFF, frameid, buflen );
-	switch(atcmd) {
-#if 0
-	/* Special commands */
-	case XBEE_AT_AC: break;
-	case XBEE_AT_FR: break;
-	case XBEE_AT_RE: break;
-	case XBEE_AT_WR: break;
-	/* MAC/PHY Commands */
-	case XBEE_AT_CH: break;
-	case XBEE_AT_ID: break;
-	case XBEE_AT_MT: break;
-	case XBEE_AT_CA: break;
-	case XBEE_AT_PL: break;
-	case XBEE_AT_RR: break;
-	case XBEE_AT_ED: break;
-	case XBEE_AT_BC: break;
-	case XBEE_AT_DB: break;
-	case XBEE_AT_GD: break;
-	case XBEE_AT_EA: break;
-	case XBEE_AT_TR: break;
-	case XBEE_AT_UA: break;
-	case XBEE_AT_perH: break;
-	case XBEE_AT_per8: break;
-	/* Network commands */
-	case XBEE_AT_CE: break;
-	case XBEE_AT_BH: break;
-	case XBEE_AT_NH: break;
-	case XBEE_AT_DM: break;
-	case XBEE_AT_NN: break;
-	/* Addressing commands */
-	case XBEE_AT_SH: break;
-	case XBEE_AT_SL: break;
-	case XBEE_AT_DH: break;
-	case XBEE_AT_DL: break;
-	case XBEE_AT_NI: break;
-	case XBEE_AT_NT: break;
-	case XBEE_AT_NO: break;
-	case XBEE_AT_CI: break;
-	case XBEE_AT_DE: break;
-	case XBEE_AT_SE: break;
-	/* Diagnostic - addressing commands */
-	case XBEE_AT_Nquest: break;
-	/* Addressing discovery/configuration commands */
-	case XBEE_AT_AG: break;
-	case XBEE_AT_DN: break;
-	case XBEE_AT_ND: break;
-	case XBEE_AT_FN: break;
-	/* Security commands */
-	case XBEE_AT_EE: break;
-	case XBEE_AT_KY: break;
-	/* Serial interfacing commands */
-	case XBEE_AT_BD: break;
-	case XBEE_AT_NB: break;
-	case XBEE_AT_RO: break;
-	case XBEE_AT_FT: break;
-	case XBEE_AT_AP: break;
-	case XBEE_AT_AO: break;
-	/* I/O settings commands */
-	/* I/O sampling commands */
-	/* Sleep commands */
-	case XBEE_AT_SM: break;
-	case XBEE_AT_SO: break;
-	case XBEE_AT_SN: break;
-	case XBEE_AT_SP: break;
-	case XBEE_AT_ST: break;
-	case XBEE_AT_WH: break;
-	/* Diagnostic - sleep status/timing commands */
-	case XBEE_AT_SS: break;
-	case XBEE_AT_OS: break;
-	case XBEE_AT_OW: break;
-	case XBEE_AT_MS: break;
-	case XBEE_AT_SQ: break;
-	/* Command mode options */
-	case XBEE_AT_CC: break;
-	case XBEE_AT_CT: break;
-	case XBEE_AT_CN: break;
-	case XBEE_AT_GT: break;
-	case XBEE_AT_VL: break;
-#endif
-	case XBEE_AT_VR: xbdev->firmware_version = *((unsigned short*)buf); break;
-#if 0
-	case XBEE_AT_HV: break;
-	case XBEE_AT_DD: break;
-	case XBEE_AT_NP: break;
-	case XBEE_AT_CK: break;
-#endif
-	}
-
-
-}
-
 static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 {
 //    struct sk_buff *lskb;
@@ -533,14 +439,9 @@ static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 
 static void frame_recv_atcmdr(struct xb_device *xbdev, struct sk_buff *skb)
 {
-	char frameid = *(skb->data+3);
-	unsigned short atcmd = *((unsigned short*)(skb->data+4));
-	char status = *(skb->data+6);
-	char* data = (skb->data)+7;
-	unsigned long datalen = (skb->len)-8;
-
-	//print_hex_dump_bytes("data: ", DUMP_PREFIX_NONE, data, datalen);
-	frame_atcmd_responce(xbdev, frameid, atcmd, status, data, datalen);
+	// AT command response must handle call side.
+	struct xb_frame_atresp* atresp = (struct xb_frame_atresp*)skb->data;
+	pr_debug("AT_R: id=0x%02x cmd=%c%c status=%d\n", atresp->id, atresp->command&0xFF, (atresp->command & 0xFF00)>>8 , atresp->status);
 }
 
 static void frame_recv_mstat(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
