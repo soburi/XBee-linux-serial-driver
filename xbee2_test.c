@@ -469,8 +469,8 @@ static struct modtest_result frame_enqueue_valid_invalid(void* arg) {
 
 
 
-#define TEST100 frame_deenqueue_list
-static struct modtest_result frame_deenqueue_list(void* arg) {
+#define TEST100 frame_dequeue_list_found
+static struct modtest_result frame_dequeue_list_found(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x04 ,0x08 ,0x01 ,0x49 ,0x44 ,0x69 };
 	const int count = 8;
@@ -485,12 +485,82 @@ static struct modtest_result frame_deenqueue_list(void* arg) {
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 1);
 
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
 	FAIL_IF(dequeued == NULL);
 
 	TEST_SUCCESS();
 }
+
+#define TEST101 frame_dequeue_list_notfound
+static struct modtest_result frame_dequeue_list_notfound(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x04 ,0x08 ,0x01 ,0x49 ,0x44 ,0x69 };
+	const int count = 8;
+	struct sk_buff* dequeued = NULL;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	FAIL_NOT_EQ(1, ret);
+
+	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 2);
+
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF(dequeued != NULL);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST102 frame_dequeue_list_no_id_frame
+static struct modtest_result frame_dequeue_list_no_id_frame(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00 ,0x05 ,0x81 ,0xFF ,0xFE ,0x00 ,0x01 ,0x80 };
+	const int count = 9;
+	struct sk_buff* dequeued = NULL;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	FAIL_NOT_EQ(1, ret);
+
+	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 0xFF);
+
+	FAIL_IF(dequeued != NULL);
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST103 frame_dequeue_empty_queue
+static struct modtest_result frame_dequeue_empty_queue(void* arg) {
+	//int ret = 0;
+	//const char buf[] = { 0x7E, 0x00 ,0x05 ,0x81 ,0xFF ,0xFE ,0x00 ,0x01 ,0x80 };
+	//const int count = 9;
+	struct sk_buff* dequeued = NULL;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	//unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	//memcpy(tail, buf, count);
+	//ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	//FAIL_NOT_EQ(1, ret);
+
+	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+
+	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 0xFF);
+
+	FAIL_IF(dequeued != NULL);
+	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+
+	TEST_SUCCESS();
+}
+
 
 
 
