@@ -1,4 +1,5 @@
-TARGET := xbee2.ko
+TARGET ?= xbee2
+TARGET_KO := $(TARGET).ko
 V = 0
 
 EXTRA_CFLAGS += -Wformat=2 -Wall
@@ -11,19 +12,19 @@ KVER ?= `uname -r`
 KBUILD = /lib/modules/$(KVER)/build
 INSTALL_DIR = /lib/modules/$(KVER)/kernel/drivers/video
 
-all: ${TARGET}
+all: ${TARGET_KO}
 
 ifneq ($(MODTEST_ENABLE),)
-xbee2.ko: xbee2.c xbee2_test.c
+$(TARGET).ko: $(TARGET).c $(TARGET)_test.c
 else
-xbee2.ko: xbee2.c
+$(TARGET).ko: $(TARGET).c
 endif
 	make -C $(KBUILD) M=`pwd` V=$(V) modules
 
 clean:
 	make -C $(KBUILD) M=`pwd` V=$(V) clean
 
-obj-m := xbee2.o
+obj-m := $(TARGET).o
 
 clean-files := *.o *.ko *.mod.[co] *~ version.h
 
@@ -38,20 +39,20 @@ version.h:
 
 uninstall:
 
-dkms: $(TARGET)
+dkms: $(TARGET_KO)
 
 install: uninstall dkms
 	install -d $(INSTALL_DIR)
-	install -m 644 $(TARGET) $(INSTALL_DIR)
+	install -m 644 $(TARGET_KO) $(INSTALL_DIR)
 	depmod -a $(KVER)
 
 install_compress: install
 	. $(KBUILD)/.config ; \
 	if [ $$CONFIG_DECOMPRESS_XZ = "y" ] ; then \
-		xz   -9e $(INSTALL_DIR)/$(TARGET); \
+		xz   -9e $(INSTALL_DIR)/$(TARGET_KO); \
 	elif [ $$CONFIG_DECOMPRESS_BZIP2 = "y" ] ; then \
-		bzip2 -9 $(INSTALL_DIR)/$(TARGET); \
+		bzip2 -9 $(INSTALL_DIR)/$(TARGET_KO); \
 	elif [ $$CONFIG_DECOMPRESS_GZIP = "y" ] ; then \
-		gzip  -9 $(INSTALL_DIR)/$(TARGET); \
+		gzip  -9 $(INSTALL_DIR)/$(TARGET_KO); \
 	fi
 	depmod -a $(KVER)
