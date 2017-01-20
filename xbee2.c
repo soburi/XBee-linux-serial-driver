@@ -46,6 +46,7 @@ struct xb_device {
 	unsigned short firmware_version;
 	struct xb_work comm_work;
 
+	struct net_device* dev;
 	struct wpan_phy* phy;
 
           //const struct ieee802154_ops *ops;
@@ -76,10 +77,8 @@ struct xbee_sub_if_data {
 
 static void mac802154_wpan_free(struct net_device *dev)
 {
-	struct xbee_sub_if_data *sdata = NULL;//IEEE802154_DEV_TO_SUB_IF(dev);
-
+	//struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	//mac802154_llsec_destroy(&sdata->sec);
-
 	free_netdev(dev);
 }
 
@@ -875,7 +874,7 @@ static void xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_m
 	return;
 }
 
-static int mac802154_header_create(struct sk_buff *skb,
+static int xbee_header_create(struct sk_buff *skb,
 				   struct net_device *dev,
 				   unsigned short type,
 				   const void *daddr,
@@ -887,7 +886,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 }
 
 static int
-mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
+xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	pr_debug("%s\n", __func__);
 	return 0;
@@ -929,28 +928,110 @@ static int ieee802154_header_create(struct sk_buff *skb,
 	return 0;
 }
 
-static int mac802154_mlme_start_req(struct net_device *dev,
-                                    struct ieee802154_addr *addr,
-                                    u8 channel, u8 page,
-                                    u8 bcn_ord, u8 sf_ord,
-                                    u8 pan_coord, u8 blx,
-                                    u8 coord_realign)
+
+static struct net_device* xbee_cfg802154_add_virtual_intf_deprecated(struct wpan_phy *wpan_phy,
+                                                           const char *name,
+                                                           unsigned char name_assign_type,
+                                                           int type)
+{
+	pr_debug("%s\n", __func__);
+	return NULL;
+}
+static void xbee_cfg802154_del_virtual_intf_deprecated(struct wpan_phy *wpan_phy,
+                                               struct net_device *dev)
+{
+	pr_debug("%s\n", __func__);
+}
+static int xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 {
 	pr_debug("%s\n", __func__);
 	return 0;
 }
-
-static int mac802154_set_mac_params(struct net_device *dev,
-                                    const struct ieee802154_mac_params *params)
+static int xbee_cfg802154_resume(struct wpan_phy *wpan_phy)
 {
 	pr_debug("%s\n", __func__);
 	return 0;
 }
-
-static void mac802154_get_mac_params(struct net_device *dev,
-                                     struct ieee802154_mac_params *params)
+static int xbee_cfg802154_add_virtual_intf(struct wpan_phy *wpan_phy,
+                                    const char *name,
+                                    unsigned char name_assign_type,
+                                    enum nl802154_iftype type,
+                                    __le64 extended_addr)
 {
 	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
+                                    struct wpan_dev *wpan_dev)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
+                                const struct wpan_phy_cca *cca)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_tx_power(struct wpan_phy *wpan_phy, s32 power)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_pan_id(struct wpan_phy *wpan_phy,
+                              struct wpan_dev *wpan_dev, __le16 pan_id)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_short_addr(struct wpan_phy *wpan_phy,
+                                  struct wpan_dev *wpan_dev, __le16 short_addr)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
+                                        struct wpan_dev *wpan_dev, u8 min_be,
+                                        u8 max_be)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
+                                         struct wpan_dev *wpan_dev,
+                                         u8 max_csma_backoffs)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
+                                         struct wpan_dev *wpan_dev,
+                                         s8 max_frame_retries)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_lbt_mode(struct wpan_phy *wpan_phy,
+                                struct wpan_dev *wpan_dev, bool mode)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
+}
+static int xbee_cfg802154_set_ackreq_default(struct wpan_phy *wpan_phy,
+                                      struct wpan_dev *wpan_dev, bool ackreq)
+{
+	pr_debug("%s\n", __func__);
+	return 0;
 }
 
 /**
@@ -984,7 +1065,7 @@ static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
 	.scan_req = xbee_mlme_scan_req,
 	.set_mac_params = xbee_mlme_set_mac_params,
 	.get_mac_params = xbee_mlme_get_mac_params,
-	.llsec = NULL,
+	//.llsec = NULL,
 };
 
 static const struct wpan_dev_header_ops xbee_ieee802154_header_ops = {
@@ -993,8 +1074,8 @@ static const struct wpan_dev_header_ops xbee_ieee802154_header_ops = {
 
 
 static const struct header_ops xbee_mac802154_header_ops = {
-	.create         = mac802154_header_create,
-	.parse          = mac802154_header_parse,
+	.create         = xbee_header_create,
+	.parse          = xbee_header_parse,
 };
 
 static const struct net_device_ops xbee_mac802154_wpan_ops = {
@@ -1004,21 +1085,42 @@ static const struct net_device_ops xbee_mac802154_wpan_ops = {
         .ndo_do_ioctl           = xbee_ndo_do_ioctl,
         .ndo_set_mac_address    = xbee_ndo_set_mac_address,
 };
-/*
-static const struct net_device_ops mac802154_monitor_ops = {
-        .ndo_open               = mac802154_wpan_open,
-        .ndo_stop               = mac802154_slave_close,
-        .ndo_start_xmit         = ieee802154_monitor_start_xmit,
-};
-*/
 
 
-struct ieee802154_mlme_ops mac802154_mlme_wpan = {
-	.start_req = mac802154_mlme_start_req,
-	
-	//.llsec = &mac802154_llsec_ops,
-	.set_mac_params = mac802154_set_mac_params,
-	.get_mac_params = mac802154_get_mac_params,
+static const struct cfg802154_ops mac802154_config_ops = {
+        .add_virtual_intf_deprecated = xbee_cfg802154_add_virtual_intf_deprecated,
+        .del_virtual_intf_deprecated = xbee_cfg802154_del_virtual_intf_deprecated,
+        .suspend = xbee_cfg802154_suspend,
+        .resume = xbee_cfg802154_resume,
+        .add_virtual_intf = xbee_cfg802154_add_virtual_intf,
+        .del_virtual_intf = xbee_cfg802154_del_virtual_intf,
+        .set_channel = xbee_cfg802154_set_channel,
+        .set_cca_mode = xbee_cfg802154_set_cca_mode,
+        .set_cca_ed_level = xbee_cfg802154_set_cca_ed_level,
+        .set_tx_power = xbee_cfg802154_set_tx_power,
+        .set_pan_id = xbee_cfg802154_set_pan_id,
+        .set_short_addr = xbee_cfg802154_set_short_addr,
+        .set_backoff_exponent = xbee_cfg802154_set_backoff_exponent,
+        .set_max_csma_backoffs = xbee_cfg802154_set_max_csma_backoffs,
+        .set_max_frame_retries = xbee_cfg802154_set_max_frame_retries,
+        .set_lbt_mode = xbee_cfg802154_set_lbt_mode,
+        .set_ackreq_default = xbee_cfg802154_set_ackreq_default,
+#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
+        .get_llsec_table = xbee_cfg802154_get_llsec_table,
+        .lock_llsec_table = xbee_cfg802154_lock_llsec_table,
+        .unlock_llsec_table = xbee_cfg802154_unlock_llsec_table,
+        /* TODO above */
+        .set_llsec_params = xbee_cfg802154_set_llsec_params,
+        .get_llsec_params = xbee_cfg802154_get_llsec_params,
+        .add_llsec_key = xbee_cfg802154_add_llsec_key,
+        .del_llsec_key = xbee_cfg802154_del_llsec_key,
+        .add_seclevel = xbee_cfg802154_add_seclevel,
+        .del_seclevel = xbee_cfg802154_del_seclevel,
+        .add_device = xbee_cfg802154_add_device,
+        .del_device = xbee_cfg802154_del_device,
+        .add_devkey = xbee_cfg802154_add_devkey,
+        .del_devkey = xbee_cfg802154_del_devkey,
+#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 
 
@@ -1085,53 +1187,17 @@ static void setup_dev(struct ieee802154_hw *hw)
 
 }
 
-const struct cfg802154_ops mac802154_config_ops = {
-        .add_virtual_intf_deprecated = NULL,//ieee802154_add_iface_deprecated,
-        .del_virtual_intf_deprecated = NULL,//ieee802154_del_iface_deprecated,
-        .suspend = NULL,//ieee802154_suspend,
-        .resume = NULL,//ieee802154_resume,
-        .add_virtual_intf = NULL,//ieee802154_add_iface,
-        .del_virtual_intf = NULL,//ieee802154_del_iface,
-        .set_channel = NULL,//ieee802154_set_channel,
-        .set_cca_mode = NULL,//ieee802154_set_cca_mode,
-        .set_cca_ed_level = NULL,//ieee802154_set_cca_ed_level,
-        .set_tx_power = NULL,//ieee802154_set_tx_power,
-        .set_pan_id = NULL,//ieee802154_set_pan_id,
-        .set_short_addr = NULL,//ieee802154_set_short_addr,
-        .set_backoff_exponent = NULL,//ieee802154_set_backoff_exponent,
-        .set_max_csma_backoffs = NULL,//ieee802154_set_max_csma_backoffs,
-        .set_max_frame_retries = NULL,//ieee802154_set_max_frame_retries,
-        .set_lbt_mode = NULL,//ieee802154_set_lbt_mode,
-        .set_ackreq_default = NULL,//ieee802154_set_ackreq_default,
-#ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
-        .get_llsec_table = NULL,//ieee802154_get_llsec_table,
-        .lock_llsec_table = NULL,//ieee802154_lock_llsec_table,
-        .unlock_llsec_table = NULL,//ieee802154_unlock_llsec_table,
-        /* TODO above */
-        .set_llsec_params = NULL,//ieee802154_set_llsec_params,
-        .get_llsec_params = NULL,//ieee802154_get_llsec_params,
-        .add_llsec_key = NULL,//ieee802154_add_llsec_key,
-        .del_llsec_key = NULL,//ieee802154_del_llsec_key,
-        .add_seclevel = NULL,//ieee802154_add_seclevel,
-        .del_seclevel = NULL,//ieee802154_del_seclevel,
-        .add_device = NULL,//ieee802154_add_device,
-        .del_device = NULL,//ieee802154_del_device,
-        .add_devkey = NULL,//ieee802154_add_devkey,
-        .del_devkey = NULL,//ieee802154_del_devkey,
-#endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
-};
-
 static void ieee802154_if_setup(struct net_device *dev);
 
-static int if_add( struct xb_device* local );
-
-struct ieee802154_hw *
-xbee_alloc_hw(size_t priv_data_len)//, const struct ieee802154_ops *ops)
+static struct xb_device *
+xbee_alloc_device(size_t priv_data_len)
 {
-	struct xb_device* local;
+	struct xb_device* local = NULL;
+	struct xbee_sub_if_data *sdata = NULL;
 	struct wpan_phy *phy;
+	struct net_device *ndev = NULL;
 	size_t priv_size;
-	int ret;
+	int ret = 0;
 
 	priv_size = ALIGN(sizeof(*local), NETDEV_ALIGN) + priv_data_len;
 
@@ -1142,14 +1208,86 @@ xbee_alloc_hw(size_t priv_data_len)//, const struct ieee802154_ops *ops)
 		return NULL;
 	}
 
-	//phy->privid = mac802154_wpan_phy_privid;
+	pr_debug("alloc_netdev\n");
+	ndev = alloc_netdev(sizeof(*sdata), "wpan%d",
+			    NET_NAME_ENUM, ieee802154_if_setup);
+	if (!ndev) {
+		pr_err("failure to allocate netdev\n");
+		goto free_phy;
+	}
+
+	pr_debug("dev_alloc_name\n");
+	ret = dev_alloc_name(ndev, ndev->name);
+	if (ret < 0) {
+		pr_err("failure to allocate device name\n");
+		goto free_phy;
+	}
+
 
 	pr_debug("wpan_phy_priv\n");
 	local = wpan_phy_priv(phy);
 	local->phy = phy;
 	local->hw.phy = local->phy;
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
+	local->dev = ndev;
 	//local->ops = ops;
+
+	pr_debug("wpan_phy_set_dev\n");
+	wpan_phy_set_dev(local->phy, local->hw.parent);
+
+	/* TODO check this */
+	pr_debug("SET_NETDEV_DEV\n");
+	SET_NETDEV_DEV(ndev, &local->phy->dev);
+	pr_debug("netdev_priv\n");
+	sdata = netdev_priv(ndev);
+	ndev->ieee802154_ptr = &sdata->wpan_dev;
+	pr_debug("memcpy\n");
+	memcpy(sdata->name, ndev->name, IFNAMSIZ);
+	sdata->dev = ndev;
+	sdata->wpan_dev.wpan_phy = local->hw.phy;
+	sdata->local = local;
+
+	return local;
+
+free_phy:
+	wpan_phy_free(phy);
+	return NULL;
+}
+
+static void xbee_register(struct xb_device* local)
+{
+	int ret;
+		
+	ret = wpan_phy_register(local->phy);
+
+	rtnl_lock();
+
+	ret = register_netdevice(local->dev);
+
+	rtnl_unlock();
+
+}
+
+static void xbee_free(struct xb_device* local)
+{
+	free_netdev(local->dev);
+	wpan_phy_free(local->phy);
+}
+
+static void xbee_setup(struct xb_device* local)
+{
+	struct wpan_phy *phy = local->phy;
+	__le64 extended_addr = cpu_to_le64(0x0000000000000000ULL);
+	struct xbee_sub_if_data *sdata = NULL;
+	struct net_device *ndev = local->dev;
+	//struct xbee_sub_if_data *sdata = NULL;
+	//int ret = -ENOMEM;
+	enum nl802154_iftype type = NL802154_IFTYPE_NODE;
+	uint8_t tmp;
+
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+	//phy->privid = mac802154_wpan_phy_privid;
 
 	phy->supported.max_minbe = 8;
 	phy->supported.min_maxbe = 3;
@@ -1162,55 +1300,14 @@ xbee_alloc_hw(size_t priv_data_len)//, const struct ieee802154_ops *ops)
 	/* always supported */
 	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
 
-	pr_debug("wpan_phy_set_dev\n");
-	//wpan_phy_set_dev(local->phy, local->hw.parent);
 
 	local->phy->lifs_period = IEEE802154_LIFS_PERIOD *
 				local->phy->symbol_duration;
 	local->phy->sifs_period = IEEE802154_SIFS_PERIOD *
 				local->phy->symbol_duration;
 
-	//ieee802154_setup_wpan_phy_pib(local->phy); set value only
-
-	ret = wpan_phy_register(local->phy);
-
-	rtnl_lock();
-
-	if_add(local);
-
-	rtnl_unlock();
-
-}
-
-
-/*****************************************************************************
- * Line discipline interface for IEEE 802.15.4 serial device
- *****************************************************************************/
-
-static int if_add( struct xb_device* local ) {
-	struct net_device *ndev = NULL;
-	struct xbee_sub_if_data *sdata = NULL;
-	int ret = -ENOMEM;
-	__le64 extended_addr = cpu_to_le64(0x0000000000000000ULL);
-	enum nl802154_iftype type;
-	u8 tmp;
-	struct wpan_dev *wpan_dev = NULL;//&sdata->wpan_dev;
-
-	ASSERT_RTNL();
-
-	pr_debug("alloc_netdev\n");
-	ndev = alloc_netdev(sizeof(*sdata), "wpan%d",
-			    NET_NAME_ENUM, ieee802154_if_setup);
-	if (!ndev)
-		return -ENOMEM;
-
-	ndev->needed_headroom = local->hw.extra_tx_headroom +
-				IEEE802154_MAX_HEADER_LEN;
-
-	pr_debug("dev_alloc_name\n");
-	ret = dev_alloc_name(ndev, ndev->name);
-//	if (ret < 0)
-//		goto err;
+//	ndev->needed_headroom = local->hw.extra_tx_headroom +
+//				IEEE802154_MAX_HEADER_LEN;
 
 	ieee802154_le64_to_be64(ndev->perm_addr,
 				&local->hw.phy->perm_extended_addr);
@@ -1231,20 +1328,6 @@ static int if_add( struct xb_device* local ) {
 //		goto err;
 //	}
 
-	pr_debug("SET_NETDEV_DEV\n");
-	/* TODO check this */
-	SET_NETDEV_DEV(ndev, &local->phy->dev);
-	pr_debug("netdev_priv\n");
-	sdata = netdev_priv(ndev);
-	ndev->ieee802154_ptr = &sdata->wpan_dev;
-	pr_debug("memcpy\n");
-	memcpy(sdata->name, ndev->name, IFNAMSIZ);
-	sdata->dev = ndev;
-	sdata->wpan_dev.wpan_phy = local->hw.phy;
-	sdata->local = local;
-
-	wpan_dev = &sdata->wpan_dev;
-//	int ret;
 
 	/* set some type-dependent values */
 	sdata->wpan_dev.iftype = type;
@@ -1269,7 +1352,7 @@ static int if_add( struct xb_device* local ) {
 		ieee802154_be64_to_le64(&wpan_dev->extended_addr,
 					sdata->dev->dev_addr);
 
-		sdata->dev->header_ops = &xbee_mac802154_header_ops;
+	sdata->dev->header_ops = &xbee_mac802154_header_ops;
 		sdata->dev->destructor = mac802154_wpan_free;
 		sdata->dev->netdev_ops = &xbee_mac802154_wpan_ops;
 		sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
@@ -1293,13 +1376,11 @@ static int if_add( struct xb_device* local ) {
 //		BUG();
 //	}
 
-	return 0;
 }
-
-
 
 static void ieee802154_if_setup(struct net_device *dev)
 {
+
 	dev->addr_len		= IEEE802154_EXTENDED_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
@@ -1333,6 +1414,24 @@ static void ieee802154_if_setup(struct net_device *dev)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*****************************************************************************
+ * Line discipline interface for IEEE 802.15.4 serial device
+ *****************************************************************************/
 
 /**
  * xbee_ldisc_open - Initialize line discipline and register with ieee802154.
@@ -1371,8 +1470,9 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	tty_driver_flush_buffer(tty);
 
-	xbdev = (struct xb_device*)xbee_alloc_hw(sizeof(struct xb_device));
-	//err = register_netdevice(xbdev->local->phy->dev);
+	xbdev = (struct xb_device*)xbee_alloc_device(sizeof(struct xb_device));
+	xbee_setup(xbdev);
+	xbee_register(xbdev);
 //	hw = ieee802154_alloc_hw(sizeof(struct xb_device), &xbee_ieee802154_ops);
 	//if (!hw)
 		return -ENOMEM;
