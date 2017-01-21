@@ -10,7 +10,6 @@
 #include <linux/nl80211.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
-#include <net/mac802154.h>
 #include <net/cfg802154.h>
 #include <net/regulatory.h>
 #include <net/ieee802154_netdev.h>
