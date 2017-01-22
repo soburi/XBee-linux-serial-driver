@@ -57,6 +57,37 @@ struct xb_device {
 #endif
 };
 
+static void pr_wpan_phy_supported(struct wpan_phy* phy)
+{
+	struct wpan_phy_supported *supported = &phy->supported;
+	u32 *channels = supported->channels;
+	pr_debug("wpan_phy=%p {\n", phy);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[0], channels[1], channels[2], channels[3]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[4], channels[5], channels[6], channels[0]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[8], channels[9], channels[10], channels[11]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[12], channels[13], channels[14], channels[15]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[16], channels[17], channels[18], channels[19]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[20], channels[21], channels[22], channels[23]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[24], channels[25], channels[26], channels[27]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[28], channels[29], channels[30], channels[31]);
+	pr_debug("            cca_modes = %u\n", supported->cca_modes);
+	pr_debug("             cca_opts = %u\n", supported->cca_opts);
+	pr_debug("              iftypes = %u\n", supported->iftypes);
+	pr_debug("                  lbt = %u\n", supported->lbt);
+	pr_debug("            min_minbe = %u\n", supported->min_minbe);
+	pr_debug("            max_minbe = %u\n", supported->max_minbe);
+	pr_debug("            min_maxbe = %u\n", supported->min_maxbe);
+	pr_debug("            max_maxbe = %u\n", supported->max_maxbe);
+	pr_debug("    min_csma_backoffs = %u\n", supported->min_csma_backoffs);
+	pr_debug("    max_csma_backoffs = %u\n", supported->max_csma_backoffs);
+	pr_debug("    min_frame_retries = %u\n", supported->min_frame_retries);
+	pr_debug("    max_frame_retries = %u\n", supported->max_frame_retries);
+	pr_debug("       tx_powers_size = %lu\n", supported->tx_powers_size);
+	pr_debug("   cca_ed_levels_size = %lu\n", supported->cca_ed_levels_size);
+	pr_debug("}\n");
+
+//const s32 *tx_powers, *cca_ed_levels;
+}
 static void pr_wpan_phy(struct wpan_phy* phy)
 {
 	pr_debug("wpan_phy=%p {\n", phy);
@@ -759,7 +790,6 @@ static int xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	return 0;
 }
 
-
 static int xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
 {
 	pr_debug("%s\n", __func__);
@@ -812,9 +842,9 @@ static int xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802
 	if(wpan_dev->lbt != params->lbt) {
 		wpan_dev->lbt = params->lbt;
 	}
-	if(wpan_dev->wpan_phy->cca != params->cca) {
-		wpan_dev->wpan_phy->cca = params->cca;
-	}
+	//if(wpan_dev->wpan_phy->cca != params->cca) {
+	//	wpan_dev->wpan_phy->cca = params->cca;
+	//}
 	if(wpan_dev->wpan_phy->cca_ed_level != params->cca_ed_level) {
 		wpan_dev->wpan_phy->cca_ed_level = params->cca_ed_level;
 	}
@@ -1489,6 +1519,8 @@ static void xbee_setup(struct xb_device* local, struct net_device* ndev)
 //	default:
 //		BUG();
 //	}
+	pr_wpan_phy(phy);
+	pr_wpan_dev(wpan_dev);
 }
 
 //TODO
