@@ -792,8 +792,24 @@ static int xbee_ndo_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 	return 0;
 }
+
+static int xbee_rx_irqsafe(struct xb_device *xbdev, struct sk_buff *skb, u8 lqi)
+{
+	return netif_receive_skb(skb);
+}
+
 static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	struct xbee_sub_if_data *sdata = netdev_priv(dev);
+	struct xb_device *xbdev = sdata->local;
+	struct sk_buff *newskb = NULL;
+
+	print_hex_dump_bytes("xmit> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+	
+	newskb = pskb_copy(skb, GFP_ATOMIC);
+ 	if (newskb)
+ 		xbee_rx_irqsafe(xbdev, newskb, 0xcc);
+
 	pr_debug("%s\n", __func__);
 	return NETDEV_TX_OK;
 }
