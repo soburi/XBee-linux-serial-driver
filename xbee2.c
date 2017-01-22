@@ -1367,11 +1367,11 @@ static void xbee_setup(struct xb_device* local, struct net_device* ndev)
 					sdata->dev->dev_addr);
 
 	sdata->dev->header_ops = &xbee_header_ops;
-		sdata->dev->destructor = mac802154_wpan_free;
-		sdata->dev->netdev_ops = &xbee_net_device_ops;
-		sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
-		wpan_dev->promiscuous_mode = false;
-		wpan_dev->header_ops = &xbee_wpan_dev_header_ops;
+	sdata->dev->netdev_ops = &xbee_net_device_ops;
+	sdata->dev->destructor = mac802154_wpan_free;
+	sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
+	wpan_dev->promiscuous_mode = false;
+	wpan_dev->header_ops = &xbee_wpan_dev_header_ops;
 
 //		mutex_init(&sdata->sec_mtx);
 
