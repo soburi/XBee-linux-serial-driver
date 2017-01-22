@@ -10,6 +10,8 @@ ps -ef | grep ldattach
 /sbin/rmmod xbee2
 #/sbin/rmmod ieee802154
 /sbin/modprobe ieee802154
+/sbin/modprobe ieee802154_socket
+/sbin/modprobe ieee802154_6lowpan
 /sbin/insmod ./xbee2.ko
 sleep 1
 /usr/sbin/ldattach -s 9600 -8 -n -1 25 $1
