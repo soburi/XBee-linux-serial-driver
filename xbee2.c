@@ -199,7 +199,7 @@ struct xb_frame_atcmd {
 	uint16_t command;
 } __attribute__((aligned(1), packed));
 
-struct xb_frame_atresp {
+struct xb_frame_atcmdr {
 	struct xb_frame_header hd;
 	uint8_t id;
 	uint16_t command;
@@ -285,6 +285,7 @@ enum {
 	XBEE_AT_CA = AT_DECL('C','A'),
 	XBEE_AT_CH = AT_DECL('C','H'),
 	XBEE_AT_ID = AT_DECL('I','D'),
+	XBEE_AT_MM = AT_DECL('M','M'),
 	XBEE_AT_MY = AT_DECL('M','Y'),
 	XBEE_AT_PL = AT_DECL('P','L'),
 	XBEE_AT_RN = AT_DECL('R','N'),
@@ -297,6 +298,20 @@ enum {
 	XBEE_ESCAPED_DELIMITER = 0x5E ,
 	XBEE_ESCAPE = 0x7D ,
 	XBEE_ESCMASK = 0x20 ,
+};
+
+enum {
+	XBEE_MM_DIGI_WITH_ACK   = 0,
+	XBEE_MM_802154_NO_ACK   = 1,
+	XBEE_MM_802154_WITH_ACK = 2,
+	XBEE_MM_DIGI_NO_ACK   = 3
+};
+
+enum {
+	XBEE_ATCMDR_OK = 0,
+	XBEE_ATCMDR_ERROR = 1,
+	XBEE_ATCMDR_INVALID_COMMAND = 2,
+	XBEE_ATCMDR_INVALID_PARAMETER = 3,
 };
 
 static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t len)
@@ -525,12 +540,15 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 	frame_enqueue_send(send_queue, newskb);
 }
 
-static void xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
+static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
-	frame_enqueue_send_at(&xb->send_queue, atcmd, xb->frameid++, buf, buflen);
+	int ret = xb->frameid;
+	frame_enqueue_send_at(&xb->send_queue, atcmd, xb->frameid, buf, buflen);
+	xb->frameid++;
+	return ret;
 }
 
-static bool xb_process_send(struct xb_device* xb)
+static bool xb_send(struct xb_device* xb)
 {
 	bool already_on_queue = false;
 
@@ -539,24 +557,30 @@ static bool xb_process_send(struct xb_device* xb)
 	return already_on_queue;
 }
 
-static bool xb_process_sendrecv(struct xb_device* xb)
+static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 {
 	int ret = 0;
 
-	xb_process_send(xb);
+	xb_send(xb);
 	ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 1000);
 
 	if(ret > 0) {
-		//pr_debug("complete %d\n", ret);
+		return frame_dequeue_by_id(&xb->recv_queue, recvid);
 	}
 	else if(ret == -ERESTARTSYS) {
 		pr_debug("interrupted %d\n", ret);
+		return NULL;
 	}
 	else {
 		pr_debug("timeout %d\n", ret);
+		return NULL;
 	}
+}
 
-	return ret;
+static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
+{
+	uint8_t recvid = xb_enqueue_send_at(xb, atcmd, buf, buflen);
+	return xb_sendrecv(xb, recvid);
 }
 
 static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
@@ -578,7 +602,7 @@ static void frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
 static void frame_recv_atcmdr(struct xb_device *xbdev, struct sk_buff *skb)
 {
 	// AT command response must handle call side.
-	struct xb_frame_atresp* atresp = (struct xb_frame_atresp*)skb->data;
+	struct xb_frame_atcmdr* atresp = (struct xb_frame_atcmdr*)skb->data;
 	pr_debug("AT_R: id=0x%02x cmd=%c%c status=%d\n", atresp->id, atresp->command&0xFF, (atresp->command & 0xFF00)>>8 , atresp->status);
 }
 
@@ -642,13 +666,24 @@ static void frame_recv_tx16(struct xb_device* xbdev, struct sk_buff *skb)
 }
 static void frame_recv_default(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
 
+int frame_atcmdr_result(struct sk_buff* skb)
+{
+	struct xb_frame_atcmdr* atcmdr = (struct xb_frame_atcmdr*)skb->data;
+	return atcmdr->status;
+}
+
 static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
 {
+	struct sk_buff *skb = NULL;
+
 	pr_debug("%s\n", __func__);
 
-	xb_enqueue_send_at(xb, XBEE_AT_CH, &channel, 1);
-	xb_process_sendrecv(xb);
-	return 0;
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CH, &channel, 1);
+	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+		xb->phy->current_channel = channel;
+		return 0;
+	}
+	return -EINVAL;
 }
 static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cca)
 {
@@ -675,18 +710,23 @@ static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cc
 }
 static int xbee_set_cca_ed_level(struct xb_device *xb, s32 ed_level)
 {
+	struct sk_buff *skb = NULL;
 	u8 ca;
 
 	pr_debug("%s ed_level=%d ca=%d\n", __func__, ed_level, -ed_level/100);
 
 	ca = -ed_level/100;
 
-	xb_enqueue_send_at(xb, XBEE_AT_CA, &ca, 1);
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CA, &ca, 1);
+	if(frame_atcmdr_result(skb) != XBEE_ATCMDR_OK) {
+		return -EINVAL;
+	}
+	xb->phy->cca_ed_level = ed_level;
 	return 0;
-
 }
 static int xbee_set_tx_power(struct xb_device *xb, s32 power)
 {
+	struct sk_buff *skb = NULL;
 	u8 pl;
 
 	pr_debug("%s mbm=%d\n", __func__, power);
@@ -703,38 +743,75 @@ static int xbee_set_tx_power(struct xb_device *xb, s32 power)
 		pl=4;
 	}
 
-	xb_enqueue_send_at(xb, XBEE_AT_PL, &pl, 1);
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_PL, &pl, 1);
+	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+		return -EINVAL;
+	}
 
+	xb->phy->transmit_power = power;
 	return 0;
-
 }
 static int xbee_set_pan_id(struct xb_device *xb, __le16 pan_id)
 {
+	struct sk_buff *skb = NULL;
+	__be16 id = htons(pan_id);
+
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_ID, (uint8_t*)&id, 2);
+	if(frame_atcmdr_result(skb) != XBEE_ATCMDR_OK) {
+		//xb->phy->transmit_power = power;
+		return -EINVAL;
+	}
 	return 0;
 }
 static int xbee_set_short_addr(struct xb_device *xb, __le16 short_addr)
 {
-	return 0;
+	struct sk_buff *skb = NULL;
+	__be16 my = htons(short_addr);
+
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_MY, (uint8_t*)&my, 2);
+	if(frame_atcmdr_result(skb) != XBEE_ATCMDR_OK) {
+		//xb->phy->transmit_power = power;
+		return 0;
+	}
+
+	return -EINVAL;
 }
 static int xbee_set_backoff_exponent(struct xb_device *xb, u8 min_be, u8 max_be)
 {
+	struct sk_buff *skb = NULL;
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_RN, &max_be, 1);
+	if(frame_atcmdr_result(skb) != XBEE_ATCMDR_OK) {
+		return -EINVAL;
+	}
+
 	return 0;
 }
 static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
 {
-	return 0;
+	struct sk_buff *skb = NULL;
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_RR, &max_csma_backoffs, 1);
+	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+		return 0;
+	}
+
+	return -EINVAL;
 }
 static int xbee_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
 {
-	return 0;
+	return -EINVAL;
 }
 static int xbee_set_lbt_mode(struct xb_device *xb, bool mode)
 {
-	return 0;
+	return -EINVAL;
 }
 static int xbee_set_ackreq_default(struct xb_device *xb, bool ackreq)
 {
-	return 0;
+	struct sk_buff *skb = NULL;
+	u8 mac_mode = ackreq ? XBEE_MM_802154_WITH_ACK : XBEE_MM_802154_NO_ACK;
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_MM, &mac_mode, 1);
+	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+		return 0;
+	}
 }
 
 /**
