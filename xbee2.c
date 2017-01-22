@@ -109,7 +109,7 @@ static void pr_wpan_phy(struct wpan_phy* phy)
 //struct wpan_phy_supported supported;
 //struct device dev;
 }
-void pr_wpan_dev(struct wpan_dev* dev)
+static void pr_wpan_dev(struct wpan_dev* dev)
 {
 	pr_debug("wpan_dev=%p {\n", dev);
 	pr_debug("            wpan_phy = %p\n", dev->wpan_phy);
