@@ -704,7 +704,11 @@ static int xbee_ndo_stop(struct net_device *dev)
 	pr_debug("%s\n", __func__);
 	return 0;
 }
-
+netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	pr_debug("%s\n", __func__);
+	return NETDEV_TX_OK;
+}
 static int
 xbee_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -767,27 +771,116 @@ static int xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
 	pr_debug("%s\n", __func__);
 	return 0;
 }
+/**
+ * xbee_ieee802154_set_channel - Set radio for listening on specific channel.
+ *
+ * @dev: ...
+ * @page: ...
+ * @channel: ...
+ */
 static int xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 {
+	struct xb_device *xb = wpan_phy_priv(wpan_phy);
+
 	pr_debug("%s\n", __func__);
+
+	xb_enqueue_send_at(xb, XBEE_AT_CH, &channel, 1);
+	xb_process_sendrecv(xb);
 	return 0;
 }
 static int xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
-                                const struct wpan_phy_cca *cca)
+                                       const struct wpan_phy_cca *cca)
 {
-	pr_debug("%s\n", __func__);
+	pr_debug("%s cca=%p\n", __func__, cca);
+
+#if 0
+	switch(cca->mode) {
+	case NL802154_CCA_ENERGY:
+	case NL802154_CCA_CARRIER:
+	case NL802154_CCA_ENERGY_CARRIER:
+	case NL802154_CCA_ALOHA:
+	case NL802154_CCA_UWB_SHR:
+	case NL802154_CCA_UWB_MULTIPLEXED:
+	default:
+	}
+
+	switch(cca->opts) {
+	case NL802154_CCA_OPT_ENERGY_CARRIER_AND:
+	case NL802154_CCA_OPT_ENERGY_CARRIER_OR:
+	default:
+	}
+#endif
 	return 0;
 }
 static int xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
 {
-	pr_debug("%s\n", __func__);
+	struct xb_device *xb = wpan_phy_priv(wpan_phy);
+	u8 ca;
+
+	pr_debug("%s ed_level=%d ca=%d\n", __func__, ed_level, -ed_level/100);
+
+	ca = -ed_level/100;
+
+	xb_enqueue_send_at(xb, XBEE_AT_CA, &ca, 1);
 	return 0;
 }
 static int xbee_cfg802154_set_tx_power(struct wpan_phy *wpan_phy, s32 power)
 {
-	pr_debug("%s\n", __func__);
+	struct xb_device *xb = wpan_phy_priv(wpan_phy);
+	u8 pl;
+
+	pr_debug("%s mbm=%d\n", __func__, power);
+
+	if(power >= 1000) {
+		pl=0;
+	} else if(power >= 600) {
+		pl=1;
+	} else if(power >= 400) {
+		pl=2;
+	} else if(power >= 200) {
+		pl=3;
+	} else {
+		pl=4;
+	}
+
+	xb_enqueue_send_at(xb, XBEE_AT_PL, &pl, 1);
+
 	return 0;
 }
+
+/**
+ * xbee_ieee802154_ed - Handler that 802.15.4 module calls for Energy Detection.
+ *
+ * @dev: ...
+ * @level: ...
+ */
+static int xbee_ieee802154_ed(struct wpan_phy *wpan_phy, u8 *level)
+{
+	struct xb_device *xb = wpan_phy_priv(wpan_phy);
+
+	pr_debug("%s\n", __func__);
+
+	xb_enqueue_send_at(xb, 0x4544, NULL, 0);
+
+    return 0;
+}
+
+#if 0
+static int xbee_ieee802154_set_csma_params(struct ieee802154_hw *hw, u8 min_be, u8 max_be, u8 retries)
+{
+	struct xb_device *xb = wpan_phy_priv(wpan_phy);
+
+	pr_debug("%s\n", __func__);
+
+	xb_enqueue_send_at(xb, XBEE_AT_RN, &min_be, 1);
+	xb_process_sendrecv(xb);
+	xb_enqueue_send_at(xb, XBEE_AT_RR, &retries, 1);
+	xb_process_sendrecv(xb);
+
+	return 0;
+}
+#endif
+
 static int xbee_cfg802154_set_pan_id(struct wpan_phy *wpan_phy,
                               struct wpan_dev *wpan_dev, __le16 pan_id)
 {
@@ -814,12 +907,23 @@ static int xbee_cfg802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 	pr_debug("%s\n", __func__);
 	return 0;
 }
+/**
+ * xbee_ieee802154_set_frame_retries - Handler that 802.15.4 module calls to set frame retries.
+ *
+ * @dev: ...
+ * @level: ...
+ */
 static int xbee_cfg802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
                                          struct wpan_dev *wpan_dev,
                                          s8 max_frame_retries)
 {
+	//struct xb_device *xb = wpan_phy_priv(wpan_phy);
+
 	pr_debug("%s\n", __func__);
-	return 0;
+
+	//xb_enqueue_send_at(xb, XBEE_AT_RR, &u_retries, 1);
+
+    return 0;
 }
 static int xbee_cfg802154_set_lbt_mode(struct wpan_phy *wpan_phy,
                                 struct wpan_dev *wpan_dev, bool mode)
@@ -858,7 +962,7 @@ static const struct header_ops xbee_mac802154_header_ops = {
 static const struct net_device_ops xbee_mac802154_wpan_ops = {
         .ndo_open               = xbee_ndo_open,
         .ndo_stop               = xbee_ndo_stop,
-//        .ndo_start_xmit         = ieee802154_subif_start_xmit,
+        .ndo_start_xmit         = xbee_ndo_start_xmit,
         .ndo_do_ioctl           = xbee_ndo_do_ioctl,
         .ndo_set_mac_address    = xbee_ndo_set_mac_address,
 };
@@ -1103,7 +1207,6 @@ static void xbee_setup(struct xb_device* local, struct net_device* ndev)
 	phy->supported.tx_powers = tx_powers;
 	phy->supported.tx_powers_size = sizeof(tx_powers)/sizeof(tx_powers[0]);
 	}
-
 
 /*
 	phy->transmit_power = 0;
