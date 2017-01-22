@@ -57,6 +57,51 @@ struct xb_device {
 #endif
 };
 
+static void pr_wpan_phy(struct wpan_phy* phy)
+{
+	pr_debug("wpan_phy=%p {\n", phy);
+	pr_debug("               privid = %p\n", phy->privid);
+	pr_debug("                flags = %d\n", phy->flags);
+	pr_debug("      current_channel = %d\n", phy->current_channel);
+	pr_debug("         current_page = %d\n", phy->current_page);
+	pr_debug("       transmit_power = %d\n", phy->transmit_power);
+	pr_debug("             cca.mode = %d\n", phy->cca.mode);
+	pr_debug("              cca.opt = %d\n", phy->cca.opt);
+	pr_debug("   perm_extended_addr = %016llx\n", phy->perm_extended_addr);
+	pr_debug("         cca_ed_level = %d\n", phy->cca_ed_level);
+	pr_debug("      symbol_duration = %u\n", phy->symbol_duration);
+	pr_debug("          lifs_period = %u\n", phy->lifs_period);
+	pr_debug("          sifs_period = %u\n", phy->sifs_period);
+	//pr_debug("                 _net = %p\n", phy->_net->net);
+	pr_debug("                 priv = %p\n", phy->priv);
+	pr_debug("}\n");
+//struct wpan_phy_supported supported;
+//struct device dev;
+}
+void pr_wpan_dev(struct wpan_dev* dev)
+{
+	pr_debug("wpan_dev=%p {\n", dev);
+	pr_debug("            wpan_phy = %p\n", dev->wpan_phy);
+	pr_debug("              iftype = %d\n", dev->iftype);
+	pr_debug("              netdev = %p\n", dev->netdev);
+	pr_debug("          lowpan_dev = %p\n", dev->lowpan_dev);
+	pr_debug("          identifier = %x\n", dev->identifier);
+	pr_debug("              pan_id = %04x\n", dev->pan_id);
+	pr_debug("          short_addr = %04x\n", dev->short_addr);
+	pr_debug("       extended_addr = %016llx\n", dev->extended_addr);
+	pr_debug("                 bsn = %u\n", dev->bsn.counter);
+	pr_debug("                 dsn = %u\n", dev->dsn.counter);
+	pr_debug("              max_be = %u\n", dev->min_be);
+	pr_debug("              max_be = %u\n", dev->max_be);
+	pr_debug("        csma_retries = %u\n", dev->csma_retries);
+	pr_debug("       frame_retries = %d\n", dev->frame_retries);
+	pr_debug("                 lbt = %u\n", dev->lbt);
+	pr_debug("    promiscuous_mode = %d\n", dev->promiscuous_mode);
+	pr_debug("              ackreq = %d\n", dev->ackreq);
+	pr_debug("}\n");
+}
+
+
 struct xbee_sub_if_data {
 	struct list_head list; /* the ieee802154_priv->slaves list */
 
@@ -740,6 +785,8 @@ static int xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 
 	pr_debug("%s(%p, type=%u, channels%x, page=%u, duration=%u\n", __func__, dev, type, channels, page, duration);
 	return 0;
 }
+
+//TODO
 static int xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802154_mac_params *params)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
@@ -747,14 +794,30 @@ static int xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802
 
 	pr_debug("%s\n", __func__);
 
-	wpan_dev->wpan_phy->transmit_power = params->transmit_power;
-	wpan_dev->min_be = params->min_be;
-	wpan_dev->max_be = params->max_be;
-	wpan_dev->csma_retries = params->csma_retries;
-	wpan_dev->frame_retries = params->frame_retries;
-	wpan_dev->lbt = params->lbt;
-	wpan_dev->wpan_phy->cca = params->cca;
-	wpan_dev->wpan_phy->cca_ed_level = params->cca_ed_level;
+	if(wpan_dev->wpan_phy->transmit_power != params->transmit_power) {
+		wpan_dev->wpan_phy->transmit_power = params->transmit_power;
+	}
+	if(wpan_dev->min_be != params->min_be) {
+		wpan_dev->min_be = params->min_be;
+	}
+	if(wpan_dev->max_be != params->max_be) {
+		wpan_dev->max_be = params->max_be;
+	}
+	if(wpan_dev->csma_retries != params->csma_retries) {
+		wpan_dev->csma_retries = params->csma_retries;
+	}
+	if(wpan_dev->frame_retries != params->frame_retries) {
+		wpan_dev->frame_retries = params->frame_retries;
+	}
+	if(wpan_dev->lbt != params->lbt) {
+		wpan_dev->lbt = params->lbt;
+	}
+	if(wpan_dev->wpan_phy->cca != params->cca) {
+		wpan_dev->wpan_phy->cca = params->cca;
+	}
+	if(wpan_dev->wpan_phy->cca_ed_level != params->cca_ed_level) {
+		wpan_dev->wpan_phy->cca_ed_level = params->cca_ed_level;
+	}
 
 	return 0;
 }
@@ -777,6 +840,7 @@ static void xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_m
 	return;
 }
 
+//TODO
 static int xbee_ndo_open(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
@@ -786,6 +850,7 @@ static int xbee_ndo_open(struct net_device *dev)
 	return 0;
 }
 
+//TODO
 static int xbee_ndo_stop(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
@@ -793,17 +858,24 @@ static int xbee_ndo_stop(struct net_device *dev)
 	return 0;
 }
 
+//TODO
 static int xbee_rx_irqsafe(struct xb_device *xbdev, struct sk_buff *skb, u8 lqi)
 {
 	return netif_receive_skb(skb);
 }
 
+//TODO
 static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct xb_device *xbdev = sdata->local;
+	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	struct sk_buff *newskb = NULL;
 
+	pr_debug("CB: %04x:%016llx => %04x:%016llx lqi=%d, type=%d, ackreq=%d, sec=%d, sec_o=%d seclv=%d, seclv_o=%d\n",
+			cb->source.pan_id, cb->source.extended_addr, cb->dest.pan_id, cb->dest.extended_addr,
+			cb->lqi, cb->type, cb->ackreq, cb->secen, cb->secen_override,
+			cb->seclevel, cb->seclevel_override);
 	print_hex_dump_bytes("xmit> ", DUMP_PREFIX_NONE, skb->data, skb->len);
 	
 	newskb = pskb_copy(skb, GFP_ATOMIC);
@@ -815,6 +887,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 }
 
 //same as mac802154
+//TODO
 static int
 xbee_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -898,16 +971,19 @@ static void xbee_cfg802154_del_virtual_intf_deprecated(struct wpan_phy *wpan_phy
 {
 	pr_debug("%s\n", __func__);
 }
+//TODO
 static int xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 {
 	pr_debug("%s\n", __func__);
 	return 0;
 }
+//TODO
 static int xbee_cfg802154_resume(struct wpan_phy *wpan_phy)
 {
 	pr_debug("%s\n", __func__);
 	return 0;
 }
+//TODO
 static int xbee_cfg802154_add_virtual_intf(struct wpan_phy *wpan_phy,
                                     const char *name,
                                     unsigned char name_assign_type,
@@ -917,6 +993,7 @@ static int xbee_cfg802154_add_virtual_intf(struct wpan_phy *wpan_phy,
 	pr_debug("%s\n", __func__);
 	return 0;
 }
+//TODO
 static int xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
                                     struct wpan_dev *wpan_dev)
 {
@@ -1131,6 +1208,7 @@ static const struct cfg802154_ops xbee_cfg802154_ops = {
 
 static void ieee802154_if_setup(struct net_device *dev);
 
+//TODO
 static struct xb_device *
 xbee_alloc_device(size_t priv_data_len)
 {
@@ -1165,6 +1243,7 @@ xbee_alloc_device(size_t priv_data_len)
 //	return NULL;
 }
 
+//TODO
 static struct net_device* xbee_alloc_netdev(struct xb_device* local)
 {
 	//struct wpan_phy *phy = local->phy;
@@ -1194,6 +1273,7 @@ free_dev:
 	return NULL;
 }
 
+//TODO
 static int xbee_register_netdev(struct net_device* dev)
 {
 	int ret;
@@ -1211,6 +1291,7 @@ static int xbee_register_netdev(struct net_device* dev)
 	return ret;
 }
 
+//TODO
 static int xbee_register_device(struct xb_device* local)
 {
 	int ret;
@@ -1222,6 +1303,7 @@ static int xbee_register_device(struct xb_device* local)
 	return ret;
 }
 
+//TODO
 static void xbee_unregister_netdev(struct net_device* netdev)
 {
 	pr_debug("%s\n", __func__);
@@ -1233,19 +1315,21 @@ static void xbee_unregister_netdev(struct net_device* netdev)
 	pr_debug("%d\n", __LINE__);
 }
 
-
+//TODO
 static void xbee_unregister_device(struct xb_device* local)
 {
 	pr_debug("%s\n", __func__);
 	wpan_phy_unregister(local->phy);
 }
 
+//TODO
 static void xbee_free(struct xb_device* local)
 {
 	free_netdev(local->dev);
 	wpan_phy_free(local->phy);
 }
 
+//TODO
 static void xbee_setup(struct xb_device* local, struct net_device* ndev)
 {
 	__le64 extended_addr = cpu_to_le64(0x0000000000000000ULL);
@@ -1407,6 +1491,7 @@ static void xbee_setup(struct xb_device* local, struct net_device* ndev)
 //	}
 }
 
+//TODO
 static void ieee802154_if_setup(struct net_device *dev)
 {
 
@@ -1461,7 +1546,6 @@ static void ieee802154_if_setup(struct net_device *dev)
 /*****************************************************************************
  * Line discipline interface for IEEE 802.15.4 serial device
  *****************************************************************************/
-
 /**
  * xbee_ldisc_open - Initialize line discipline and register with ieee802154.
  *
@@ -1472,6 +1556,7 @@ static void ieee802154_if_setup(struct net_device *dev)
  *
  * 
  */
+//TODO
 static int xbee_ldisc_open(struct tty_struct *tty)
 {
 	struct xb_device *xbdev = tty->disc_data;
