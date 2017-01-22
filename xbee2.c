@@ -1520,6 +1520,7 @@ static void xbee_setup(struct xb_device* local, struct net_device* ndev)
 //		BUG();
 //	}
 	pr_wpan_phy(phy);
+	pr_wpan_phy_supported(phy);
 	pr_wpan_dev(wpan_dev);
 }
 
