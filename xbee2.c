@@ -1042,31 +1042,34 @@ static int xbee_cfg802154_set_ackreq_default(struct wpan_phy *wpan_phy,
 }
 
 static const struct wpan_dev_header_ops xbee_wpan_dev_header_ops = {
-	.create			= xbee_wpan_dev_header_create,
+	.create			= xbee_wpan_dev_header_create, //**
 };
 
 static const struct header_ops xbee_header_ops = {
 	.create			= xbee_header_create,
 	.parse			= xbee_header_parse,
-};
-
-static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
-	.assoc_req		= xbee_mlme_assoc_req,
-	.assoc_resp		= xbee_mlme_assoc_resp,
-	.disassoc_req		= xbee_mlme_disassoc_req,
-	.start_req		= xbee_mlme_start_req,
-	.scan_req		= xbee_mlme_scan_req,
-	.set_mac_params		= xbee_mlme_set_mac_params,
-	.get_mac_params		= xbee_mlme_get_mac_params,
-	//.llsec = NULL,
+	.cache			= NULL, //(const struct neighbour *neigh, struct hh_cache *hh, __be16 type);
+	.cache_update		= NULL, //(struct hh_cache *hh, const struct net_device *dev, const unsigned char *haddr);
+	.validate		= NULL, //(const char *ll_header, unsigned int len);
 };
 
 static const struct net_device_ops xbee_net_device_ops = {
-        .ndo_open               = xbee_ndo_open,
-        .ndo_stop               = xbee_ndo_stop,
-        .ndo_start_xmit         = xbee_ndo_start_xmit,
+        .ndo_open               = xbee_ndo_open,		//**
+        .ndo_stop               = xbee_ndo_stop,		//**
+        .ndo_start_xmit         = xbee_ndo_start_xmit,		//**
         .ndo_do_ioctl           = xbee_ndo_do_ioctl,
-        .ndo_set_mac_address    = xbee_ndo_set_mac_address, // ?
+        .ndo_set_mac_address    = xbee_ndo_set_mac_address,	// ?
+};
+
+static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
+	.assoc_req		= xbee_mlme_assoc_req,		//**
+	.assoc_resp		= xbee_mlme_assoc_resp,
+	.disassoc_req		= xbee_mlme_disassoc_req,
+	.start_req		= xbee_mlme_start_req,
+	.scan_req		= xbee_mlme_scan_req,		//**
+	.set_mac_params		= xbee_mlme_set_mac_params,
+	.get_mac_params		= xbee_mlme_get_mac_params,	//**
+	.llsec			= NULL,
 };
 
 static const struct cfg802154_ops xbee_cfg802154_ops = {
@@ -1075,18 +1078,18 @@ static const struct cfg802154_ops xbee_cfg802154_ops = {
 	.suspend		= xbee_cfg802154_suspend,
 	.resume			= xbee_cfg802154_resume,
 	.add_virtual_intf	= xbee_cfg802154_add_virtual_intf,
-	.del_virtual_intf	= xbee_cfg802154_del_virtual_intf,
-	.set_channel		= xbee_cfg802154_set_channel,
-	.set_cca_mode		= xbee_cfg802154_set_cca_mode,
-	.set_cca_ed_level	= xbee_cfg802154_set_cca_ed_level,
-	.set_tx_power		= xbee_cfg802154_set_tx_power,
-	.set_pan_id		= xbee_cfg802154_set_pan_id,
-	.set_short_addr		= xbee_cfg802154_set_short_addr,
-	.set_backoff_exponent	= xbee_cfg802154_set_backoff_exponent,
-	.set_max_csma_backoffs	= xbee_cfg802154_set_max_csma_backoffs,
-	.set_max_frame_retries	= xbee_cfg802154_set_max_frame_retries,
-	.set_lbt_mode		= xbee_cfg802154_set_lbt_mode,
-	.set_ackreq_default	= xbee_cfg802154_set_ackreq_default,
+	.del_virtual_intf	= xbee_cfg802154_del_virtual_intf,	//**
+	.set_channel		= xbee_cfg802154_set_channel,		//**
+	.set_cca_mode		= xbee_cfg802154_set_cca_mode,		//**
+	.set_cca_ed_level	= xbee_cfg802154_set_cca_ed_level,	//**
+	.set_tx_power		= xbee_cfg802154_set_tx_power,		//**
+	.set_pan_id		= xbee_cfg802154_set_pan_id,		//**
+	.set_short_addr		= xbee_cfg802154_set_short_addr,	//**
+	.set_backoff_exponent	= xbee_cfg802154_set_backoff_exponent,	//**
+	.set_max_csma_backoffs	= xbee_cfg802154_set_max_csma_backoffs,	//**
+	.set_max_frame_retries	= xbee_cfg802154_set_max_frame_retries,	//**
+	.set_lbt_mode		= xbee_cfg802154_set_lbt_mode,		//**
+	.set_ackreq_default	= xbee_cfg802154_set_ackreq_default,	//**
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	.get_llsec_table	= xbee_cfg802154_get_llsec_table,
 	.lock_llsec_table	= xbee_cfg802154_lock_llsec_table,
