@@ -1694,12 +1694,12 @@ static void xbee_read_config(struct xb_device* local, struct net_device* ndev)
 	s32 tx_power;
 	s32 ed_level;
 
-	xbee_get_channel(local, &page, &channel);
-	xbee_get_pan_id(local, &pan_id);
-	xbee_get_short_addr(local, &short_addr);
-	xbee_get_tx_power(local, &tx_power);
-	xbee_get_cca_ed_level(local, &ed_level);
-	xbee_get_extended_addr(local, &extended_addr);
+	//xbee_get_channel(local, &page, &channel);
+	//xbee_get_pan_id(local, &pan_id);
+	//xbee_get_short_addr(local, &short_addr);
+	//xbee_get_tx_power(local, &tx_power);
+	//xbee_get_cca_ed_level(local, &ed_level);
+	//xbee_get_extended_addr(local, &extended_addr);
 
 	phy->current_channel = channel;
 	phy->current_page = page;
