@@ -1939,8 +1939,8 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
-	//xbee_read_config(xbdev);
-	//xbee_set_supported(xbdev);
+	xbee_read_config(xbdev);
+	xbee_set_supported(xbdev);
 	xbee_setup(xbdev);
 	err = xbee_register_device(xbdev);
 	if (err) {
