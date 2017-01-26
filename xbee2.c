@@ -1590,8 +1590,6 @@ static struct xb_device* xbee_alloc_device(size_t priv_data_len)
 //	return NULL;
 }
 
-
-//TODO
 static int xbee_register_netdev(struct net_device* dev)
 {
 	int ret;
@@ -1609,7 +1607,6 @@ static int xbee_register_netdev(struct net_device* dev)
 	return ret;
 }
 
-//TODO
 static int xbee_register_device(struct xb_device* local)
 {
 	int ret;
@@ -1796,8 +1793,8 @@ static void xbee_setup(struct xb_device* local)
 	sdata->wpan_dev.frame_retries = local->frame_retries;
 	sdata->wpan_dev.pan_id = local->pan_id;
 	sdata->wpan_dev.short_addr = local->short_addr;
-	//ieee802154_be64_to_le64(&sdata->wpan_dev.extended_addr, sdata->dev->dev_addr);
 	sdata->wpan_dev.extended_addr = local->dev_addr;
+	//ieee802154_be64_to_le64(&sdata->wpan_dev.extended_addr, sdata->dev->dev_addr);
 
 	sdata->dev->header_ops = &xbee_header_ops;
 	sdata->dev->netdev_ops = &xbee_net_device_ops;
