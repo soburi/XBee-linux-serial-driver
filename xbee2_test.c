@@ -601,7 +601,7 @@ static struct modtest_result xb_process_sendrecv_vr(void* arg) {
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 
-	xb_process_sendrecv(xbdev);
+	xb_sendrecv(xbdev);
 
 	//FAIL_NOT_EQ(1, ret);
 	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
@@ -621,14 +621,14 @@ static struct modtest_result xbee_ieee802154_set_channel_test(void* arg) {
 	struct xb_device* xbdev = NULL;
 
 	xbdev = (struct xb_device*)arg;
-	xbee_ieee802154_set_channel((struct ieee802154_hw*)xbdev->hw, 0, 13);
+	xbee_cfg802154_set_channel(xbdev->phy, 0, 13);
 
 	send_buf = alloc_skb(128, GFP_KERNEL);
 	tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 
-	ret = xb_process_sendrecv(xbdev);
+	ret = xb_sendrecv(xbdev, xbdev->frameid);
 
 	FAIL_IF_ERROR(ret);
 
@@ -640,8 +640,8 @@ static struct modtest_result xbee_ieee802154_set_channel_test(void* arg) {
 }
 
 
-#define TEST33 xbee_ieee802154_set_txpower_test
-static struct modtest_result xbee_ieee802154_set_txpower_test(void* arg) {
+#define TEST33 xbee_ieee802154_set_tx_power_test
+static struct modtest_result xbee_ieee802154_set_tx_power_test(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x50, 0x4C, 0x5A };
 	const int count = 8;
@@ -650,14 +650,14 @@ static struct modtest_result xbee_ieee802154_set_txpower_test(void* arg) {
 	struct xb_device* xbdev = NULL;
 
 	xbdev = (struct xb_device*)arg;
-	xbee_ieee802154_set_txpower((struct ieee802154_hw*)xbdev->hw, 4);
+	xbee_cfg802154_set_tx_power(xbdev->phy, 4);
 
 	send_buf = alloc_skb(128, GFP_KERNEL);
 	tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 
-	ret = xb_process_sendrecv(xbdev);
+	ret = xb_sendrecv(xbdev, xbdev->frameid);
 
 	FAIL_IF_ERROR(ret);
 
@@ -682,14 +682,14 @@ static struct modtest_result xbee_ieee802154_set_cca_ed_level_test(void* arg) {
 	struct xb_device* xbdev = NULL;
 
 	xbdev = (struct xb_device*)arg;
-	xbee_ieee802154_set_cca_ed_level((struct ieee802154_hw*)xbdev->hw, 0x25);
+	xbee_cfg802154_set_cca_ed_level(xbdev->phy, 0x25);
 
 	send_buf = alloc_skb(128, GFP_KERNEL);
 	tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 
-	ret = xb_process_sendrecv(xbdev);
+	ret = xb_sendrecv(xbdev, xbdev->frameid);
 
 	FAIL_IF_ERROR(ret);
 
@@ -713,9 +713,9 @@ static struct modtest_result xbee_ieee802154_set_csma_params_test(void* arg) {
 	struct sk_buff* send_buf = NULL;
 	unsigned char* tail = NULL;
 	struct xb_device* xbdev = NULL;
-
+	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
 	xbdev = (struct xb_device*)arg;
-	xbee_ieee802154_set_csma_params((struct ieee802154_hw*)xbdev->hw, 2, 5, 1);
+	xbee_cfg802154_set_backoff_exponent(xbdev->phy, &sdata->wpan_dev, 2, 5);
 
 	send_buf = alloc_skb(128, GFP_KERNEL);
 	tail = skb_put(send_buf, count);
@@ -727,7 +727,7 @@ static struct modtest_result xbee_ieee802154_set_csma_params_test(void* arg) {
 	memcpy(tail, buf2, count2);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 
-	ret = xb_process_sendrecv(xbdev);
+	ret = xb_sendrecv(xbdev, xbdev->frameid);
 
 	FAIL_IF_ERROR(ret);
 
