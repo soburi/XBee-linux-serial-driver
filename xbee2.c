@@ -1524,7 +1524,6 @@ static void ieee802154_if_setup(struct net_device *dev);
 
 static struct net_device* xbee_alloc_netdev(struct xb_device* local)
 {
-	//struct wpan_phy *phy = local->phy;
 	struct net_device *ndev = local->dev;
 	struct xbee_sub_if_data *sdata = NULL;
 	int ret = 0;
@@ -1572,7 +1571,7 @@ static struct xb_device* xbee_alloc_device(size_t priv_data_len)
 	local->phy = phy;
 	ndev = xbee_alloc_netdev(local);
 	if(!ndev) {
-		return NULL;//goto free_phy;
+		goto free_phy;
 	}
 	local->dev = ndev;
 
@@ -1585,9 +1584,9 @@ static struct xb_device* xbee_alloc_device(size_t priv_data_len)
 
 	return local;
 
-//free_phy:
-//	wpan_phy_free(phy);
-//	return NULL;
+free_phy:
+	wpan_phy_free(phy);
+	return NULL;
 }
 
 static int xbee_register_netdev(struct net_device* dev)
