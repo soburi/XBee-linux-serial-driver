@@ -1017,6 +1017,12 @@ static void comm_work_fn(struct work_struct *param)
 
 		if(skb) {
 			print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+			/* loopback test code */
+			/*
+			newskb = pskb_copy(skb, GFP_ATOMIC);
+			if (newskb)
+				xbee_rx_irqsafe(xbdev, newskb, 0xcc);
+			*/
 			tty->ops->write(tty,  skb->data, skb->len);
 			tty_driver_flush_buffer(tty);
 			kfree_skb(skb);
@@ -1199,7 +1205,6 @@ static void xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_m
 	return;
 }
 
-//TODO
 static int xbee_ndo_open(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
@@ -1209,7 +1214,6 @@ static int xbee_ndo_open(struct net_device *dev)
 	return 0;
 }
 
-//TODO
 static int xbee_ndo_stop(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
@@ -1223,25 +1227,33 @@ static int xbee_rx_irqsafe(struct xb_device *xbdev, struct sk_buff *skb, u8 lqi)
 	return netif_receive_skb(skb);
 }
 
-//TODO
 static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct xb_device *xbdev = sdata->local;
-	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	struct sk_buff *newskb = NULL;
 
+	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	pr_debug("CB: %04x:%016llx => %04x:%016llx lqi=%d, type=%d, ackreq=%d, sec=%d, sec_o=%d seclv=%d, seclv_o=%d\n",
 			cb->source.pan_id, cb->source.extended_addr, cb->dest.pan_id, cb->dest.extended_addr,
 			cb->lqi, cb->type, cb->ackreq, cb->secen, cb->secen_override,
 			cb->seclevel, cb->seclevel_override);
 	print_hex_dump_bytes("xmit> ", DUMP_PREFIX_NONE, skb->data, skb->len);
-	
+
+	/* loopback test code */
+	/*
 	newskb = pskb_copy(skb, GFP_ATOMIC);
  	if (newskb)
  		xbee_rx_irqsafe(xbdev, newskb, 0xcc);
+	*/
+
+	frame_enqueue_send(&xbdev->send_queue, skb);
 
 	pr_debug("%s\n", __func__);
+	return NETDEV_TX_OK;
+
+err_xmit:
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -1334,6 +1346,7 @@ static void xbee_cfg802154_del_virtual_intf_deprecated(struct wpan_phy *wpan_phy
 static int xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 {
 	pr_debug("%s\n", __func__);
+	synchronize_net();
 	return 0;
 }
 //TODO
@@ -1508,12 +1521,14 @@ static const struct cfg802154_ops xbee_cfg802154_ops = {
 
 
 static void ieee802154_if_setup(struct net_device *dev);
+static struct net_device* xbee_alloc_netdev(struct xb_device* local);
 
 //TODO
 static struct xb_device *
 xbee_alloc_device(size_t priv_data_len)
 {
 	struct xb_device* local = NULL;
+	struct net_device *ndev = NULL;
 	struct wpan_phy *phy = NULL;
 	size_t priv_size;
 
@@ -1529,7 +1544,12 @@ xbee_alloc_device(size_t priv_data_len)
 	pr_debug("wpan_phy_priv\n");
 	local = wpan_phy_priv(phy);
 	local->phy = phy;
-	local->dev = NULL;
+	ndev = xbee_alloc_netdev(local);
+	if(!ndev) {
+		return NULL;//goto free_phy;
+	}
+	local->dev = ndev;
+
 	//local->hw.phy = local->phy;
 	//local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 	//local->ops = ops;
@@ -1559,8 +1579,8 @@ static struct net_device* xbee_alloc_netdev(struct xb_device* local)
 		return NULL;
 	}
 
-	ndev->needed_headroom = //local->extra_tx_headroom +
-				IEEE802154_MAX_HEADER_LEN;
+	ndev->needed_headroom = IEEE802154_MAX_HEADER_LEN;
+	ndev->type = ARPHRD_IEEE802154;
 
 	ret = dev_alloc_name(ndev, ndev->name);
 	if (ret < 0) {
@@ -1599,12 +1619,22 @@ static int xbee_register_device(struct xb_device* local)
 		
 	pr_debug("%s\n", __func__);
 	ret = wpan_phy_register(local->phy);
+	if(ret < 0) {
+		return ret;
+	}
+	ret = xbee_register_netdev(local->dev);
+	if(ret < 0) {
+		goto unregister_wpan;
+	}
 	pr_debug("ret = %d\n", ret);
 	pr_debug("%d\n", __LINE__);
+	return 0;
+
+unregister_wpan:
+	wpan_phy_unregister(local->phy);
 	return ret;
 }
 
-//TODO
 static void xbee_unregister_netdev(struct net_device* netdev)
 {
 	pr_debug("%s\n", __func__);
@@ -1616,14 +1646,13 @@ static void xbee_unregister_netdev(struct net_device* netdev)
 	pr_debug("%d\n", __LINE__);
 }
 
-//TODO
 static void xbee_unregister_device(struct xb_device* local)
 {
 	pr_debug("%s\n", __func__);
+	xbee_unregister_netdev(local->dev);
 	wpan_phy_unregister(local->phy);
 }
 
-//TODO
 static void xbee_free(struct xb_device* local)
 {
 	free_netdev(local->dev);
@@ -1682,17 +1711,17 @@ static void xbee_set_supported(struct xb_device* local)
 	}
 }
 
-static void xbee_read_config(struct xb_device* local, struct net_device* ndev)
+static void xbee_read_config(struct xb_device* local)
 {
 	struct wpan_phy *phy = local->phy;
-	__le64 extended_addr = cpu_to_le64(0x0000000000000000ULL);
-	__le16 pan_id;
-	__le16 short_addr;
+	__le64 extended_addr = 0;
+	__le16 pan_id = 0;
+	__le16 short_addr = 0;
 
-	u8 page;
-	u8 channel;
-	s32 tx_power;
-	s32 ed_level;
+	u8 page = 0;
+	u8 channel = 0;
+	s32 tx_power = 0;
+	s32 ed_level = 0;
 
 	//xbee_get_channel(local, &page, &channel);
 	//xbee_get_pan_id(local, &pan_id);
@@ -1705,47 +1734,35 @@ static void xbee_read_config(struct xb_device* local, struct net_device* ndev)
 	phy->current_page = page;
 	phy->transmit_power = tx_power;
 	phy->cca_ed_level = ed_level;
+	phy->perm_extended_addr = extended_addr;
 	//phy->cca = 0;
-	phy->symbol_duration = 0;
-	phy->lifs_period = 0;
-	phy->sifs_period = 0;
+	phy->symbol_duration = 16;
 
-//	ndev->needed_headroom = local->hw.extra_tx_headroom +
-//				IEEE802154_MAX_HEADER_LEN;
 
-	ieee802154_le64_to_be64(ndev->perm_addr,
-				&local->phy->perm_extended_addr);
-//	switch (type) {
-//	case NL802154_IFTYPE_NODE:
-		ndev->type = ARPHRD_IEEE802154;
-		if (ieee802154_is_valid_extended_unicast_addr(extended_addr))
-			ieee802154_le64_to_be64(ndev->dev_addr, &extended_addr);
-		else
-			memcpy(ndev->dev_addr, ndev->perm_addr,
-			       IEEE802154_EXTENDED_ADDR_LEN);
-//		break;
-//	case NL802154_IFTYPE_MONITOR:
-//		ndev->type = ARPHRD_IEEE802154_MONITOR;
-//		break;
-//	default:
-//		ret = -EINVAL;
-//		goto err;
-//	}
+	phy->lifs_period = IEEE802154_LIFS_PERIOD *
+				phy->symbol_duration;
+	phy->sifs_period = IEEE802154_SIFS_PERIOD *
+				phy->symbol_duration;
+
+	/* only 2.4 GHz band */
+	phy->flags = WPAN_PHY_FLAG_TXPOWER |
+			          WPAN_PHY_FLAG_CCA_ED_LEVEL |
+					  WPAN_PHY_FLAG_CCA_MODE;
+
 }
 
 //TODO
-static void xbee_setup(struct xb_device* local, struct net_device* ndev)
+static void xbee_setup(struct xb_device* local)
 {
 	//__le64 extended_addr = cpu_to_le64(0x0000000000000000ULL);
 	struct wpan_phy *phy = local->phy;
+	struct net_device* ndev = local->dev;
 	struct xbee_sub_if_data *sdata = netdev_priv(ndev);//NULL;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	//int ret = -ENOMEM;
 	//enum nl802154_iftype type = NL802154_IFTYPE_NODE;
 	uint8_t tmp;
 
-	xbee_set_supported(local);
-	xbee_read_config(local, ndev);
 
 	/* TODO check this */
 	SET_NETDEV_DEV(ndev, &phy->dev);
@@ -1758,15 +1775,13 @@ static void xbee_setup(struct xb_device* local, struct net_device* ndev)
 
 	local->dev = ndev; //TODO
 
-	phy->lifs_period = IEEE802154_LIFS_PERIOD *
-				phy->symbol_duration;
-	phy->sifs_period = IEEE802154_SIFS_PERIOD *
-				phy->symbol_duration;
+	ieee802154_le64_to_be64(ndev->perm_addr,
+				&local->phy->perm_extended_addr);
 
-	/* only 2.4 GHz band */
-	phy->flags = WPAN_PHY_FLAG_TXPOWER |
-			          WPAN_PHY_FLAG_CCA_ED_LEVEL |
-					  WPAN_PHY_FLAG_CCA_MODE;
+	if (ieee802154_is_valid_extended_unicast_addr(phy->perm_extended_addr))
+		ieee802154_le64_to_be64(ndev->dev_addr, &phy->perm_extended_addr);
+	else
+		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
 
 	local->extra_tx_headroom = 0;
 
@@ -1929,10 +1944,12 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
-	ndev = xbee_alloc_netdev(xbdev);
-	xbee_setup(xbdev, ndev);
+	//ndev = xbee_alloc_netdev(xbdev);
+	//xbee_read_config(xbdev);
+	//xbee_set_supported(xbdev);
+	xbee_setup(xbdev);
 	err = xbee_register_device(xbdev);
-	err = xbee_register_netdev(ndev);
+	//err = xbee_register_netdev(ndev);
 	if (err) {
         printk(KERN_ERR "%s: device register failed\n", __func__);
 		goto err;
@@ -1950,7 +1967,7 @@ err:
 	xbdev->tty = NULL;
 
 	//ieee802154_unregister_hw(xbdev->hw);
-	xbee_unregister_netdev(xbdev->dev);
+	//xbee_unregister_netdev(xbdev->dev);
 	xbee_unregister_device(xbdev);
 	//ieee802154_free_hw(xbdev->hw);
 	//xbee_free(xbdev);
@@ -1979,7 +1996,7 @@ static void xbee_ldisc_close(struct tty_struct *tty)
 	xbdev->tty = NULL;
 
 	//ieee802154_unregister_hw(xbdev->hw);
-	xbee_unregister_netdev(xbdev->dev);
+	//xbee_unregister_netdev(xbdev->dev);
 	xbee_unregister_device(xbdev);
 
 	tty_ldisc_flush(tty);
