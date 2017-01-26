@@ -159,14 +159,14 @@ struct xbee_sub_if_data {
 
 	//struct mac802154_llsec sec;
 };
-
+/*
 static void mac802154_wpan_free(struct net_device *dev)
 {
 	//struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	//mac802154_llsec_destroy(&sdata->sec);
 	free_netdev(dev);
 }
-
+*/
 struct xbee_frame {
 	struct list_head list;
 	int ack;
@@ -1205,6 +1205,7 @@ static void xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_m
 	return;
 }
 
+//TODO
 static int xbee_ndo_open(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
@@ -1214,6 +1215,7 @@ static int xbee_ndo_open(struct net_device *dev)
 	return 0;
 }
 
+//TODO
 static int xbee_ndo_stop(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
@@ -1227,6 +1229,7 @@ static int xbee_rx_irqsafe(struct xb_device *xbdev, struct sk_buff *skb, u8 lqi)
 	return netif_receive_skb(skb);
 }
 
+//TODO
 static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
@@ -1239,7 +1242,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 			cb->lqi, cb->type, cb->ackreq, cb->secen, cb->secen_override,
 			cb->seclevel, cb->seclevel_override);
 	print_hex_dump_bytes("xmit> ", DUMP_PREFIX_NONE, skb->data, skb->len);
-
+	
 	/* loopback test code */
 	/*
 	newskb = pskb_copy(skb, GFP_ATOMIC);
@@ -1797,7 +1800,7 @@ static void xbee_setup(struct xb_device* local)
 
 	sdata->dev->header_ops = &xbee_header_ops;
 	sdata->dev->netdev_ops = &xbee_net_device_ops;
-	sdata->dev->destructor = mac802154_wpan_free;
+	sdata->dev->destructor = NULL;//mac802154_wpan_free;
 	sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
 	sdata->wpan_dev.promiscuous_mode = false;
 	sdata->wpan_dev.header_ops = &xbee_wpan_dev_header_ops;
@@ -1936,12 +1939,10 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 		tty->ldisc->ops->flush_buffer(tty);
 	tty_driver_flush_buffer(tty);
 
-	//ndev = xbee_alloc_netdev(xbdev);
 	//xbee_read_config(xbdev);
 	//xbee_set_supported(xbdev);
 	xbee_setup(xbdev);
 	err = xbee_register_device(xbdev);
-	//err = xbee_register_netdev(ndev);
 	if (err) {
         printk(KERN_ERR "%s: device register failed\n", __func__);
 		goto err;
@@ -1959,10 +1960,9 @@ err:
 	xbdev->tty = NULL;
 
 	//ieee802154_unregister_hw(xbdev->hw);
-	//xbee_unregister_netdev(xbdev->dev);
 	xbee_unregister_device(xbdev);
 	//ieee802154_free_hw(xbdev->hw);
-	//xbee_free(xbdev);
+	xbee_free(xbdev);
 
 	return err;
 }
@@ -1995,7 +1995,7 @@ static void xbee_ldisc_close(struct tty_struct *tty)
 	tty_driver_flush_buffer(tty);
 
 	//ieee802154_free_hw(xbdev->hw);
-	//xbee_free(xbdev);
+	xbee_free(xbdev);
 }
 
 /**
