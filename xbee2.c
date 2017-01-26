@@ -1229,13 +1229,11 @@ static int xbee_rx_irqsafe(struct xb_device *xbdev, struct sk_buff *skb, u8 lqi)
 	return netif_receive_skb(skb);
 }
 
-//TODO
 static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct xb_device *xbdev = sdata->local;
 	struct ieee802154_mac_cb *cb = mac_cb(skb);
-	struct sk_buff *newskb = NULL;
 
 	pr_debug("CB: %04x:%016llx => %04x:%016llx lqi=%d, type=%d, ackreq=%d, sec=%d, sec_o=%d seclv=%d, seclv_o=%d\n",
 			cb->source.pan_id, cb->source.extended_addr, cb->dest.pan_id, cb->dest.extended_addr,
@@ -1245,9 +1243,11 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	
 	/* loopback test code */
 	/*
-	newskb = pskb_copy(skb, GFP_ATOMIC);
+	{
+	struct sk_buff *newskb = pskb_copy(skb, GFP_ATOMIC);
  	if (newskb)
  		xbee_rx_irqsafe(xbdev, newskb, 0xcc);
+	}
 	*/
 
 	frame_enqueue_send(&xbdev->send_queue, skb);
@@ -1255,9 +1255,9 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	pr_debug("%s\n", __func__);
 	return NETDEV_TX_OK;
 
-err_xmit:
-	kfree_skb(skb);
-	return NETDEV_TX_OK;
+//err_xmit:
+//	kfree_skb(skb);
+//	return NETDEV_TX_OK;
 }
 
 //same as mac802154
@@ -1571,6 +1571,8 @@ static struct xb_device* xbee_alloc_device(size_t priv_data_len)
 	}
 	pr_debug("wpan_phy_priv\n");
 	local = wpan_phy_priv(phy);
+	local->extra_tx_headroom = 0;
+
 	local->phy = phy;
 	ndev = xbee_alloc_netdev(local);
 	if(!ndev) {
@@ -1659,22 +1661,12 @@ static void xbee_set_supported(struct xb_device* local)
 {
 	struct wpan_phy *phy = local->phy;
 
-	phy->supported.max_minbe = 8;
-	phy->supported.min_maxbe = 3;
-	phy->supported.max_maxbe = 8;
-	phy->supported.min_frame_retries = 0;
-	phy->supported.max_frame_retries = 7;
-	phy->supported.max_csma_backoffs = 5;
-	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
-
 	/* always supported */
-	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
-
 	phy->supported.channels[0] = 0x7fff800;
 	phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY);
 	phy->supported.cca_opts = NL802154_CCA_ENERGY;
-	phy->supported.iftypes = 0;
-	phy->supported.lbt = 0;
+	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
+	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
 	phy->supported.min_minbe = 0;
 	phy->supported.max_minbe = 3;
 	phy->supported.min_maxbe = 5; /* N/A */
@@ -1749,25 +1741,19 @@ static void xbee_read_config(struct xb_device* local)
 //TODO
 static void xbee_setup(struct xb_device* local)
 {
-	//__le64 extended_addr = cpu_to_le64(0x0000000000000000ULL);
 	struct wpan_phy *phy = local->phy;
 	struct net_device* ndev = local->dev;
-	struct xbee_sub_if_data *sdata = netdev_priv(ndev);//NULL;
+	struct xbee_sub_if_data *sdata = netdev_priv(ndev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	//int ret = -ENOMEM;
-	//enum nl802154_iftype type = NL802154_IFTYPE_NODE;
 	uint8_t tmp;
-
 
 	/* TODO check this */
 	SET_NETDEV_DEV(ndev, &phy->dev);
-	sdata = netdev_priv(ndev);
 	memcpy(sdata->name, ndev->name, IFNAMSIZ);
 	sdata->dev = ndev;
-	sdata->wpan_dev.wpan_phy = phy;//local->hw.phy;
+	sdata->wpan_dev.wpan_phy = phy;
 	sdata->local = local;
 
-	local->dev = ndev; //TODO
 	ndev->ieee802154_ptr = &sdata->wpan_dev;
 
 	ieee802154_le64_to_be64(ndev->perm_addr,
@@ -1778,8 +1764,6 @@ static void xbee_setup(struct xb_device* local)
 	else
 		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
 
-	local->extra_tx_headroom = 0;
-
 	/* set some type-dependent values */
 	sdata->wpan_dev.iftype = NL802154_IFTYPE_NODE;
 
@@ -1788,7 +1772,6 @@ static void xbee_setup(struct xb_device* local)
 	get_random_bytes(&tmp, sizeof(tmp));
 	atomic_set(&sdata->wpan_dev.dsn, tmp);
 
-	/* defaults per 802.15.4-2011 */
 	sdata->wpan_dev.min_be = local->min_be;
 	sdata->wpan_dev.max_be = local->max_be;
 	sdata->wpan_dev.csma_retries = local->csma_retries;
@@ -1796,7 +1779,6 @@ static void xbee_setup(struct xb_device* local)
 	sdata->wpan_dev.pan_id = local->pan_id;
 	sdata->wpan_dev.short_addr = local->short_addr;
 	sdata->wpan_dev.extended_addr = local->dev_addr;
-	//ieee802154_be64_to_le64(&sdata->wpan_dev.extended_addr, sdata->dev->dev_addr);
 
 	sdata->dev->header_ops = &xbee_header_ops;
 	sdata->dev->netdev_ops = &xbee_net_device_ops;
@@ -1881,7 +1863,7 @@ static void ieee802154_if_setup(struct net_device *dev)
 static int xbee_ldisc_open(struct tty_struct *tty)
 {
 	struct xb_device *xbdev = tty->disc_data;
-	struct net_device *ndev = NULL;
+	//struct net_device *ndev = NULL;
 	//struct ieee802154_hw *hw;
 
 	int err;
