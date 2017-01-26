@@ -1231,9 +1231,9 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct xb_device *xbdev = sdata->local;
+	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	struct sk_buff *newskb = NULL;
 
-	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	pr_debug("CB: %04x:%016llx => %04x:%016llx lqi=%d, type=%d, ackreq=%d, sec=%d, sec_o=%d seclv=%d, seclv_o=%d\n",
 			cb->source.pan_id, cb->source.extended_addr, cb->dest.pan_id, cb->dest.extended_addr,
 			cb->lqi, cb->type, cb->ackreq, cb->secen, cb->secen_override,
@@ -1521,13 +1521,39 @@ static const struct cfg802154_ops xbee_cfg802154_ops = {
 
 
 static void ieee802154_if_setup(struct net_device *dev);
-static struct net_device* xbee_alloc_netdev(struct xb_device* local);
 
-//TODO
-static struct xb_device *
-xbee_alloc_device(size_t priv_data_len)
+static struct net_device* xbee_alloc_netdev(struct xb_device* local)
 {
-	struct xb_device* local = NULL;
+	//struct wpan_phy *phy = local->phy;
+	struct net_device *ndev = local->dev;
+	struct xbee_sub_if_data *sdata = NULL;
+	int ret = 0;
+	
+	ndev = alloc_netdev(sizeof(*sdata), "wpan%d",
+			    NET_NAME_ENUM, ieee802154_if_setup);
+	if (!ndev) {
+		pr_err("failure to allocate netdev\n");
+		return NULL;
+	}
+
+	ndev->needed_headroom = IEEE802154_MAX_HEADER_LEN;
+	ndev->type = ARPHRD_IEEE802154;
+
+	ret = dev_alloc_name(ndev, ndev->name);
+	if (ret < 0) {
+		pr_err("failure to allocate device name\n");
+		goto free_dev;
+	}
+	return ndev;
+
+free_dev:
+	free_netdev(ndev);
+	return NULL;
+}
+
+static struct xb_device* xbee_alloc_device(size_t priv_data_len)
+{
+	struct xb_device *local = NULL;
 	struct net_device *ndev = NULL;
 	struct wpan_phy *phy = NULL;
 	size_t priv_size;
@@ -1564,35 +1590,6 @@ xbee_alloc_device(size_t priv_data_len)
 //	return NULL;
 }
 
-//TODO
-static struct net_device* xbee_alloc_netdev(struct xb_device* local)
-{
-	//struct wpan_phy *phy = local->phy;
-	struct net_device *ndev = local->dev;
-	struct xbee_sub_if_data *sdata = NULL;
-	int ret = 0;
-	
-	ndev = alloc_netdev(sizeof(*sdata), "wpan%d",
-			    NET_NAME_ENUM, ieee802154_if_setup);
-	if (!ndev) {
-		pr_err("failure to allocate netdev\n");
-		return NULL;
-	}
-
-	ndev->needed_headroom = IEEE802154_MAX_HEADER_LEN;
-	ndev->type = ARPHRD_IEEE802154;
-
-	ret = dev_alloc_name(ndev, ndev->name);
-	if (ret < 0) {
-		pr_err("failure to allocate device name\n");
-		goto free_dev;
-	}
-	return ndev;
-
-free_dev:
-	free_netdev(ndev);
-	return NULL;
-}
 
 //TODO
 static int xbee_register_netdev(struct net_device* dev)
@@ -1717,7 +1714,6 @@ static void xbee_read_config(struct xb_device* local)
 	__le64 extended_addr = 0;
 	__le16 pan_id = 0;
 	__le16 short_addr = 0;
-
 	u8 page = 0;
 	u8 channel = 0;
 	s32 tx_power = 0;
@@ -1767,13 +1763,13 @@ static void xbee_setup(struct xb_device* local)
 	/* TODO check this */
 	SET_NETDEV_DEV(ndev, &phy->dev);
 	sdata = netdev_priv(ndev);
-	ndev->ieee802154_ptr = &sdata->wpan_dev;
 	memcpy(sdata->name, ndev->name, IFNAMSIZ);
 	sdata->dev = ndev;
 	sdata->wpan_dev.wpan_phy = phy;//local->hw.phy;
 	sdata->local = local;
 
 	local->dev = ndev; //TODO
+	ndev->ieee802154_ptr = &sdata->wpan_dev;
 
 	ieee802154_le64_to_be64(ndev->perm_addr,
 				&local->phy->perm_extended_addr);
@@ -1798,8 +1794,8 @@ static void xbee_setup(struct xb_device* local)
 	sdata->wpan_dev.max_be = local->max_be;
 	sdata->wpan_dev.csma_retries = local->csma_retries;
 	sdata->wpan_dev.frame_retries = local->frame_retries;
-	sdata->wpan_dev.pan_id = local->pan_id;//cpu_to_le16(IEEE802154_PANID_BROADCAST);
-	sdata->wpan_dev.short_addr = local->short_addr;//cpu_to_le16(IEEE802154_ADDR_BROADCAST);
+	sdata->wpan_dev.pan_id = local->pan_id;
+	sdata->wpan_dev.short_addr = local->short_addr;
 	//ieee802154_be64_to_le64(&sdata->wpan_dev.extended_addr, sdata->dev->dev_addr);
 	sdata->wpan_dev.extended_addr = local->dev_addr;
 
