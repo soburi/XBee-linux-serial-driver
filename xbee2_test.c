@@ -611,6 +611,8 @@ static struct modtest_result xb_process_sendrecv_vr(void* arg) {
 }
 #endif
 
+#if 0
+
 #define TEST32 xbee_ieee802154_set_channel_test
 static struct modtest_result xbee_ieee802154_set_channel_test(void* arg) {
 	int ret = 0;
@@ -739,7 +741,7 @@ static struct modtest_result xbee_ieee802154_set_csma_params_test(void* arg) {
 
 	TEST_SUCCESS();
 }
-
+#endif
 
 #include "gen_modtest.h"
 
