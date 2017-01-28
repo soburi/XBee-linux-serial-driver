@@ -557,6 +557,7 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	int ret = xb->frameid;
+	pr_debug("%s\n", __func__);
 	frame_enqueue_send_at(&xb->send_queue, atcmd, xb->frameid, buf, buflen);
 	xb->frameid++;
 	return ret;
@@ -566,7 +567,7 @@ static bool xb_send(struct xb_device* xb)
 {
 	bool already_on_queue = false;
 
-	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)&xb->comm_work.work);
+	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)&xb->comm_work.work); //TODO
 
 	return already_on_queue;
 }
@@ -579,7 +580,9 @@ static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 	ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 1000);
 
 	if(ret > 0) {
-		return frame_dequeue_by_id(&xb->recv_queue, recvid);
+		struct sk_buff* skb = frame_dequeue_by_id(&xb->recv_queue, recvid);
+		print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, skb->data, skb->len);
+		return skb;
 	}
 	else if(ret == -ERESTARTSYS) {
 		pr_debug("interrupted %d\n", ret);
@@ -594,6 +597,7 @@ static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	uint8_t recvid = xb_enqueue_send_at(xb, atcmd, buf, buflen);
+	pr_debug("%s\n", __func__);
 	return xb_sendrecv(xb, recvid);
 }
 
@@ -697,6 +701,7 @@ static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
 		xb->phy->current_channel = channel;
 		return 0;
 	}
+
 	return -EINVAL;
 }
 
@@ -1001,6 +1006,11 @@ static void comm_work_fn(struct work_struct *param)
 	struct xb_work* xbw = (struct xb_work*)param;
 	struct xb_device* xb = xbw->xb;
 	struct tty_struct* tty = xb->tty;
+
+	pr_debug("%s\n", __func__);
+	pr_debug("%p\n", xbw);
+	pr_debug("%p\n", xb);
+	pr_debug("%p\n", tty);
 
 	if( !skb_queue_empty(&xb->recv_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->recv_queue);
@@ -1377,6 +1387,7 @@ static int xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
 }
 static int xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 {
+
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_channel(xb, page, channel);
@@ -1906,6 +1917,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	init_completion(&xbdev->cmd_resp_done);
 	xbdev->comm_workq = create_workqueue("comm_workq");
+	xbdev->comm_work.xb = xbdev;
 	INIT_WORK( (struct work_struct*)&xbdev->comm_work.work, comm_work_fn);
 
 #ifdef MODTEST_ENABLE

@@ -561,12 +561,6 @@ static struct modtest_result frame_dequeue_empty_queue(void* arg) {
 	TEST_SUCCESS();
 }
 
-
-
-
-
-
-
 #define TEST31 frame_enqueue_send_vr
 static struct modtest_result frame_enqueue_send_vr(void* arg) {
 	//int ret = 0;
@@ -579,6 +573,7 @@ static struct modtest_result frame_enqueue_send_vr(void* arg) {
 	unsigned char* tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
+	xb_send(xbdev);
 
 	//FAIL_NOT_EQ(1, ret);
 
