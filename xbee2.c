@@ -10,6 +10,7 @@
 #include <linux/nl80211.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
+#include <linux/jiffies.h>
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
 #include <net/regulatory.h>
@@ -475,16 +476,9 @@ static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint
 
 	skb_queue_walk(recv_queue, skb) {
 		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
-		if( hd->type != XBEE_FRM_RX64 &&
-			hd->type != XBEE_FRM_RX16 &&
-			hd->type != XBEE_FRM_RX64IO &&
-			hd->type != XBEE_FRM_RX16IO &&
-			hd->type != XBEE_FRM_MSTAT) {
-
-			if( hd->id == frameid) {
-				skb_unlink(skb, recv_queue);
-				return skb;
-			}
+		if( hd->id == frameid) {
+			skb_unlink(skb, recv_queue);
+			return skb;
 		}
 	}
 
@@ -577,12 +571,11 @@ static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 	int ret = 0;
 
 	xb_send(xb);
-	ret = wait_for_completion_interruptible_timeout(&xb->cmd_resp_done, 1000);
+
+	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(100) );
 
 	if(ret > 0) {
-		struct sk_buff* skb = frame_dequeue_by_id(&xb->recv_queue, recvid);
-		print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, skb->data, skb->len);
-		return skb;
+		return frame_dequeue_by_id(&xb->recv_queue, recvid);
 	}
 	else if(ret == -ERESTARTSYS) {
 		pr_debug("interrupted %d\n", ret);
@@ -1007,18 +1000,17 @@ static void comm_work_fn(struct work_struct *param)
 	struct xb_device* xb = xbw->xb;
 	struct tty_struct* tty = xb->tty;
 
-	pr_debug("%s\n", __func__);
-	pr_debug("%p\n", xbw);
-	pr_debug("%p\n", xb);
-	pr_debug("%p\n", tty);
-
 	if( !skb_queue_empty(&xb->recv_queue) ) {
-		struct sk_buff* skb = skb_dequeue(&xb->recv_queue);
+		struct sk_buff* skb = skb_peek(&xb->recv_queue);
 
 		if(skb) {
+			struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
 			print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, skb->data, skb->len);
-			complete(&xb->cmd_resp_done);
-			frame_recv_dispatch(xb, skb);
+			if(frm->type != XBEE_FRM_ATCMDR) {
+				skb = skb_dequeue(&xb->recv_queue);
+				frame_recv_dispatch(xb, skb);
+			}
+			complete_all(&xb->cmd_resp_done);
 		}
 	}
 
