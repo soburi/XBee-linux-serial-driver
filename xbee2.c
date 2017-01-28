@@ -476,7 +476,12 @@ static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint
 
 	skb_queue_walk(recv_queue, skb) {
 		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
-		if( hd->id == frameid) {
+		if(	hd->id == frameid &&
+			hd->type != XBEE_FRM_RX64 &&
+			hd->type != XBEE_FRM_RX16 &&
+			hd->type != XBEE_FRM_RX64IO &&
+			hd->type != XBEE_FRM_RX16IO &&
+			hd->type != XBEE_FRM_MSTAT) {
 			skb_unlink(skb, recv_queue);
 			return skb;
 		}
