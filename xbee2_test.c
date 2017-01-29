@@ -617,7 +617,6 @@ static struct modtest_result frame_enqueue_send_at_vr(void* arg) {
 
 #define TEST33 xb_process_sendrecv_vr
 static struct modtest_result xb_process_sendrecv_vr(void* arg) {
-	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4E };
 	const int count = 8;
 	unsigned char* tail = NULL;
@@ -651,7 +650,7 @@ static struct modtest_result xbee_get_channel_test(void* arg) {
 	FAIL_IF_ERROR(ret);
 
 	FAIL_NOT_EQ(0, page);
-	FAIL_NOT_EQ(13, channel);
+	FAIL_NOT_EQ(12, channel);
 
 	TEST_SUCCESS();
 }
@@ -698,7 +697,7 @@ static struct modtest_result xbee_get_pan_id_test(void* arg) {
 	ret = xbee_get_pan_id(xbdev, &panid);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(0xABCD, panid);
+	FAIL_NOT_EQ(0x3332, panid);
 
 	TEST_SUCCESS();
 }
@@ -714,7 +713,7 @@ static struct modtest_result xbee_get_short_addr_test(void* arg) {
 	ret = xbee_get_short_addr(xbdev, &short_addr);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(0xFFFF, short_addr);
+	FAIL_NOT_EQ(0x0, short_addr);
 
 	TEST_SUCCESS();
 }
@@ -841,6 +840,73 @@ static struct modtest_result xbee_set_short_addr_test(void* arg) {
 
 	TEST_SUCCESS();
 }
+
+#define TEST55 xbee_set_backoff_exponent_test
+static struct modtest_result xbee_set_backoff_exponent_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	u8 min_be = 0;
+	u8 max_be = 0;
+
+	ret = xbee_set_backoff_exponent(xbdev, 0, 20);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xbee_get_channel(xbdev, &min_be, &max_be);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_NOT_EQ(0, min_be);
+	FAIL_NOT_EQ(20, max_be);
+
+	TEST_SUCCESS();
+}
+
+
+#if 0 // not supported
+#define TEST56 xbee_set_backoffs_exponent_test
+static struct modtest_result xbee_set_backoffs_exponent_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	u8 max_csma_backoffs = 0;
+
+	ret = xbee_set_max_csma_backoffs(xbdev, 2);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xbee_get_max_csma_backoffs(xbdev, &max_csma_backoffs);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_NOT_EQ(20, max_csma_backoffs);
+
+	TEST_SUCCESS();
+}
+#endif
+
+#define TEST57 xbee_set_ackreq_default_test
+static struct modtest_result xbee_set_ackreq_default_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	bool ackreq = 0;
+
+	ret = xbee_set_ackreq_default(xbdev, true);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xbee_get_ackreq_default(xbdev, &ackreq);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_NOT_EQ(true, ackreq);
+
+	TEST_SUCCESS();
+}
+
+
 
 
 #if 0

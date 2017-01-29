@@ -942,69 +942,76 @@ static int xbee_get_short_addr(struct xb_device *xb, __le16 *short_addr)
 	return 0;
 }
 
-//TODO
 static int xbee_set_backoff_exponent(struct xb_device *xb, u8 min_be, u8 max_be)
 {
-	struct sk_buff *skb = NULL;
-	skb = xb_sendrecv_atcmd(xb, XBEE_AT_RN, &max_be, 1);
-	if(frame_atcmdr_result(skb) != XBEE_ATCMDR_OK) {
-		return -EINVAL;
-	}
+	u8 rr = min_be;
+	pr_debug("%s\n", __func__);
+	return xbee_set_param(xb, XBEE_AT_RN, &rr, sizeof(rr) );
+}
+
+static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_be)
+{
+	int err = -EINVAL;
+	u8 rn = 0;
+	err = xbee_get_param(xb, XBEE_AT_RN, &rn, sizeof(rn) );
+
+	if(err) return err;
+
+	if(min_be) *min_be = rn;
+
+	return 0;
+}
+
+// TODO not supported
+static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
+{
+	u8 rr = max_csma_backoffs;
+	pr_debug("%s\n", __func__);
+	return xbee_set_param(xb, XBEE_AT_RR, &rr, sizeof(rr) );
+}
+
+// TODO not supported
+static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoffs)
+{
+	int err = -EINVAL;
+	u8 rr = 0;
+	err = xbee_get_param(xb, XBEE_AT_RR, &rr, sizeof(rr) );
+
+	if(err) return err;
+
+	if(max_csma_backoffs) *max_csma_backoffs = rr;
 
 	return 0;
 }
 
 //TODO
-static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_be)
-{
-	int ret = -EINVAL;
-	struct sk_buff *skb = NULL;
-	u8 rn = 0;
-
-	skb = xb_sendrecv_atcmd(xb, XBEE_AT_RN, "", 0);
-	if(!skb) return -EINVAL;
-
-	if(frame_atcmdr_result(skb) != XBEE_ATCMDR_OK) {
-		ret = 0;
-	}
-
-	kfree_skb(skb);
-	return ret;
-}
-
-
-//TODO
-static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
-{
-	int ret = -EINVAL;
-	struct sk_buff *skb = NULL;
-	skb = xb_sendrecv_atcmd(xb, XBEE_AT_RR, &max_csma_backoffs, 1);
-	if(!skb) return -EINVAL;
-
-	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
-		ret = 0;
-	}
-
-	return ret;
-}
-//TODO
 static int xbee_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
 {
 	return -EINVAL;
 }
+//TODO
 static int xbee_set_lbt_mode(struct xb_device *xb, bool mode)
 {
 	return -EINVAL;
 }
 static int xbee_set_ackreq_default(struct xb_device *xb, bool ackreq)
 {
-	struct sk_buff *skb = NULL;
-	u8 mac_mode = ackreq ? XBEE_MM_802154_WITH_ACK : XBEE_MM_802154_NO_ACK;
-	skb = xb_sendrecv_atcmd(xb, XBEE_AT_MM, &mac_mode, 1);
-	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
-		return 0;
-	}
-	return -EINVAL;
+	u8 mm = ackreq ? 2 : 1;
+	pr_debug("%s\n", __func__);
+	return xbee_set_param(xb, XBEE_AT_MM, &mm, sizeof(mm) );
+}
+
+static int xbee_get_ackreq_default(struct xb_device *xb, bool* ackreq)
+{
+	int err = -EINVAL;
+	u8 mm = 0;
+	err = xbee_get_param(xb, XBEE_AT_MM, &mm, sizeof(mm) );
+
+	if(err) return err;
+
+	if(ackreq) *ackreq = (mm == 2);
+
+	return 0;
 }
 
 static int xbee_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
