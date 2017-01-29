@@ -1033,7 +1033,7 @@ static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs
 }
 
 #if 0
-// TODO not supported
+// not supported
 static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoffs)
 {
 	int err = -EINVAL;
@@ -1048,15 +1048,13 @@ static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoff
 }
 #endif
 
-//TODO not supported
 static int xbee_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
 {
-	return -EINVAL;
+	return -ENOTSUP;
 }
-//TODO not supported
 static int xbee_set_lbt_mode(struct xb_device *xb, bool mode)
 {
-	return -EINVAL;
+	return -ENOTSUP;
 }
 static int xbee_set_ackreq_default(struct xb_device *xb, bool ackreq)
 {
