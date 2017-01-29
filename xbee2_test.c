@@ -902,8 +902,6 @@ static struct modtest_result xbee_set_backoffs_exponent_test(void* arg) {
 	int ret = 0;
 	struct xb_device* xbdev = (struct xb_device*)arg;
 
-	u8 max_csma_backoffs = 0;
-
 	ret = xbee_set_max_csma_backoffs(xbdev, 2);
 
 	FAIL_IF_NOT_ERROR(ret);

@@ -1032,7 +1032,7 @@ static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs
 	return xbee_set_param(xb, XBEE_AT_RR, &rr, sizeof(rr) );
 }
 
-#ifdef MODTEST_ENABLE
+#if 0
 // TODO not supported
 static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoffs)
 {
