@@ -727,7 +727,7 @@ static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 	pr_debug("%s\n", __func__);
 
 	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CH, "", 0);
-	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+	if(skb != NULL && frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
 		struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
 		*channel = *resp->response;
 		*page = 0;
