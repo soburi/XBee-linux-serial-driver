@@ -20,7 +20,9 @@
 #include "modtest.h"
 #endif
 
-#define N_IEEE802154_XBEE 25
+#define N_XBEE802154 25
+
+#define XBEE802154_MAGIC 0x8BEE
 
 /*********************************************************************/
 
@@ -65,6 +67,8 @@ struct xb_device {
 	__le64 dev_addr;
 
 	uint8_t api;
+
+	uint16_t magic;
 
 #ifdef MODTEST_ENABLE
 	DECL_MODTEST_STRUCT();
@@ -2031,7 +2035,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	tty->disc_data = xbdev;
 
 	xbdev->recv_buf = dev_alloc_skb(128);
-	xbdev->frameid = 0;
+	xbdev->frameid = 1; //TODO
 	
 	skb_queue_head_init(&xbdev->recv_queue);
 	skb_queue_head_init(&xbdev->send_queue);
@@ -2128,9 +2132,25 @@ static void xbee_ldisc_close(struct tty_struct *tty)
 static int xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
-	pr_debug("%s\n", __func__);
-	// TODO
-    return 0;
+	struct xb_device *xbdev = tty->disc_data;
+	unsigned int tmp;
+
+	/* First make sure we're connected. */
+	if (!xbdev || xbdev->magic != XBEE802154_MAGIC)
+		return -EINVAL;
+
+        switch (cmd) {
+		case SIOCGIFNAME:
+			tmp = strlen(xbdev->dev->name) + 1;
+			if (copy_to_user((void __user *)arg, xbdev->dev->name, tmp))
+				return -EFAULT;
+			return 0;
+		case SIOCSIFHWADDR:
+			return -EINVAL;
+
+        default:
+                return tty_mode_ioctl(tty, file, cmd, arg);
+        }
 }
 
 /**
@@ -2217,7 +2237,7 @@ static int __init xbee_init(void)
 	pr_debug("%s\n", __func__);
 	printk(KERN_INFO "Initializing ZigBee TTY interface\n");
 
-	if (tty_register_ldisc(N_IEEE802154_XBEE, &xbee_ldisc_ops) != 0) {
+	if (tty_register_ldisc(N_XBEE802154, &xbee_ldisc_ops) != 0) {
 		printk(KERN_ERR "%s: line discipline register failed\n",
 				__func__);
 		return -EINVAL;
@@ -2229,7 +2249,7 @@ static int __init xbee_init(void)
 static void __exit xbee_exit(void)
 {
 	pr_debug("%s\n", __func__);
-	if (tty_unregister_ldisc(N_IEEE802154_XBEE) != 0) {
+	if (tty_unregister_ldisc(N_XBEE802154) != 0) {
 		printk(KERN_CRIT "failed to unregister ZigBee line discipline.\n");
 	}
 }
