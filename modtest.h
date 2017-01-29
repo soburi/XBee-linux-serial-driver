@@ -12,7 +12,7 @@ typedef struct modtest_result (*fp_modtest)(void* data);
 typedef int (*fp_setup_teardown)(void* arg, int testnum);
 
 struct modtest {
-	struct work_struct work;
+	struct delayed_work work;
 	struct workqueue_struct *workq;
 	size_t test_num;
 	size_t null_test_count;
@@ -38,6 +38,7 @@ static void modtest_work_fn(struct work_struct *param)
 	mt = (struct modtest*)param;
 
 	if(mt->test_count < mt->test_num) {
+		int delay = 0;
 		if(mt->tests[mt->test_count] != NULL) {
 			mt->setup(mt->data, mt->test_count);
 			result = mt->tests[mt->test_count](mt->data);
@@ -47,13 +48,16 @@ static void modtest_work_fn(struct work_struct *param)
 				pr_debug("TEST%lu: line=%u err=%d -- %s\n", mt->test_count, result.line, result.err, result.msg);
 			else
 				mt->test_success++;
+
+			delay = 100;
 		}
 		else {
 			mt->null_test_count++;
+			delay = 0;
 		}
 
 		mt->test_count++;
-		err = queue_work(mt->workq, &mt->work);
+		err = queue_delayed_work(mt->workq, &mt->work, msecs_to_jiffies(delay) );
 	}
 	else {
 		pr_debug("Finish test: %lu/%lu\n", mt->test_success, mt->test_num - mt->null_test_count);
@@ -68,7 +72,7 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #define INIT_MODTEST(parent) { \
 	parent->_modtest_.workq = create_workqueue("_modtest_"); \
-	INIT_WORK( (struct work_struct*)&parent->_modtest_, modtest_work_fn); \
+	INIT_DELAYED_WORK( (struct delayed_work*)&parent->_modtest_, modtest_work_fn); \
 	parent->_modtest_.data = parent; \
 	parent->_modtest_.test_num = modtest_tests_num; \
 	parent->_modtest_.setup = modtest_setup; \
