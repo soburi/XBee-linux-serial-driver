@@ -495,7 +495,7 @@ static int frame_verify(struct sk_buff* recv_buf)
 	checksum = frame_calc_checksum(recv_buf);
 	if(checksum!=recv_buf->data[length+3]) return -EINVAL;
 
-    return length+4;
+	return length+4;
 }
 
 static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char* buf, const size_t len)
@@ -1166,11 +1166,6 @@ static void send_work_fn(struct work_struct *param)
 	reinit_completion(&xb->send_done);
 }
 
-//static void cleanup(struct xb_device *xbdev)
-//{
-//	pr_debug("%s\n", __func__);
-//}
-
 /*
  * Callbacks from mac802154 to the driver. Must handle xmit(). 
  *
@@ -1178,8 +1173,7 @@ static void send_work_fn(struct work_struct *param)
  * and net/mac802154/mac802154.h from linux-wsn.
  */
 
-// may not have to impl it.
-//TODO
+//TODO may not have to impl it.
 static int xbee_wpan_dev_header_create(struct sk_buff *skb,
 				    struct net_device *dev,
 				    const struct ieee802154_addr *daddr,
