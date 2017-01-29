@@ -689,6 +689,39 @@ static struct modtest_result xbee_get_tx_power_test(void* arg) {
 }
 
 
+#define TEST43 xbee_get_pan_id_test
+static struct modtest_result xbee_get_pan_id_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	__le16 panid = 0;
+
+	ret = xbee_get_pan_id(xbdev, &panid);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_NOT_EQ(0xABCD, panid);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST44 xbee_get_short_addr_test
+static struct modtest_result xbee_get_short_addr_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	__le16 short_addr = 0;
+
+	ret = xbee_get_short_addr(xbdev, &short_addr);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_NOT_EQ(0xFFFF, short_addr);
+
+	TEST_SUCCESS();
+}
+
+
+
 
 #if 0
 
