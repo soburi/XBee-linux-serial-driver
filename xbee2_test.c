@@ -688,7 +688,6 @@ static struct modtest_result xbee_get_tx_power_test(void* arg) {
 	TEST_SUCCESS();
 }
 
-
 #define TEST43 xbee_get_pan_id_test
 static struct modtest_result xbee_get_pan_id_test(void* arg) {
 	int ret = 0;
@@ -720,6 +719,72 @@ static struct modtest_result xbee_get_short_addr_test(void* arg) {
 	TEST_SUCCESS();
 }
 
+#ifndef XBEE_SERIAL_NUMBER_HIGH
+#define XBEE_SERIAL_NUMBER_HIGH 0x0013A200
+#endif
+#ifndef XBEE_SERIAL_NUMBER_LOW
+#define XBEE_SERIAL_NUMBER_LOW  0x40A75ECC
+#endif
+static const uint64_t xbee_serialno = ((uint64_t)XBEE_SERIAL_NUMBER_HIGH<<32)|XBEE_SERIAL_NUMBER_LOW;
+#define TEST45 xbee_get_extended_addr_test
+static struct modtest_result xbee_get_extended_addr_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	__le64 extended_adder = 0;
+
+	ret = xbee_get_extended_addr(xbdev, &extended_adder);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_NOT_EQ(xbee_serialno, extended_adder);
+
+	TEST_SUCCESS();
+}
+
+
+
+#define TEST50 xbee_set_channel_test
+static struct modtest_result xbee_set_channel_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	u8 page = 0;
+	u8 channel = 0;
+
+	ret = xbee_set_channel(xbdev, 0, 20);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xbee_get_channel(xbdev, &page, &channel);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_NOT_EQ(0, page);
+	FAIL_NOT_EQ(20, channel);
+
+	TEST_SUCCESS();
+}
+
+
+
+#define TEST51 xbee_set_cca_ed_level_test
+static struct modtest_result xbee_set_cca_ed_level_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	s32 ed_level = 0;
+
+	ret = xbee_set_cca_ed_level(xbdev, -5000);
+
+	FAIL_IF_ERROR(ret);
+
+	ret = xbee_get_cca_ed_level(xbdev, &ed_level);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_NOT_EQ(-5000, ed_level);
+
+	TEST_SUCCESS();
+}
 
 
 
