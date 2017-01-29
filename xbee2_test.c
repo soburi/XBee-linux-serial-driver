@@ -24,7 +24,7 @@ static struct modtest_result buffer_calc_checksum_zero(void* arg) {
 	int ret = 0;
 	ret = buffer_calc_checksum(buf, count);
 
-	FAIL_NOT_EQ(0xFF, ret);
+	FAIL_IF_NOT_EQ(0xFF, ret);
 
 	TEST_SUCCESS();
 }
@@ -36,7 +36,7 @@ static struct modtest_result buffer_calc_checksum_example(void* arg) {
 	int ret = 0;
 	ret = buffer_calc_checksum(buf, count);
 	
-	FAIL_NOT_EQ(0xCB, ret);
+	FAIL_IF_NOT_EQ(0xCB, ret);
 	TEST_SUCCESS();
 }
 
@@ -47,7 +47,7 @@ static struct modtest_result buffer_escaped_len_exampe(void* arg) {
 
 	size_t esclen = buffer_escaped_len(buf, sizeof(buf) );
 
-	FAIL_NOT_EQ(sizeof(escbuf), esclen);
+	FAIL_IF_NOT_EQ(sizeof(escbuf), esclen);
 
 	TEST_SUCCESS();
 }
@@ -66,8 +66,8 @@ static struct modtest_result buffer_escape_len_exampe(void* arg) {
 	esclen = buffer_escaped_len(buf, sizeof(buf) );
 	writelen = buffer_escape_copy(cpbuf, esclen, buf, sizeof(buf) );
 
-	FAIL_NOT_EQ(sizeof(escbuf), writelen);
-	FAIL_NOT_EQ(0, memcmp(escbuf, cpbuf, writelen) );
+	FAIL_IF_NOT_EQ(sizeof(escbuf), writelen);
+	FAIL_IF_NOT_EQ(0, memcmp(escbuf, cpbuf, writelen) );
 
 	TEST_SUCCESS();
 }
@@ -80,7 +80,7 @@ static struct modtest_result buffer_find_delimiter_exists(void* arg) {
 	const int count = 3;
 	int ret = 0;
 	ret = buffer_find_delimiter_unescaped(buf, count);
-	FAIL_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, ret);
 	TEST_SUCCESS();
 }
 
@@ -91,7 +91,7 @@ static struct modtest_result buffer_find_delimiter_non_exists(void* arg) {
 	const int count = 3;
 	int ret = 0;
 	ret = buffer_find_delimiter_unescaped(buf, count);
-	FAIL_NOT_EQ(-1, ret);
+	FAIL_IF_NOT_EQ(-1, ret);
 	TEST_SUCCESS();
 }
 #endif
@@ -103,7 +103,7 @@ static struct modtest_result buffer_find_delimiter_escaped_exists(void* arg) {
 	int ret = 0;
 	ret = buffer_find_delimiter_escaped(buf, count);
 
-	FAIL_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, ret);
 	TEST_SUCCESS();
 }
 
@@ -115,7 +115,7 @@ static struct modtest_result buffer_find_delimiter_escaped_non_exists(void* arg)
 	int ret = 0;
 	ret = buffer_find_delimiter_escaped(buf, count);
 
-	FAIL_NOT_EQ(-1, ret);
+	FAIL_IF_NOT_EQ(-1, ret);
 	TEST_SUCCESS();
 }
 
@@ -127,7 +127,7 @@ static struct modtest_result buffer_find_delimiter_escaped_exists_escape(void* a
 	int ret = 0;
 	ret = buffer_find_delimiter_escaped(buf, count);
 
-	FAIL_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, ret);
 	TEST_SUCCESS();
 }
 
@@ -138,7 +138,7 @@ static struct modtest_result buffer_find_delimiter_escaped_non_exists_escape(voi
 	int ret = 0;
 	ret = buffer_find_delimiter_escaped(buf, count);
 
-	FAIL_NOT_EQ(-1, ret);
+	FAIL_IF_NOT_EQ(-1, ret);
 	TEST_SUCCESS();
 }
 
@@ -150,7 +150,7 @@ static struct modtest_result buffer_unescape_zero(void* arg) {
 	int ret = 0;
 	ret = buffer_unescape(buf, count);
 
-	FAIL_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, ret);
 	TEST_SUCCESS();
 }
 
@@ -162,8 +162,8 @@ static struct modtest_result buffer_unescape_example(void* arg) {
 	int ret = 0;
 	ret = buffer_unescape(buf, count);
 
-	FAIL_NOT_EQ(6, ret);
-	FAIL_NOT_EQ(0,  memcmp(buf, ans, 6));
+	FAIL_IF_NOT_EQ(6, ret);
+	FAIL_IF_NOT_EQ(0,  memcmp(buf, ans, 6));
 	TEST_SUCCESS();
 }
 
@@ -175,8 +175,8 @@ static struct modtest_result buffer_unescape_end_escape(void* arg) {
 	int ret = 0;
 	ret = buffer_unescape(buf, count);
 
-	FAIL_NOT_EQ(6, ret);
-	FAIL_NOT_EQ(0,  memcmp(buf, ans, 6));
+	FAIL_IF_NOT_EQ(6, ret);
+	FAIL_IF_NOT_EQ(0,  memcmp(buf, ans, 6));
 	TEST_SUCCESS();
 }
 
@@ -187,10 +187,10 @@ static struct modtest_result frame_new_test(void* arg) {
 
 	frm = (struct xb_frameheader*)skb->data;
 
-	FAIL_NOT_EQ(0x7E, skb->data[0]);
-	FAIL_NOT_EQ(0x00, skb->data[1]);
-	FAIL_NOT_EQ(0x0a, skb->data[2]);
-	FAIL_NOT_EQ(0x0F, skb->data[3]);
+	FAIL_IF_NOT_EQ(0x7E, skb->data[0]);
+	FAIL_IF_NOT_EQ(0x00, skb->data[1]);
+	FAIL_IF_NOT_EQ(0x0a, skb->data[2]);
+	FAIL_IF_NOT_EQ(0x0F, skb->data[3]);
 	TEST_SUCCESS();
 }
 
@@ -204,7 +204,7 @@ static struct modtest_result frame_calc_checksum_zero(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_calc_checksum(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(0xFF, ret);
+	FAIL_IF_NOT_EQ(0xFF, ret);
 	TEST_SUCCESS();
 }
 
@@ -218,7 +218,7 @@ static struct modtest_result frame_calc_checksum_example(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_calc_checksum(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(0xCB, ret);
+	FAIL_IF_NOT_EQ(0xCB, ret);
 	TEST_SUCCESS();
 }
 
@@ -228,7 +228,7 @@ static struct modtest_result frame_verify_zerobyte(void* arg) {
 	struct xb_device* xbdev = (struct xb_device*)arg;
 	ret = frame_verify(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(-EAGAIN, ret);
+	FAIL_IF_NOT_EQ(-EAGAIN, ret);
 	TEST_SUCCESS();
 }
 
@@ -245,7 +245,7 @@ static struct modtest_result frame_verify_non_startmark(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(-EINVAL, ret);
+	FAIL_IF_NOT_EQ(-EINVAL, ret);
 	TEST_SUCCESS();
 }
 
@@ -262,7 +262,7 @@ static struct modtest_result frame_verify_startmark(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(-EAGAIN, ret);
+	FAIL_IF_NOT_EQ(-EAGAIN, ret);
 	TEST_SUCCESS();
 }
 
@@ -279,7 +279,7 @@ static struct modtest_result frame_verify_length_zero(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(-EAGAIN, ret);
+	FAIL_IF_NOT_EQ(-EAGAIN, ret);
 	TEST_SUCCESS();
 }
 
@@ -296,7 +296,7 @@ static struct modtest_result frame_verify_length_zero_invalid(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(-EINVAL, ret);
+	FAIL_IF_NOT_EQ(-EINVAL, ret);
 	TEST_SUCCESS();
 }
 
@@ -314,7 +314,7 @@ static struct modtest_result frame_verify_length_zero_valid(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(4, ret);
+	FAIL_IF_NOT_EQ(4, ret);
 	TEST_SUCCESS();
 }
 
@@ -331,7 +331,7 @@ static struct modtest_result frame_verify_length_zero_valid_large(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(4, ret);
+	FAIL_IF_NOT_EQ(4, ret);
 	TEST_SUCCESS();
 }
 
@@ -349,7 +349,7 @@ static struct modtest_result frame_verify_valid_example(void* arg) {
 
 	ret = frame_verify(xbdev->recv_buf);
 
-	FAIL_NOT_EQ(6, ret);
+	FAIL_IF_NOT_EQ(6, ret);
 
 	TEST_SUCCESS();
 }
@@ -367,9 +367,9 @@ static struct modtest_result frame_enqueue_received_zerobyte(void* arg) {
 	//memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
-	FAIL_NOT_EQ(0, ret);
-	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 	TEST_SUCCESS();
 }
 
@@ -384,9 +384,9 @@ static struct modtest_result frame_enqueue_received_non_startmark(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
-	FAIL_NOT_EQ(0, ret);
-	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 	TEST_SUCCESS();
 }
 
@@ -401,9 +401,9 @@ static struct modtest_result frame_enqueue_received_startmark(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
-	FAIL_NOT_EQ(0, ret);
-	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(1, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(1, xbdev->recv_buf->len);
 	TEST_SUCCESS();
 }
 
@@ -418,9 +418,9 @@ static struct modtest_result frame_enqueue_received_startmark_len(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
-	FAIL_NOT_EQ(0, ret);
-	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(3, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(0, ret);
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(3, xbdev->recv_buf->len);
 	TEST_SUCCESS();
 }
 
@@ -436,9 +436,9 @@ static struct modtest_result frame_enqueue_received_valid_example(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
-	FAIL_NOT_EQ(1, ret);
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 
 	TEST_SUCCESS();
 }
@@ -456,9 +456,9 @@ static struct modtest_result frame_enqueue_received_valid_example_two(void* arg)
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
-	FAIL_NOT_EQ(2, ret);
-	FAIL_NOT_EQ(2, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(2, ret);
+	FAIL_IF_NOT_EQ(2, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 
 	TEST_SUCCESS();
 }
@@ -476,9 +476,9 @@ static struct modtest_result frame_enqueue_received_valid_partial(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
-	FAIL_NOT_EQ(1, ret);
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(1, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(1, xbdev->recv_buf->len);
 
 	TEST_SUCCESS();
 }
@@ -496,9 +496,9 @@ static struct modtest_result frame_enqueue_received_valid_invalid(void* arg) {
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
-	FAIL_NOT_EQ(1, ret);
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
-	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 
 	TEST_SUCCESS();
 }
@@ -517,11 +517,11 @@ static struct modtest_result frame_dequeue_list_found(void* arg) {
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
-	FAIL_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, ret);
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 1);
 
-	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
 	FAIL_IF(dequeued == NULL);
 
 	TEST_SUCCESS();
@@ -539,11 +539,11 @@ static struct modtest_result frame_dequeue_list_notfound(void* arg) {
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
-	FAIL_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, ret);
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 2);
 
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
 	FAIL_IF(dequeued != NULL);
 
 	TEST_SUCCESS();
@@ -562,12 +562,12 @@ static struct modtest_result frame_dequeue_list_no_id_frame(void* arg) {
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
-	FAIL_NOT_EQ(1, ret);
+	FAIL_IF_NOT_EQ(1, ret);
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 0xFF);
 
 	FAIL_IF(dequeued != NULL);
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
 
 	TEST_SUCCESS();
 }
@@ -585,14 +585,14 @@ static struct modtest_result frame_dequeue_empty_queue(void* arg) {
 	//unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	//memcpy(tail, buf, count);
 	//ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
-	//FAIL_NOT_EQ(1, ret);
+	//FAIL_IF_NOT_EQ(1, ret);
 
-	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 0xFF);
 
 	FAIL_IF(dequeued != NULL);
-	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
 
 	TEST_SUCCESS();
 }
@@ -611,15 +611,15 @@ static struct modtest_result frame_enqueue_send_and_recv_vr(void* arg) {
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
-	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 
 	xb_send(xbdev);
 	skb = xb_recv(xbdev, 1);
 
 	FAIL_IF_NULL(skb);
 
-	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->send_queue));
+	FAIL_IF_NOT_EQ(0, skb_queue_len(&xbdev->send_queue));
 
 	TEST_SUCCESS();
 }
@@ -632,18 +632,18 @@ static struct modtest_result frame_enqueue_send_at_vr(void* arg) {
 
 	frame_enqueue_send_at(&xbdev->send_queue, XBEE_AT_VR, 123, "", 0);
 
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
 	skb = skb_peek(&xbdev->send_queue);
 
 	FAIL_IF_NULL(skb);
 
 	atfrm = (struct xb_frame_atcmd*)skb->data;
 
-	FAIL_NOT_EQ(123, atfrm->id);
-	FAIL_NOT_EQ(XBEE_AT_VR, htons(atfrm->command) );
+	FAIL_IF_NOT_EQ(123, atfrm->id);
+	FAIL_IF_NOT_EQ(XBEE_AT_VR, htons(atfrm->command) );
 
-	FAIL_NOT_EQ(4, htons(atfrm->hd.length) );
-	FAIL_NOT_EQ(XBEE_FRM_ATCMD, atfrm->hd.type);
+	FAIL_IF_NOT_EQ(4, htons(atfrm->hd.length) );
+	FAIL_IF_NOT_EQ(XBEE_FRM_ATCMD, atfrm->hd.type);
 
 	TEST_SUCCESS();
 }
@@ -665,7 +665,7 @@ static struct modtest_result xb_process_sendrecv_vr(void* arg) {
 	recv = xb_sendrecv(xbdev, 1);
 
 	FAIL_IF_NULL(recv);
-	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 
 	TEST_SUCCESS();
 }
@@ -682,8 +682,8 @@ static struct modtest_result xbee_get_channel_test(void* arg) {
 
 	FAIL_IF_ERROR(ret);
 
-	FAIL_NOT_EQ(0, page);
-	FAIL_NOT_EQ(12, channel);
+	FAIL_IF_NOT_EQ(0, page);
+	FAIL_IF_NOT_EQ(12, channel);
 
 	TEST_SUCCESS();
 }
@@ -699,7 +699,7 @@ static struct modtest_result xbee_get_cca_ed_level_test(void* arg) {
 	ret = xbee_get_cca_ed_level(xbdev, &ed_level);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(-4400, ed_level);
+	FAIL_IF_NOT_EQ(-4400, ed_level);
 
 	TEST_SUCCESS();
 }
@@ -715,7 +715,7 @@ static struct modtest_result xbee_get_tx_power_test(void* arg) {
 	ret = xbee_get_tx_power(xbdev, &power);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(0, power);
+	FAIL_IF_NOT_EQ(0, power);
 
 	TEST_SUCCESS();
 }
@@ -730,7 +730,7 @@ static struct modtest_result xbee_get_pan_id_test(void* arg) {
 	ret = xbee_get_pan_id(xbdev, &panid);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(0x3332, panid);
+	FAIL_IF_NOT_EQ(0x3332, panid);
 
 	TEST_SUCCESS();
 }
@@ -746,7 +746,7 @@ static struct modtest_result xbee_get_short_addr_test(void* arg) {
 	ret = xbee_get_short_addr(xbdev, &short_addr);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(0x0, short_addr);
+	FAIL_IF_NOT_EQ(0x0, short_addr);
 
 	TEST_SUCCESS();
 }
@@ -768,7 +768,7 @@ static struct modtest_result xbee_get_extended_addr_test(void* arg) {
 	ret = xbee_get_extended_addr(xbdev, &extended_adder);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(xbee_serialno, extended_adder);
+	FAIL_IF_NOT_EQ(xbee_serialno, extended_adder);
 
 	TEST_SUCCESS();
 }
@@ -791,8 +791,8 @@ static struct modtest_result xbee_set_channel_test(void* arg) {
 
 	FAIL_IF_ERROR(ret);
 
-	FAIL_NOT_EQ(0, page);
-	FAIL_NOT_EQ(20, channel);
+	FAIL_IF_NOT_EQ(0, page);
+	FAIL_IF_NOT_EQ(20, channel);
 
 	TEST_SUCCESS();
 }
@@ -813,7 +813,7 @@ static struct modtest_result xbee_set_cca_ed_level_test(void* arg) {
 
 	FAIL_IF_ERROR(ret);
 
-	FAIL_NOT_EQ(-5000, ed_level);
+	FAIL_IF_NOT_EQ(-5000, ed_level);
 
 	TEST_SUCCESS();
 }
@@ -832,7 +832,7 @@ static struct modtest_result xbee_set_tx_power_test(void* arg) {
 	ret = xbee_get_tx_power(xbdev, &power);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(-1000, power);
+	FAIL_IF_NOT_EQ(-1000, power);
 
 	TEST_SUCCESS();
 }
@@ -850,7 +850,7 @@ static struct modtest_result xbee_set_pan_id_test(void* arg) {
 	ret = xbee_get_pan_id(xbdev, &panid);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(0xDBCA, panid);
+	FAIL_IF_NOT_EQ(0xDBCA, panid);
 
 	TEST_SUCCESS();
 }
@@ -869,7 +869,7 @@ static struct modtest_result xbee_set_short_addr_test(void* arg) {
 	ret = xbee_get_short_addr(xbdev, &short_addr);
 
 	FAIL_IF_ERROR(ret);
-	FAIL_NOT_EQ(0xAAAA, short_addr);
+	FAIL_IF_NOT_EQ(0xAAAA, short_addr);
 
 	TEST_SUCCESS();
 }
@@ -890,14 +890,13 @@ static struct modtest_result xbee_set_backoff_exponent_test(void* arg) {
 
 	FAIL_IF_ERROR(ret);
 
-	FAIL_NOT_EQ(0, min_be);
-	FAIL_NOT_EQ(20, max_be);
+	FAIL_IF_NOT_EQ(0, min_be);
+	FAIL_IF_NOT_EQ(20, max_be);
 
 	TEST_SUCCESS();
 }
 
 
-#if 0 // not supported
 #define TEST53 xbee_set_backoffs_exponent_test
 static struct modtest_result xbee_set_backoffs_exponent_test(void* arg) {
 	int ret = 0;
@@ -907,17 +906,10 @@ static struct modtest_result xbee_set_backoffs_exponent_test(void* arg) {
 
 	ret = xbee_set_max_csma_backoffs(xbdev, 2);
 
-	FAIL_IF_ERROR(ret);
-
-	ret = xbee_get_max_csma_backoffs(xbdev, &max_csma_backoffs);
-
-	FAIL_IF_ERROR(ret);
-
-	FAIL_NOT_EQ(20, max_csma_backoffs);
+	FAIL_IF_NOT_ERROR(ret);
 
 	TEST_SUCCESS();
 }
-#endif
 
 #define TEST54 xbee_set_ackreq_default_test
 static struct modtest_result xbee_set_ackreq_default_test(void* arg) {
@@ -934,7 +926,7 @@ static struct modtest_result xbee_set_ackreq_default_test(void* arg) {
 
 	FAIL_IF_ERROR(ret);
 
-	FAIL_NOT_EQ(true, ackreq);
+	FAIL_IF_NOT_EQ(true, ackreq);
 
 	TEST_SUCCESS();
 }
@@ -971,9 +963,9 @@ static struct modtest_result xbee_ieee802154_set_csma_params_test(void* arg) {
 
 	FAIL_IF_ERROR(ret);
 
-	//FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	//FAIL_IF_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
 
-	//FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+	//FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 
 	// TODO inspect received data
 
