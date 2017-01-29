@@ -7,6 +7,7 @@ static int xbee_test_setup(void* arg, int testno) {
 	skb_trim(xbdev->recv_buf, 0);
 	skb_queue_purge(&xbdev->recv_queue);
 	skb_queue_purge(&xbdev->send_queue);
+	xbdev->frameid = 64;
 	return 0;
 }
 
@@ -320,8 +321,10 @@ static struct modtest_result frame_verify_valid_example(void* arg) {
 	TEST_SUCCESS();
 }
 
-#define TEST23 frame_enqueue_zerobyte
-static struct modtest_result frame_enqueue_zerobyte(void* arg) {
+//TODO frame_put_received_data
+
+#define TEST23 frame_enqueue_received_zerobyte
+static struct modtest_result frame_enqueue_received_zerobyte(void* arg) {
 	int ret = 0;
 	//const char buf[] = {};
 	//const int count = 0;
@@ -337,8 +340,8 @@ static struct modtest_result frame_enqueue_zerobyte(void* arg) {
 	TEST_SUCCESS();
 }
 
-#define TEST24 frame_enqueue_non_startmark
-static struct modtest_result frame_enqueue_non_startmark(void* arg) {
+#define TEST24 frame_enqueue_received_non_startmark
+static struct modtest_result frame_enqueue_received_non_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x11 };
 	const int count = 1;
@@ -354,8 +357,8 @@ static struct modtest_result frame_enqueue_non_startmark(void* arg) {
 	TEST_SUCCESS();
 }
 
-#define TEST25 frame_enqueue_startmark
-static struct modtest_result frame_enqueue_startmark(void* arg) {
+#define TEST25 frame_enqueue_received_startmark
+static struct modtest_result frame_enqueue_received_startmark(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e };
 	const int count = 1;
@@ -371,8 +374,8 @@ static struct modtest_result frame_enqueue_startmark(void* arg) {
 	TEST_SUCCESS();
 }
 
-#define TEST26 frame_enqueue_startmark_len
-static struct modtest_result frame_enqueue_startmark_len(void* arg) {
+#define TEST26 frame_enqueue_received_startmark_len
+static struct modtest_result frame_enqueue_received_startmark_len(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7e , 0x00, 0x3 };
 	const int count = 3;
@@ -388,8 +391,8 @@ static struct modtest_result frame_enqueue_startmark_len(void* arg) {
 	TEST_SUCCESS();
 }
 
-#define TEST27 frame_enqueue_valid_example
-static struct modtest_result frame_enqueue_valid_example(void* arg) {
+#define TEST27 frame_enqueue_received_valid_example
+static struct modtest_result frame_enqueue_received_valid_example(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB };
 	const int count = 6;
@@ -408,8 +411,8 @@ static struct modtest_result frame_enqueue_valid_example(void* arg) {
 }
 
 
-#define TEST28 frame_enqueue_valid_example_two
-static struct modtest_result frame_enqueue_valid_example_two(void* arg) {
+#define TEST28 frame_enqueue_received_valid_example_two
+static struct modtest_result frame_enqueue_received_valid_example_two(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB,  0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB };
 	const int count = 12;
@@ -428,8 +431,8 @@ static struct modtest_result frame_enqueue_valid_example_two(void* arg) {
 }
 
 
-#define TEST29 frame_enqueue_valid_partial
-static struct modtest_result frame_enqueue_valid_partial(void* arg) {
+#define TEST29 frame_enqueue_received_valid_partial
+static struct modtest_result frame_enqueue_received_valid_partial(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB, 0x7E };
 	const int count = 7;
@@ -448,8 +451,8 @@ static struct modtest_result frame_enqueue_valid_partial(void* arg) {
 }
 
 
-#define TEST30 frame_enqueue_valid_invalid
-static struct modtest_result frame_enqueue_valid_invalid(void* arg) {
+#define TEST30 frame_enqueue_received_valid_invalid
+static struct modtest_result frame_enqueue_received_valid_invalid(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB, 0x11 };
 	const int count = 7;
@@ -574,66 +577,106 @@ static struct modtest_result frame_enqueue_send_and_recv_vr(void* arg) {
 	unsigned char* tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
-	xb_send(xbdev);
 
 	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
 	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
+	xb_send(xbdev);
 	skb = xb_recv(xbdev, 1);
 
 	FAIL_IF_NULL(skb);
 
-	//FAIL_NOT_EQ(1, ret);
+	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->send_queue));
 
 	TEST_SUCCESS();
 }
 
-#if 0
-#define TEST32 xb_process_sendrecv_vr
+#define TEST32 frame_enqueue_send_at_vr
+static struct modtest_result frame_enqueue_send_at_vr(void* arg) {
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	struct sk_buff* skb = NULL;
+	struct xb_frame_atcmd* atfrm = NULL;
+
+	frame_enqueue_send_at(&xbdev->send_queue, XBEE_AT_VR, 123, "", 0);
+
+	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	skb = skb_peek(&xbdev->send_queue);
+
+	FAIL_IF_NULL(skb);
+
+	atfrm = (struct xb_frame_atcmd*)skb->data;
+
+	FAIL_NOT_EQ(123, atfrm->id);
+	FAIL_NOT_EQ(XBEE_AT_VR, htons(atfrm->command) );
+
+	FAIL_NOT_EQ(4, htons(atfrm->hd.length) );
+	FAIL_NOT_EQ(XBEE_FRM_ATCMD, atfrm->hd.type);
+
+	TEST_SUCCESS();
+}
+
+#define TEST33 xb_process_sendrecv_vr
 static struct modtest_result xb_process_sendrecv_vr(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4E };
 	const int count = 8;
+	unsigned char* tail = NULL;
 
+	struct sk_buff* recv = NULL;
 	struct xb_device* xbdev = (struct xb_device*)arg;
 	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
 
-	unsigned char* tail = skb_put(send_buf, count);
+	tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
+
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
+	recv = xb_sendrecv(xbdev, 1);
 
-	xb_sendrecv(xbdev);
-
-	//FAIL_NOT_EQ(1, ret);
-	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
+	FAIL_IF_NULL(recv);
 	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
 
 	TEST_SUCCESS();
 }
-#endif
 
+#define TEST40 xbee_get_channel_test
+static struct modtest_result xbee_get_channel_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	u8 page = 0;
+	u8 channel = 0;
+
+	ret = xbee_get_channel(xbdev, &page, &channel);
+
+	FAIL_IF_ERROR(ret);
+
+	FAIL_NOT_EQ(0, page);
+	FAIL_NOT_EQ(13, channel);
+
+	TEST_SUCCESS();
+}
 #if 0
 
-#define TEST32 xbee_ieee802154_set_channel_test
+#define TEST33 xbee_ieee802154_set_channel_test
 static struct modtest_result xbee_ieee802154_set_channel_test(void* arg) {
 	int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x43, 0x41, 0x72 };
 	const int count = 8;
-	struct sk_buff* send_buf = NULL;
 	unsigned char* tail = NULL;
-	struct xb_device* xbdev = NULL;
 
-	xbdev = (struct xb_device*)arg;
-	xbee_cfg802154_set_channel(xbdev->phy, 0, 13);
+	struct sk_buff* recv = NULL;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
 
-	send_buf = alloc_skb(128, GFP_KERNEL);
+	//xbee_cfg802154_set_channel(xbdev->phy, 0, 13);
+
 	tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
+
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
+	recv = xb_sendrecv(xbdev, 1);
 
-	ret = xb_sendrecv(xbdev, xbdev->frameid);
-
-	FAIL_IF_ERROR(ret);
+	FAIL_IF_NULL(recv);
 
 	//FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
 	//FAIL_NOT_EQ(0, xbdev->recv_buf->len);
@@ -641,6 +684,8 @@ static struct modtest_result xbee_ieee802154_set_channel_test(void* arg) {
 
 	TEST_SUCCESS();
 }
+#endif
+#if 0
 
 
 #define TEST33 xbee_ieee802154_set_tx_power_test
