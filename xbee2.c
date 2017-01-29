@@ -467,29 +467,6 @@ static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char
 	}
 }
 
-static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
-{
-	struct sk_buff* skb = NULL;
-	skb = skb_peek(recv_queue);
-
-	if(!skb) return NULL;
-
-	skb_queue_walk(recv_queue, skb) {
-		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
-		if(	hd->id == frameid &&
-			hd->type != XBEE_FRM_RX64 &&
-			hd->type != XBEE_FRM_RX16 &&
-			hd->type != XBEE_FRM_RX64IO &&
-			hd->type != XBEE_FRM_RX16IO &&
-			hd->type != XBEE_FRM_MSTAT) {
-			skb_unlink(skb, recv_queue);
-			return skb;
-		}
-	}
-
-	return NULL;
-}
-
 static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf)
 {
 	int frame_count = 0;
@@ -571,12 +548,32 @@ static bool xb_send(struct xb_device* xb)
 	return already_on_queue;
 }
 
-static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
+static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
+{
+	struct sk_buff* skb = NULL;
+	skb = skb_peek(recv_queue);
+
+	if(!skb) return NULL;
+
+	skb_queue_walk(recv_queue, skb) {
+		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
+		if(	hd->id == frameid &&
+			hd->type != XBEE_FRM_RX64 &&
+			hd->type != XBEE_FRM_RX16 &&
+			hd->type != XBEE_FRM_RX64IO &&
+			hd->type != XBEE_FRM_RX16IO &&
+			hd->type != XBEE_FRM_MSTAT) {
+			skb_unlink(skb, recv_queue);
+			return skb;
+		}
+	}
+
+	return NULL;
+}
+
+static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid)
 {
 	int ret = 0;
-
-	xb_send(xb);
-
 	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(100) );
 
 	if(ret > 0) {
@@ -590,6 +587,12 @@ static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 		pr_debug("timeout %d\n", ret);
 		return NULL;
 	}
+}
+
+static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
+{
+	xb_send(xb);
+	return xb_recv(xb, recvid);
 }
 
 static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
