@@ -94,6 +94,7 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #define FAIL_NOT_EQ(expected, val) if(expected != val) RETURN_RESULT(-1, __LINE__, "")
 #define FAIL_IF_ERROR(err) if((err) < 0) RETURN_RESULT(err, __LINE__, "") 
+#define FAIL_IF_NULL(obj) if((!obj)) RETURN_RESULT(-1, __LINE__, "")
 #define FAIL_IF(cond) if((cond)) RETURN_RESULT(-1, __LINE__, "")
 #define TEST_IS_NULL(obj) { return (((obj)) == NULL) ? 0 : -1; }
 #define TEST_FAIL() RETURN_RESULT(-1, __LINE__, "")
