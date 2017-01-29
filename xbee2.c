@@ -35,9 +35,8 @@ struct xb_device {
 	struct tty_struct *tty;
 
 	struct completion cmd_resp_done;
+	struct completion send_done;
 	uint8_t wait_frameid;
-
-	struct workqueue_struct    *comm_workq;
 
 	struct sk_buff_head recv_queue;
 	struct sk_buff_head send_queue;
@@ -45,6 +44,10 @@ struct xb_device {
 
 	uint8_t frameid;
 	unsigned short firmware_version;
+	struct workqueue_struct    *send_workq;
+	struct workqueue_struct    *comm_workq;
+
+	struct xb_work send_work;
 	struct xb_work comm_work;
 
 	struct net_device* dev;
@@ -564,18 +567,34 @@ static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, ch
 
 static bool xb_send(struct xb_device* xb)
 {
+	int ret = 0;
 	bool already_on_queue = false;
 
-	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)&xb->comm_work.work); //TODO
+	pr_debug("begin %s\n", __func__);
+	already_on_queue = queue_work(xb->send_workq, (struct work_struct*)&xb->send_work.work); //TODO
+	ret = wait_for_completion_timeout(&xb->send_done, msecs_to_jiffies(100) );
 
-	pr_debug("%s %d\n", __func__, already_on_queue);
-	return already_on_queue;
+	pr_debug(" done %s %d %d\n", __func__, ret, already_on_queue);
+
+	if(ret > 0) {
+		return 0;
+	}
+	else if(ret == -ERESTARTSYS) {
+		pr_debug("interrupted %d\n", ret);
+		return NULL;
+	}
+	else {
+		pr_debug("timeout %d\n", ret);
+		return NULL;
+	}
 }
 
 static struct sk_buff* xb_recv_x(struct xb_device* xb, uint8_t recvid)
 {
 	int ret = 0;
 	pr_debug("%s\n", __func__);
+	bool already_on_queue = false;
+	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)&xb->comm_work.work); //TODO
 	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(100) );
 
 	if(ret > 0) {
@@ -709,13 +728,13 @@ static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
 	struct sk_buff *skb = NULL;
 
 	pr_debug("%s\n", __func__);
-
+/*
 	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CH, &channel, 1);
 	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
 		xb->phy->current_channel = channel;
 		return 0;
 	}
-
+*/
 	return -EINVAL;
 }
 
@@ -728,11 +747,18 @@ static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 
 	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CH, "", 0);
 	if(skb != NULL && frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+		print_hex_dump_bytes("zzzz ", DUMP_PREFIX_NONE, skb->data, skb->len);
 		struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
-		*channel = *resp->response;
-		*page = 0;
+		pr_debug("resp           %p\n", resp);
+		pr_debug("resp->status   %p\n", &resp->status);
+		pr_debug("resp->response %p\n", &resp->response);
+//		if(page) *page = 0;
+//		pr_debug("%p\n", resp->response);
+//		pr_debug("%d\n", *(resp->response));
+//		if(channel) *channel = *resp->response;
 		return 0;
 	}
+	pr_debug("return %s\n", __func__);
 	return -EINVAL;
 }
 
@@ -1021,19 +1047,30 @@ static void comm_work_fn(struct work_struct *param)
 	struct xb_device* xb = xbw->xb;
 	struct tty_struct* tty = xb->tty;
 
+	pr_debug("%s\n", __func__);
+
 	if( !skb_queue_empty(&xb->recv_queue) ) {
 		struct sk_buff* skb = skb_peek(&xb->recv_queue);
 
 		if(skb) {
 			struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
-			print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, skb->data, skb->len);
 			if(frm->type != XBEE_FRM_ATCMDR) {
-				skb = skb_dequeue(&xb->recv_queue);
+				print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, skb->data, skb->len);
+				skb_unlink(skb, &xb->recv_queue);
 				frame_recv_dispatch(xb, skb);
 			}
 			complete_all(&xb->cmd_resp_done);
+			reinit_completion(&xb->cmd_resp_done);
 		}
 	}
+	pr_debug("exit %s\n", __func__);
+}
+
+static void send_work_fn(struct work_struct *param)
+{
+	struct xb_work* xbw = (struct xb_work*)param;
+	struct xb_device* xb = xbw->xb;
+	struct tty_struct* tty = xb->tty;
 
 	if( !skb_queue_empty(&xb->send_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
@@ -1049,9 +1086,10 @@ static void comm_work_fn(struct work_struct *param)
 			tty->ops->write(tty,  skb->data, skb->len);
 			tty_driver_flush_buffer(tty);
 			kfree_skb(skb);
+			complete_all(&xb->send_done);
+			reinit_completion(&xb->send_done);
 		}
 	}
-
 }
 
 //static void cleanup(struct xb_device *xbdev)
@@ -1929,8 +1967,12 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	skb_queue_head_init(&xbdev->send_queue);
 
 	init_completion(&xbdev->cmd_resp_done);
+	init_completion(&xbdev->send_done);
+	xbdev->send_workq = create_workqueue("send_workq");
 	xbdev->comm_workq = create_workqueue("comm_workq");
+	xbdev->send_work.xb = xbdev;
 	xbdev->comm_work.xb = xbdev;
+	INIT_WORK( (struct work_struct*)&xbdev->send_work.work, send_work_fn);
 	INIT_WORK( (struct work_struct*)&xbdev->comm_work.work, comm_work_fn);
 
 #ifdef MODTEST_ENABLE
@@ -2055,7 +2097,7 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 	struct xb_device *xbdev = tty->disc_data;
 	int ret = 0;
 
-	//print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, buf, count);
+	print_hex_dump_bytes("<--- ", DUMP_PREFIX_NONE, buf, count);
 	
 	if (!tty->disc_data) {
 		printk(KERN_ERR "%s(): record for tty is not found\n", __func__);
@@ -2070,6 +2112,7 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
 
 	if(ret > 0) {
+		pr_debug("queue_work recv\n");
 		ret = queue_work(xbdev->comm_workq, (struct work_struct*)&xbdev->comm_work.work);
 	}
 	return count;
