@@ -423,7 +423,9 @@ static size_t buffer_escape_copy(unsigned char* dst, const size_t dst_len, unsig
 	int i=0;
 	int escape_count = 0;
 
-	for(i=0; i<len; i++) {
+	if(len > 0) dst[0] = buf[0];
+
+	for(i=1; i<len; i++) {
 		if( buf[i] == XBEE_DELIMITER ||
 		    buf[i] == XBEE_ESCAPE ||
 		    buf[i] == XBEE_XON ||
@@ -1701,6 +1703,7 @@ static struct xb_device* xbee_alloc_device(size_t priv_data_len)
 	pr_debug("wpan_phy_priv\n");
 	local = wpan_phy_priv(phy);
 	local->extra_tx_headroom = 0;
+	local->api = 2;
 
 	local->phy = phy;
 	ndev = xbee_alloc_netdev(local);
