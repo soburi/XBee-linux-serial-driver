@@ -318,6 +318,8 @@ enum {
 	XBEE_ESCAPED_DELIMITER = 0x5E ,
 	XBEE_ESCAPE = 0x7D ,
 	XBEE_ESCMASK = 0x20 ,
+	XBEE_XON = 0x11 ,
+	XBEE_XOFF = 0x13,
 };
 
 enum {
@@ -394,6 +396,48 @@ static size_t buffer_unescape(unsigned char* buf, const size_t len)
 	}
 
 	return len-escape_count;
+}
+
+static size_t buffer_escaped_len(unsigned char* buf, const size_t len)
+{
+	int i=0;
+	int escape_count = 0;
+
+	for(i=1; i<len; i++) {
+		if( buf[i] == XBEE_DELIMITER ||
+		    buf[i] == XBEE_ESCAPE ||
+		    buf[i] == XBEE_XON ||
+		    buf[i] == XBEE_XOFF)
+		{
+			escape_count++;
+		}
+	}
+
+	return len+escape_count;
+}
+
+static size_t buffer_escape_copy(unsigned char* dst, const size_t dst_len, unsigned char* buf, const size_t len)
+{
+	int i=0;
+	int escape_count = 0;
+
+	for(i=0; i<len; i++) {
+		if( buf[i] == XBEE_DELIMITER ||
+		    buf[i] == XBEE_ESCAPE ||
+		    buf[i] == XBEE_XON ||
+		    buf[i] == XBEE_XOFF)
+		{
+			dst[i+escape_count] = XBEE_ESCAPE;
+			escape_count++;
+			dst[i+escape_count] = (buf[i] ^ XBEE_ESCMASK);
+		}
+		else {
+			dst[i+escape_count] = buf[i];
+		}
+
+	}
+
+	return len+escape_count;
 }
 
 static struct sk_buff* frame_new(size_t paylen, uint8_t type)
@@ -569,19 +613,28 @@ static int xb_send_queue(struct xb_device* xb)
 {
 	struct tty_struct* tty = xb->tty;
 	int send_count = 0;
+	size_t esclen = 0;
 
 	while( !skb_queue_empty(&xb->send_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
+		struct sk_buff* escskb = NULL;
 
 		print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+
+		esclen = buffer_escaped_len(skb->data, skb->len);
+		escskb = pskb_copy(skb, GFP_ATOMIC);
 		/*
-		newskb = pskb_copy(skb, GFP_ATOMIC);
 		if (newskb)
 			xbee_rx_irqsafe(xbdev, newskb, 0xcc);
 		*/
-		tty->ops->write(tty,  skb->data, skb->len);
+
+		skb_put(escskb, esclen - skb->len);
+		buffer_escape_copy(escskb->data, escskb->len, skb->data, skb->len);
+
+		tty->ops->write(tty,  escskb->data, escskb->len);
 		tty_driver_flush_buffer(tty);
 		kfree_skb(skb);
+		kfree_skb(escskb);
 
 		send_count++;
 	}
