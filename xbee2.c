@@ -64,6 +64,8 @@ struct xb_device {
 	__le16 short_addr;
 	__le64 dev_addr;
 
+	uint8_t api;
+
 #ifdef MODTEST_ENABLE
 	DECL_MODTEST_STRUCT();
 #endif
@@ -516,14 +518,16 @@ static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char
 	}
 }
 
-static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf)
+static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf, bool escape)
 {
 	int frame_count = 0;
 	int unesc_len = 0;
 	int ret = 0;
 
-	unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
-	skb_trim(recv_buf, unesc_len);
+	if(escape) {
+		unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
+		skb_trim(recv_buf, unesc_len);
+	}
 
 	while ( (ret = frame_verify(recv_buf)) > 0) {
 		int verified_len = ret;
@@ -617,24 +621,26 @@ static int xb_send_queue(struct xb_device* xb)
 
 	while( !skb_queue_empty(&xb->send_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
-		struct sk_buff* escskb = NULL;
+		struct sk_buff* txskb = NULL;
 
 		print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
 
-		esclen = buffer_escaped_len(skb->data, skb->len);
-		escskb = pskb_copy(skb, GFP_ATOMIC);
+		txskb = pskb_copy(skb, GFP_ATOMIC);
+		if(xb->api == 2) {
+			esclen = buffer_escaped_len(skb->data, skb->len);
+			skb_put(txskb, esclen - skb->len);
+			buffer_escape_copy(txskb->data, txskb->len, skb->data, skb->len);
+		}
 		/*
 		if (newskb)
 			xbee_rx_irqsafe(xbdev, newskb, 0xcc);
 		*/
 
-		skb_put(escskb, esclen - skb->len);
-		buffer_escape_copy(escskb->data, escskb->len, skb->data, skb->len);
 
-		tty->ops->write(tty,  escskb->data, escskb->len);
+		tty->ops->write(tty, txskb->data, txskb->len);
 		tty_driver_flush_buffer(tty);
 		kfree_skb(skb);
-		kfree_skb(escskb);
+		kfree_skb(txskb);
 
 		send_count++;
 	}
@@ -2168,7 +2174,7 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 
 	if(ret == 0) return count;
 
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2) );
 
 	if(ret > 0) {
 		ret = queue_work(xbdev->recv_workq, (struct work_struct*)&xbdev->recv_work.work);

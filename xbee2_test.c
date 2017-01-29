@@ -332,7 +332,7 @@ static struct modtest_result frame_enqueue_received_zerobyte(void* arg) {
 
 	//unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	//memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
 	FAIL_NOT_EQ(0, ret);
 	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
@@ -349,7 +349,7 @@ static struct modtest_result frame_enqueue_received_non_startmark(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
 	FAIL_NOT_EQ(0, ret);
 	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
@@ -366,7 +366,7 @@ static struct modtest_result frame_enqueue_received_startmark(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
 	FAIL_NOT_EQ(0, ret);
 	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
@@ -383,7 +383,7 @@ static struct modtest_result frame_enqueue_received_startmark_len(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
 	FAIL_NOT_EQ(0, ret);
 	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
@@ -401,7 +401,7 @@ static struct modtest_result frame_enqueue_received_valid_example(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
 	FAIL_NOT_EQ(1, ret);
 	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
@@ -421,7 +421,7 @@ static struct modtest_result frame_enqueue_received_valid_example_two(void* arg)
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
 	FAIL_NOT_EQ(2, ret);
 	FAIL_NOT_EQ(2, skb_queue_len(&xbdev->recv_queue));
@@ -441,7 +441,7 @@ static struct modtest_result frame_enqueue_received_valid_partial(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
 	FAIL_NOT_EQ(1, ret);
 	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
@@ -461,7 +461,7 @@ static struct modtest_result frame_enqueue_received_valid_invalid(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 
 	FAIL_NOT_EQ(1, ret);
 	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->recv_queue));
@@ -483,7 +483,7 @@ static struct modtest_result frame_dequeue_list_found(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 	FAIL_NOT_EQ(1, ret);
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 1);
@@ -505,7 +505,7 @@ static struct modtest_result frame_dequeue_list_notfound(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 	FAIL_NOT_EQ(1, ret);
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 2);
@@ -528,7 +528,7 @@ static struct modtest_result frame_dequeue_list_no_id_frame(void* arg) {
 
 	unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	memcpy(tail, buf, count);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 	FAIL_NOT_EQ(1, ret);
 
 	dequeued = frame_dequeue_by_id(&xbdev->recv_queue, 0xFF);
@@ -551,7 +551,7 @@ static struct modtest_result frame_dequeue_empty_queue(void* arg) {
 
 	//unsigned char* tail = skb_put(xbdev->recv_buf, count);
 	//memcpy(tail, buf, count);
-	//ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf);
+	//ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2));
 	//FAIL_NOT_EQ(1, ret);
 
 	FAIL_NOT_EQ(0, skb_queue_len(&xbdev->recv_queue));
