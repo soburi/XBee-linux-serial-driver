@@ -501,6 +501,29 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 	return frame_count;
 }
 
+static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
+{
+	struct sk_buff* skb = NULL;
+	skb = skb_peek(recv_queue);
+
+	if(!skb) return NULL;
+
+	skb_queue_walk(recv_queue, skb) {
+		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
+		if(	hd->id == frameid &&
+			hd->type != XBEE_FRM_RX64 &&
+			hd->type != XBEE_FRM_RX16 &&
+			hd->type != XBEE_FRM_RX64IO &&
+			hd->type != XBEE_FRM_RX16IO &&
+			hd->type != XBEE_FRM_MSTAT) {
+			skb_unlink(skb, recv_queue);
+			return skb;
+		}
+	}
+
+	return NULL;
+}
+
 static void frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_buf)
 {
 	skb_queue_tail(send_queue, send_buf);
@@ -545,35 +568,14 @@ static bool xb_send(struct xb_device* xb)
 
 	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)&xb->comm_work.work); //TODO
 
+	pr_debug("%s %d\n", __func__, already_on_queue);
 	return already_on_queue;
 }
 
-static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
-{
-	struct sk_buff* skb = NULL;
-	skb = skb_peek(recv_queue);
-
-	if(!skb) return NULL;
-
-	skb_queue_walk(recv_queue, skb) {
-		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
-		if(	hd->id == frameid &&
-			hd->type != XBEE_FRM_RX64 &&
-			hd->type != XBEE_FRM_RX16 &&
-			hd->type != XBEE_FRM_RX64IO &&
-			hd->type != XBEE_FRM_RX16IO &&
-			hd->type != XBEE_FRM_MSTAT) {
-			skb_unlink(skb, recv_queue);
-			return skb;
-		}
-	}
-
-	return NULL;
-}
-
-static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid)
+static struct sk_buff* xb_recv_x(struct xb_device* xb, uint8_t recvid)
 {
 	int ret = 0;
+	pr_debug("%s\n", __func__);
 	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(100) );
 
 	if(ret > 0) {
@@ -589,8 +591,19 @@ static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid)
 	}
 }
 
+static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid)
+{
+	int i=0;
+	for(i=0; i<3; i++) {
+		struct sk_buff* skb = xb_recv_x(xb, recvid);
+		if(skb) return skb;
+	}
+	return NULL;
+}
+
 static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 {
+	pr_debug("%s\n", __func__);
 	xb_send(xb);
 	return xb_recv(xb, recvid);
 }
