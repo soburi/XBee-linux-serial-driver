@@ -96,10 +96,11 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #define RETURN_RESULT(err, line, msg) { struct modtest_result _rslt_ = {err,line,msg}; return _rslt_; }
 
-#define PR_EXPECTED(expected, val)	   { if(sizeof(val) < 2) { pr_debug("expected:%02x, result: %02x\n", (uint8_t)expected, (uint8_t)val); } \
-					else if(sizeof(val) < 4) { pr_debug("expected:%04x, result: %04x\n", (uint16_t)expected,(uint16_t) val); } \
-					else if(sizeof(val) < 8) { pr_debug("expected:%08x, result: %08x\n", (uint32_t)expected, (uint32_t)val); } \
-					else /* size == 8 */ { pr_debug("expected:%016llx, result: %016llx\n", (uint64_t)expected, (uint64_t)val); } }
+#define PR_EXPECTED(expected, val) \
+	{    if(sizeof(val) < 2) { pr_debug("expected:%02x(%d), result: %02x(%d)\n", (uint8_t)expected,(int8_t)expected,  (uint8_t)val, (int8_t)val); } \
+	else if(sizeof(val) < 4) { pr_debug("expected:%04x(%d), result: %04x(%d)\n", (uint16_t)expected,(int16_t)expected,  (uint16_t)val, (int16_t)val); } \
+	else if(sizeof(val) < 8) { pr_debug("expected:%08x(%d), result: %08x(%d)\n", (uint32_t)expected,(int32_t)expected,  (uint32_t)val, (int32_t)val); } \
+	else /* size == 8 */ { pr_debug("expected:%016llx(%lld), result: %016llx(%lld)\n", (uint64_t)expected,(int64_t)expected,  (uint64_t)val, (int64_t)val); } }
 
 #define FAIL_NOT_EQ(expected, val) if(expected != val) { PR_EXPECTED(expected,val); RETURN_RESULT(-1, __LINE__, ""); }
 #define FAIL_IF_ERROR(err) if((err) < 0) RETURN_RESULT(err, __LINE__, "") 
