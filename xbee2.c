@@ -216,7 +216,7 @@ struct xb_frame_atcmdr {
 	uint8_t id;
 	uint16_t command;
 	uint8_t status;
-	uint8_t* response;
+	uint8_t response[];
 } __attribute__((aligned(1), packed));
 
 struct xb_frame_tx64 {
@@ -485,6 +485,8 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 		unsigned char* append = NULL;
 		struct sk_buff* newframe = NULL;
 
+		print_hex_dump_bytes("<RB- ", DUMP_PREFIX_NONE, recv_buf->data, recv_buf->len);
+
 		newframe = dev_alloc_skb(128);
 
 		append = skb_put(newframe, verified_len);
@@ -507,18 +509,14 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
 {
 	struct sk_buff* skb = NULL;
-	skb = skb_peek(recv_queue);
-
-	if(!skb) return NULL;
-
+	pr_debug("%s %d\n", __func__, frameid);
 	skb_queue_walk(recv_queue, skb) {
 		struct xb_frame_header_id* hd = (struct xb_frame_header_id*)skb->data;
-		if(	hd->id == frameid &&
-			hd->type != XBEE_FRM_RX64 &&
-			hd->type != XBEE_FRM_RX16 &&
-			hd->type != XBEE_FRM_RX64IO &&
-			hd->type != XBEE_FRM_RX16IO &&
-			hd->type != XBEE_FRM_MSTAT) {
+
+		pr_debug("%s %d : %d\n", __func__, frameid, hd->id);
+		print_hex_dump_bytes("!DQ! ", DUMP_PREFIX_NONE, skb->data, skb->len);
+
+		if( hd->id == frameid && hd->type == XBEE_FRM_ATCMDR) {
 			skb_unlink(skb, recv_queue);
 			return skb;
 		}
@@ -558,42 +556,53 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 
 static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
-	int ret = xb->frameid;
-	pr_debug("%s\n", __func__);
+	uint8_t ret = xb->frameid;
+	pr_debug("%s %u\n", __func__, atcmd);
 	frame_enqueue_send_at(&xb->send_queue, atcmd, xb->frameid, buf, buflen);
 	xb->frameid++;
 	return ret;
 }
 
-static bool xb_send(struct xb_device* xb)
+int xb_send_queue(struct xb_device* xb)
 {
-	int ret = 0;
-	bool already_on_queue = false;
+	struct sk_buff* skb = NULL;
+	struct tty_struct* tty = xb->tty;
+	int send_count = 0;
 
-	pr_debug("begin %s\n", __func__);
-	already_on_queue = queue_work(xb->send_workq, (struct work_struct*)&xb->send_work.work); //TODO
-	ret = wait_for_completion_timeout(&xb->send_done, msecs_to_jiffies(100) );
+	while( !skb_queue_empty(&xb->send_queue) ) {
+		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
 
-	pr_debug(" done %s %d %d\n", __func__, ret, already_on_queue);
+		print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+		/*
+		newskb = pskb_copy(skb, GFP_ATOMIC);
+		if (newskb)
+			xbee_rx_irqsafe(xbdev, newskb, 0xcc);
+		*/
+		tty->ops->write(tty,  skb->data, skb->len);
+		tty_driver_flush_buffer(tty);
+		kfree_skb(skb);
 
-	if(ret > 0) {
-		return 0;
+		send_count++;
 	}
-	else if(ret == -ERESTARTSYS) {
-		pr_debug("interrupted %d\n", ret);
-		return NULL;
-	}
-	else {
-		pr_debug("timeout %d\n", ret);
-		return NULL;
-	}
+
+	return send_count;
+}
+
+static int xb_send(struct xb_device* xb)
+{
+	return xb_send_queue(xb);
 }
 
 static struct sk_buff* xb_recv_x(struct xb_device* xb, uint8_t recvid)
 {
 	int ret = 0;
-	pr_debug("%s\n", __func__);
 	bool already_on_queue = false;
+	struct sk_buff* skb = NULL;
+
+	skb = frame_dequeue_by_id(&xb->recv_queue, recvid);
+
+	if(skb != NULL) return skb;
+
 	already_on_queue = queue_work(xb->comm_workq, (struct work_struct*)&xb->comm_work.work); //TODO
 	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(100) );
 
@@ -622,7 +631,6 @@ static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid)
 
 static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 {
-	pr_debug("%s\n", __func__);
 	xb_send(xb);
 	return xb_recv(xb, recvid);
 }
@@ -630,7 +638,7 @@ static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	uint8_t recvid = xb_enqueue_send_at(xb, atcmd, buf, buflen);
-	pr_debug("%s\n", __func__);
+	pr_debug("%s %d\n", __func__, recvid);
 	return xb_sendrecv(xb, recvid);
 }
 
@@ -742,23 +750,15 @@ static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
 static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 {
 	struct sk_buff *skb = NULL;
-
-	pr_debug("%s\n", __func__);
-
 	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CH, "", 0);
-	if(skb != NULL && frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
-		print_hex_dump_bytes("zzzz ", DUMP_PREFIX_NONE, skb->data, skb->len);
-		struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
-		pr_debug("resp           %p\n", resp);
-		pr_debug("resp->status   %p\n", &resp->status);
-		pr_debug("resp->response %p\n", &resp->response);
-//		if(page) *page = 0;
-//		pr_debug("%p\n", resp->response);
-//		pr_debug("%d\n", *(resp->response));
-//		if(channel) *channel = *resp->response;
-		return 0;
+	if(skb != NULL) {
+		if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+			struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
+			if(page) *page = 0;
+			if(channel) *channel = *resp->response;
+			return 0;
+		}
 	}
-	pr_debug("return %s\n", __func__);
 	return -EINVAL;
 }
 
@@ -1070,26 +1070,13 @@ static void send_work_fn(struct work_struct *param)
 {
 	struct xb_work* xbw = (struct xb_work*)param;
 	struct xb_device* xb = xbw->xb;
-	struct tty_struct* tty = xb->tty;
 
-	if( !skb_queue_empty(&xb->send_queue) ) {
-		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
+	int send_count = 0;
 
-		if(skb) {
-			print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
-			/* loopback test code */
-			/*
-			newskb = pskb_copy(skb, GFP_ATOMIC);
-			if (newskb)
-				xbee_rx_irqsafe(xbdev, newskb, 0xcc);
-			*/
-			tty->ops->write(tty,  skb->data, skb->len);
-			tty_driver_flush_buffer(tty);
-			kfree_skb(skb);
-			complete_all(&xb->send_done);
-			reinit_completion(&xb->send_done);
-		}
-	}
+	send_count = xb_send_queue(xb);
+
+	complete_all(&xb->send_done);
+	reinit_completion(&xb->send_done);
 }
 
 //static void cleanup(struct xb_device *xbdev)
