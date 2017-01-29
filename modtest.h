@@ -92,7 +92,12 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #define RETURN_RESULT(err, line, msg) { struct modtest_result _rslt_ = {err,line,msg}; return _rslt_; }
 
-#define FAIL_NOT_EQ(expected, val) if(expected != val) RETURN_RESULT(-1, __LINE__, "")
+#define PR_EXPECTED(expected, val)	   { if(sizeof(val) < 2) { pr_debug("expected:%02x, result: %02x\n", (uint8_t)expected, (uint8_t)val); } \
+					else if(sizeof(val) < 4) { pr_debug("expected:%04x, result: %04x\n", (uint16_t)expected,(uint16_t) val); } \
+					else if(sizeof(val) < 8) { pr_debug("expected:%08x, result: %08x\n", (uint32_t)expected, (uint32_t)val); } \
+					else /* size == 8 */ { pr_debug("expected:%016llx, result: %016llx\n", (uint64_t)expected, (uint64_t)val); } }
+
+#define FAIL_NOT_EQ(expected, val) if(expected != val) { PR_EXPECTED(expected,val); RETURN_RESULT(-1, __LINE__, ""); }
 #define FAIL_IF_ERROR(err) if((err) < 0) RETURN_RESULT(err, __LINE__, "") 
 #define FAIL_IF_NULL(obj) if((!obj)) RETURN_RESULT(-1, __LINE__, "")
 #define FAIL_IF(cond) if((cond)) RETURN_RESULT(-1, __LINE__, "")
