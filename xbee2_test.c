@@ -7,7 +7,7 @@ static int xbee_test_setup(void* arg, int testno) {
 	skb_trim(xbdev->recv_buf, 0);
 	skb_queue_purge(&xbdev->recv_queue);
 	skb_queue_purge(&xbdev->send_queue);
-	xbdev->frameid = 64;
+	xbdev->frameid = 0;
 	return 0;
 }
 

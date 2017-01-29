@@ -866,7 +866,7 @@ static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 
 static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cca)
 {
-	return -ENOTSUP;
+	return -EOPNOTSUPP;
 #if 0
 	pr_debug("%s cca=%p\n", __func__, cca);
 
@@ -1050,11 +1050,11 @@ static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoff
 
 static int xbee_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
 {
-	return -ENOTSUP;
+	return -EOPNOTSUPP;
 }
 static int xbee_set_lbt_mode(struct xb_device *xb, bool mode)
 {
-	return -ENOTSUP;
+	return -EOPNOTSUPP;
 }
 static int xbee_set_ackreq_default(struct xb_device *xb, bool ackreq)
 {
@@ -2031,7 +2031,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	tty->disc_data = xbdev;
 
 	xbdev->recv_buf = dev_alloc_skb(128);
-	xbdev->frameid = 1; //TODO
+	xbdev->frameid = 0;
 	
 	skb_queue_head_init(&xbdev->recv_queue);
 	skb_queue_head_init(&xbdev->send_queue);
