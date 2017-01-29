@@ -1011,7 +1011,6 @@ static int xbee_set_backoff_exponent(struct xb_device *xb, u8 min_be, u8 max_be)
 	return xbee_set_param(xb, XBEE_AT_RN, &rr, sizeof(rr) );
 }
 
-#ifdef MODTEST_ENABLE
 static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_be)
 {
 	int err = -EINVAL;
@@ -1024,13 +1023,12 @@ static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_b
 
 	return 0;
 }
-#endif
 
-// TODO not supported
 static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
 {
 	u8 rr = max_csma_backoffs;
 	pr_debug("%s\n", __func__);
+	// not supported RR on 802.15.4 mode
 	return xbee_set_param(xb, XBEE_AT_RR, &rr, sizeof(rr) );
 }
 
@@ -1838,17 +1836,20 @@ static void xbee_read_config(struct xb_device* local)
 	__le16 short_addr = 0;
 	u8 page = 0;
 	u8 channel = 0;
+	u8 min_be = 0;
+	u8 max_be = 0;
 	s32 tx_power = 0;
 	s32 ed_level = 0;
 	bool ackreq = 0;
 
 	xbee_get_channel(local, &page, &channel);
+	xbee_get_cca_ed_level(local, &ed_level);
+	xbee_get_tx_power(local, &tx_power);
 	xbee_get_pan_id(local, &pan_id);
 	xbee_get_short_addr(local, &short_addr);
-	xbee_get_tx_power(local, &tx_power);
-	xbee_get_cca_ed_level(local, &ed_level);
-	xbee_get_extended_addr(local, &extended_addr);
+	xbee_get_backoff_exponent(local, &min_be, &max_be);
 	xbee_get_ackreq_default(local, &ackreq);
+	xbee_get_extended_addr(local, &extended_addr);
 
 	phy->current_channel = channel;
 	phy->current_page = page;
