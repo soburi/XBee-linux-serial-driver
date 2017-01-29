@@ -864,12 +864,12 @@ static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 	return 0;
 }
 
-//TODO
 static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cca)
 {
+	return -ENOTSUP;
+#if 0
 	pr_debug("%s cca=%p\n", __func__, cca);
 
-#if 0
 	switch(cca->mode) {
 	case NL802154_CCA_ENERGY:
 	case NL802154_CCA_CARRIER:
@@ -885,8 +885,8 @@ static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cc
 	case NL802154_CCA_OPT_ENERGY_CARRIER_OR:
 	default:
 	}
-#endif
 	return 0;
+#endif
 }
 
 static int xbee_set_cca_ed_level(struct xb_device *xb, s32 ed_level)
