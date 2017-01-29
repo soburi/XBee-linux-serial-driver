@@ -561,24 +561,30 @@ static struct modtest_result frame_dequeue_empty_queue(void* arg) {
 	TEST_SUCCESS();
 }
 
-#define TEST31 frame_enqueue_send_vr
-static struct modtest_result frame_enqueue_send_vr(void* arg) {
+#define TEST31 frame_enqueue_send_and_recv_vr
+static struct modtest_result frame_enqueue_send_and_recv_vr(void* arg) {
 	//int ret = 0;
 	const char buf[] = { 0x7E, 0x00, 0x04, 0x08, 0x01, 0x56, 0x52, 0x4E };
 	const int count = 8;
 
 	struct xb_device* xbdev = (struct xb_device*)arg;
 	struct sk_buff* send_buf = alloc_skb(128, GFP_KERNEL);
+	struct sk_buff* skb;
 
 	unsigned char* tail = skb_put(send_buf, count);
 	memcpy(tail, buf, count);
 	frame_enqueue_send(&xbdev->send_queue, send_buf);
 	xb_send(xbdev);
 
-	//FAIL_NOT_EQ(1, ret);
-
 	FAIL_NOT_EQ(1, skb_queue_len(&xbdev->send_queue));
 	FAIL_NOT_EQ(0, xbdev->recv_buf->len);
+
+	skb = xb_recv(xbdev, 1);
+
+	FAIL_IF_NULL(skb);
+
+	//FAIL_NOT_EQ(1, ret);
+
 	TEST_SUCCESS();
 }
 
