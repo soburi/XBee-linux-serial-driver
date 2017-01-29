@@ -400,7 +400,7 @@ static size_t buffer_unescape(unsigned char* buf, const size_t len)
 	return len-escape_count;
 }
 
-static size_t buffer_escaped_len(unsigned char* buf, const size_t len)
+static size_t buffer_escaped_len(const unsigned char* buf, const size_t len)
 {
 	int i=0;
 	int escape_count = 0;
@@ -418,7 +418,7 @@ static size_t buffer_escaped_len(unsigned char* buf, const size_t len)
 	return len+escape_count;
 }
 
-static size_t buffer_escape_copy(unsigned char* dst, const size_t dst_len, unsigned char* buf, const size_t len)
+static size_t buffer_escape_copy(unsigned char* dst, const size_t dst_len, const unsigned char* buf, const size_t len)
 {
 	int i=0;
 	int escape_count = 0;
@@ -826,6 +826,7 @@ static int xbee_set_param(struct xb_device *xb, uint16_t atcmd, const uint8_t* b
 	return ret;
 }
 
+#if 0
 static int xbee_software_reset(struct xb_device *xb)
 {
 	pr_debug("%s\n", __func__);
@@ -837,7 +838,7 @@ static int xbee_restore_defaults(struct xb_device *xb)
 	pr_debug("%s\n", __func__);
 	return xbee_set_param(xb, XBEE_AT_RE, "", 0);
 }
-
+#endif
 
 
 static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
@@ -1010,6 +1011,7 @@ static int xbee_set_backoff_exponent(struct xb_device *xb, u8 min_be, u8 max_be)
 	return xbee_set_param(xb, XBEE_AT_RN, &rr, sizeof(rr) );
 }
 
+#ifdef MODTEST_ENABLE
 static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_be)
 {
 	int err = -EINVAL;
@@ -1022,6 +1024,7 @@ static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_b
 
 	return 0;
 }
+#endif
 
 // TODO not supported
 static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
@@ -1031,6 +1034,7 @@ static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs
 	return xbee_set_param(xb, XBEE_AT_RR, &rr, sizeof(rr) );
 }
 
+#ifdef MODTEST_ENABLE
 // TODO not supported
 static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoffs)
 {
@@ -1044,13 +1048,14 @@ static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoff
 
 	return 0;
 }
+#endif
 
-//TODO
+//TODO not supported
 static int xbee_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
 {
 	return -EINVAL;
 }
-//TODO
+//TODO not supported
 static int xbee_set_lbt_mode(struct xb_device *xb, bool mode)
 {
 	return -EINVAL;

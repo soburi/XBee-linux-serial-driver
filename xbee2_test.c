@@ -56,13 +56,15 @@ static struct modtest_result buffer_escaped_len_exampe(void* arg) {
 static struct modtest_result buffer_escape_len_exampe(void* arg) {
 	const char buf[] =    { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB };
 	const char escbuf[] = { 0x7E, 0x00, 0x02, 0x23, 0x7D, 0x31, 0xCB };
+	size_t esclen = 0;
+	size_t writelen = 0;
 
-	const char cpbuf[255] = {0};
+	char cpbuf[255] = {0};
 
-	pr_debug("bufsize %u", sizeof(buf) );
+	pr_debug("bufsize %lu", sizeof(buf) );
 
-	size_t esclen = buffer_escaped_len(buf, sizeof(buf) );
-	size_t writelen = buffer_escape_copy(cpbuf, 255, buf, sizeof(buf) );
+	esclen = buffer_escaped_len(buf, sizeof(buf) );
+	writelen = buffer_escape_copy(cpbuf, esclen, buf, sizeof(buf) );
 
 	FAIL_NOT_EQ(sizeof(escbuf), writelen);
 	FAIL_NOT_EQ(0, memcmp(escbuf, cpbuf, writelen) );
