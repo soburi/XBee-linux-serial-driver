@@ -850,20 +850,21 @@ static int xbee_get_cca_ed_level(struct xb_device *xb, s32 *ed_level)
 
 static int xbee_set_tx_power(struct xb_device *xb, s32 power)
 {
-	u8 pl = 0;
+	u8 pl = 4;
 
 	pr_debug("%s mbm=%d\n", __func__, power);
 
-	if(power >= 1000) {
-		pl=0;
-	} else if(power >= 600) {
-		pl=1;
-	} else if(power >= 400) {
-		pl=2;
-	} else if(power >= 200) {
+	if(power <= -200) {
 		pl=3;
-	} else {
-		pl=4;
+	}
+	if(power <= -400) {
+		pl=2;
+	}
+	if(power <= -600) {
+		pl=1;
+	}
+	if(power <= -1000) {
+		pl=0;
 	}
 
 	pr_debug("%s\n", __func__);
