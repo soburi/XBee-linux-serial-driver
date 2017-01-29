@@ -655,6 +655,41 @@ static struct modtest_result xbee_get_channel_test(void* arg) {
 
 	TEST_SUCCESS();
 }
+
+
+#define TEST41 xbee_get_cca_ed_level_test
+static struct modtest_result xbee_get_cca_ed_level_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	s32 ed_level= 0;
+
+	ret = xbee_get_cca_ed_level(xbdev, &ed_level);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_NOT_EQ(-4400, ed_level);
+
+	TEST_SUCCESS();
+}
+
+
+#define TEST42 xbee_get_tx_power_test
+static struct modtest_result xbee_get_tx_power_test(void* arg) {
+	int ret = 0;
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	s32 power = 0;
+
+	ret = xbee_get_tx_power(xbdev, &power);
+
+	FAIL_IF_ERROR(ret);
+	FAIL_NOT_EQ(0, power);
+
+	TEST_SUCCESS();
+}
+
+
+
 #if 0
 
 #define TEST33 xbee_ieee802154_set_channel_test

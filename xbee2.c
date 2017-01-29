@@ -558,7 +558,6 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	uint8_t ret = xb->frameid;
-	pr_debug("%s %u\n", __func__, atcmd);
 	frame_enqueue_send_at(&xb->send_queue, atcmd, xb->frameid, buf, buflen);
 	xb->frameid++;
 	return ret;
@@ -639,7 +638,6 @@ static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	uint8_t recvid = xb_enqueue_send_at(xb, atcmd, buf, buflen);
-	pr_debug("%s %d\n", __func__, recvid);
 	return xb_sendrecv(xb, recvid);
 }
 
@@ -729,7 +727,7 @@ static void frame_recv_default(struct xb_device* xbdev, struct sk_buff *skb) { p
 static int frame_atcmdr_result(struct sk_buff* skb)
 {
 	struct xb_frame_atcmdr* atcmdr = (struct xb_frame_atcmdr*)skb->data;
-	return atcmdr->status;
+	return -atcmdr->status;
 }
 
 static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
@@ -750,19 +748,22 @@ static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
 
 static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 {
+	int ret = -EINVAL;
 	struct sk_buff *skb = NULL;
-	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CH, "", 0);
-	if(skb != NULL) {
-		if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
-			struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
-			if(page) *page = 0;
-			if(channel) *channel = *resp->response;
-			return 0;
-		}
-	}
-	return -EINVAL;
-}
 
+	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CH, "", 0);
+	if(!skb) return -EINVAL;
+
+	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+		struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
+		if(page) *page = 0;
+		if(channel) *channel = *resp->response;
+		ret = 0;
+	}
+	kfree_skb(skb);
+
+	return ret;
+}
 
 static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cca)
 {
@@ -787,6 +788,7 @@ static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cc
 #endif
 	return 0;
 }
+
 static int xbee_set_cca_ed_level(struct xb_device *xb, s32 ed_level)
 {
 	struct sk_buff *skb = NULL;
@@ -803,27 +805,31 @@ static int xbee_set_cca_ed_level(struct xb_device *xb, s32 ed_level)
 	xb->phy->cca_ed_level = ed_level;
 	return 0;
 }
+
 static int xbee_get_cca_ed_level(struct xb_device *xb, s32 *ed_level)
 {
+	int ret = -EINVAL;
 	struct sk_buff *skb = NULL;
 	u8 ca;
 
-	pr_debug("%s\n", __func__);
-
 	skb = xb_sendrecv_atcmd(xb, XBEE_AT_CA, "", 0);
-	if(frame_atcmdr_result(skb) != XBEE_ATCMDR_OK) {
+	if(!skb) return -EINVAL;
+
+	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
 		struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
 		ca = *resp->response;
+		pr_debug("ca = %u", ca);
 		*ed_level = ca * -100;
-		return -EINVAL;
+		ret = 0;
 	}
-	return 0;
+	kfree_skb(skb);
+	
+	return ret;
 }
-
-
 
 static int xbee_set_tx_power(struct xb_device *xb, s32 power)
 {
+	int ret = -EINVAL;
 	struct sk_buff *skb = NULL;
 	u8 pl;
 
@@ -852,33 +858,36 @@ static int xbee_set_tx_power(struct xb_device *xb, s32 power)
 
 static int xbee_get_tx_power(struct xb_device *xb, s32 *power)
 {
+	int ret = -EINVAL;
 	struct sk_buff *skb = NULL;
-	u8 pl;
-
-	pr_debug("%s\n", __func__);
+	u8 pl = 0;
 
 	skb = xb_sendrecv_atcmd(xb, XBEE_AT_PL, &pl, 1);
+	if(!skb) return -EINVAL;
+
 	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
 		struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
 		pl = *resp->response;
 
-		if(pl == 0) {
-			*power = 1000;
-		} else if(pl == 1) {
-			*power = 600;
-		} else if(pl == 2) {
-			*power = 400;
-		} else if(pl == 3) {
-			*power = 200;
-		} else {
-			*power = 0;
+		if(power) {
+			if(pl == 0) {
+				*power = 1000;
+			} else if(pl == 1) {
+				*power = 600;
+			} else if(pl == 2) {
+				*power = 400;
+			} else if(pl == 3) {
+				*power = 200;
+			} else {
+				*power = 0;
+			}
 		}
 
-
-		return -EINVAL;
+		ret = 0;
 	}
+	kfree_skb(skb);
 
-	return 0;
+	return ret;
 }
 
 static int xbee_set_pan_id(struct xb_device *xb, __le16 pan_id)
