@@ -663,14 +663,13 @@ static int xb_send(struct xb_device* xb)
 static struct sk_buff* xb_recv_x(struct xb_device* xb, uint8_t recvid)
 {
 	int ret = 0;
-	bool already_on_queue = false;
 	struct sk_buff* skb = NULL;
 
 	skb = frame_dequeue_by_id(&xb->recv_queue, recvid);
 
 	if(skb != NULL) return skb;
 
-	already_on_queue = queue_work(xb->recv_workq, (struct work_struct*)&xb->recv_work.work); //TODO
+	queue_work(xb->recv_workq, (struct work_struct*)&xb->recv_work.work);
 	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(100) );
 
 	if(ret > 0) {
@@ -1150,7 +1149,7 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 	case XBEE_FRM_TX64:		frame_recv_tx64(xbdev, skb);	break;
 	case XBEE_FRM_TX16:		frame_recv_tx16(xbdev, skb);	break;
 	case XBEE_FRM_TXSTAT:	frame_recv_txstat(xbdev, skb);	break;
-	default:				frame_recv_default(xbdev, skb);	break;
+	default:			frame_recv_default(xbdev, skb);	break;
 	}
 }
 
@@ -2021,47 +2020,36 @@ static void ieee802154_if_setup(struct net_device *dev)
  *
  * 
  */
-//TODO
 static int xbee_ldisc_open(struct tty_struct *tty)
 {
 	struct xb_device *xbdev = tty->disc_data;
-	//struct net_device *ndev = NULL;
-	//struct ieee802154_hw *hw;
-
-	int err;
+	int err = -EINVAL;
 
 	pr_debug("%s\n", __func__);
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	/*
-	 * TODO: The traditional method to check if another line discipline
-	 * is still installed has been to check tty->disc_data for a non-NULL
-	 * address, even though line disciplines are under no obligation
-	 * to clear it upon uninstallation.
-	 */
+	if(tty->ops->write == NULL)
+		return -EOPNOTSUPP;
 
-	if (tty->disc_data != NULL)
-		return -EBUSY;
-
-//	if (tty->ops->stop)
-//		tty->ops->stop(tty);
-
-	tty_driver_flush_buffer(tty);
+	if(xbdev && xbdev->magic == XBEE802154_MAGIC)
+		return -EEXIST;
 
 	xbdev = (struct xb_device*)xbee_alloc_device(sizeof(struct xb_device));
-//	hw = ieee802154_alloc_hw(sizeof(struct xb_device), &xbee_ieee802154_ops);
 	if (!xbdev)
 		return -ENOMEM;
 
-//	xbdev = hw->priv;
-//	xbdev->hw = hw;
 	xbdev->parent = tty->dev;
 	tty->disc_data = xbdev;
 
+	xbdev->tty = tty_kref_get(tty);
+	tty->receive_room = 65536;
+	tty_driver_flush_buffer(tty);
+
+
 	xbdev->recv_buf = dev_alloc_skb(128);
-	xbdev->frameid = 1; //TODO
+	xbdev->frameid = 1; // Device does not respond if zero.
 	
 	skb_queue_head_init(&xbdev->recv_queue);
 	skb_queue_head_init(&xbdev->send_queue);
@@ -2075,29 +2063,17 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	INIT_WORK( (struct work_struct*)&xbdev->send_work.work, send_work_fn);
 	INIT_WORK( (struct work_struct*)&xbdev->recv_work.work, recv_work_fn);
 
-#ifdef MODTEST_ENABLE
-	INIT_MODTEST(xbdev);
-#endif
-
-	xbdev->tty = tty_kref_get(tty);
-
-//	tty->receive_room = MAX_DATA_SIZE;
-	tty->receive_room = 65536;
-
-	if (tty->ldisc->ops->flush_buffer)
-		tty->ldisc->ops->flush_buffer(tty);
-	tty_driver_flush_buffer(tty);
-
 	xbee_read_config(xbdev);
 	xbee_set_supported(xbdev);
 	xbee_setup(xbdev);
 	err = xbee_register_device(xbdev);
 	if (err) {
-        printk(KERN_ERR "%s: device register failed\n", __func__);
+		printk(KERN_ERR "%s: device register failed\n", __func__);
 		goto err;
 	}
 
 #ifdef MODTEST_ENABLE
+	INIT_MODTEST(xbdev);
 	RUN_MODTEST(xbdev);
 #endif
 
@@ -2108,9 +2084,7 @@ err:
 	tty_kref_put(tty);
 	xbdev->tty = NULL;
 
-	//ieee802154_unregister_hw(xbdev->hw);
 	xbee_unregister_device(xbdev);
-	//ieee802154_free_hw(xbdev->hw);
 	xbee_free(xbdev);
 
 	return err;
