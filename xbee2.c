@@ -301,6 +301,7 @@ enum {
 #define AT_DECL(x, y) ( x << 8 | y )
 
 enum {
+	XBEE_AT_AP = AT_DECL('A','P'),
 	XBEE_AT_CA = AT_DECL('C','A'),
 	XBEE_AT_CE = AT_DECL('C','E'),
 	XBEE_AT_CH = AT_DECL('C','H'),
@@ -1109,6 +1110,19 @@ static int xbee_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
 	return 0;
 }
 
+static int xbee_get_api_mode(struct xb_device *xb, u8* apimode)
+{
+	int err = -EINVAL;
+	u8 ap = 0;
+	err = xbee_get_param(xb, XBEE_AT_AP, &ap, sizeof(ap) );
+
+	if(err) return err;
+
+	if(apimode) *apimode = ap;
+
+	return 0;
+}
+
 /**
  * xbee_recv_frame - ...
  *
@@ -1853,6 +1867,7 @@ static void xbee_read_config(struct xb_device* local)
 	s32 tx_power = 0;
 	s32 ed_level = 0;
 	bool ackreq = 0;
+	u8 api = 0;
 
 	xbee_get_channel(local, &page, &channel);
 	xbee_get_cca_ed_level(local, &ed_level);
@@ -1862,6 +1877,7 @@ static void xbee_read_config(struct xb_device* local)
 	xbee_get_backoff_exponent(local, &min_be, &max_be);
 	xbee_get_ackreq_default(local, &ackreq);
 	xbee_get_extended_addr(local, &extended_addr);
+	xbee_get_api_mode(local, &api);
 
 	phy->current_channel = channel;
 	phy->current_page = page;
@@ -1882,6 +1898,7 @@ static void xbee_read_config(struct xb_device* local)
 			          WPAN_PHY_FLAG_CCA_ED_LEVEL |
 					  WPAN_PHY_FLAG_CCA_MODE;
 
+	local->api = api;
 }
 
 //TODO
