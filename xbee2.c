@@ -858,12 +858,14 @@ static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 	int err = -EINVAL;
 	u8 ch = 0;
 
+	if(!page) return -EINVAL;
+	if(!channel) return -EINVAL;
 	err = xbee_get_param(xb, XBEE_AT_CH, &ch, sizeof(ch) );
 
 	if(err) return err;
 
-	if(page) *page = 0;
-	if(channel) *channel = ch;
+	*page = 0;
+	*channel = ch;
 
 	return 0;
 }
@@ -905,11 +907,13 @@ static int xbee_get_cca_ed_level(struct xb_device *xb, s32 *ed_level)
 	int err = -EINVAL;
 	u8 ca = 0;
 
+	if(!ed_level) return -EINVAL;
+
 	err = xbee_get_param(xb, XBEE_AT_CA, &ca, sizeof(ca) );
 
 	if(err) return err;
 
-	if(ed_level) *ed_level = ca * -100;
+	*ed_level = ca * -100;
 
 	return 0;
 }
@@ -942,24 +946,22 @@ static int xbee_get_tx_power(struct xb_device *xb, s32 *power)
 	int err = -EINVAL;
 	u8 pl = 0;
 
-	err = xbee_get_param(xb, XBEE_AT_PL, &pl, sizeof(pl) );
+	if(!power) return -EINVAL;
 
-	pr_debug("pl=%u", pl);
+	err = xbee_get_param(xb, XBEE_AT_PL, &pl, sizeof(pl) );
 
 	if(err) return err;
 
-	if(power) {
-		if(pl == 0) {
-			*power = -1000;
-		} else if(pl == 1) {
-			*power = -600;
-		} else if(pl == 2) {
-			*power = -400;
-		} else if(pl == 3) {
-			*power = -200;
-		} else {
-			*power = 0;
-		}
+	if(pl == 0) {
+		*power = -1000;
+	} else if(pl == 1) {
+		*power = -600;
+	} else if(pl == 2) {
+		*power = -400;
+	} else if(pl == 3) {
+		*power = -200;
+	} else {
+		*power = 0;
 	}
 
 	return 0;
@@ -978,11 +980,12 @@ static int xbee_get_pan_id(struct xb_device *xb, __le16 *pan_id)
 	int err = -EINVAL;
 	__be16 beid = 0;
 
+	if(!pan_id) return -EINVAL;
 	err = xbee_get_param(xb, XBEE_AT_ID, (uint8_t*)&beid, sizeof(beid) );
 
 	if(err) return err;
 
-	if(pan_id) *pan_id = htons(beid);
+	*pan_id = htons(beid);
 
 	return 0;
 }
@@ -999,11 +1002,13 @@ static int xbee_get_short_addr(struct xb_device *xb, __le16 *short_addr)
 	int err = -EINVAL;
 	__be16 beaddr = 0;
 
+	if(!short_addr) return -EINVAL;
+
 	err = xbee_get_param(xb, XBEE_AT_MY, (uint8_t*)&beaddr, sizeof(beaddr) );
 
 	if(err) return err;
 
-	if(short_addr) *short_addr = htons(beaddr);
+	*short_addr = htons(beaddr);
 
 	return 0;
 }
@@ -1019,11 +1024,14 @@ static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_b
 {
 	int err = -EINVAL;
 	u8 rn = 0;
+
+	if(!min_be) return -EINVAL;
+	if(!max_be) return -EINVAL;
 	err = xbee_get_param(xb, XBEE_AT_RN, &rn, sizeof(rn) );
 
 	if(err) return err;
 
-	if(min_be) *min_be = rn;
+	*min_be = rn;
 
 	return 0;
 }
@@ -1071,11 +1079,13 @@ static int xbee_get_ackreq_default(struct xb_device *xb, bool* ackreq)
 {
 	int err = -EINVAL;
 	u8 mm = 0;
+	if(!ackreq) return -EINVAL;
+
 	err = xbee_get_param(xb, XBEE_AT_MM, &mm, sizeof(mm) );
 
 	if(err) return err;
 
-	if(ackreq) *ackreq = (mm == 2);
+	*ackreq = (mm == 2);
 
 	return 0;
 }
