@@ -796,39 +796,38 @@ static int frame_atcmdr_result(struct sk_buff* skb)
 	return -atcmdr->status;
 }
 
+static int xbee_set_get_param(struct xb_device *xb, uint16_t atcmd,
+				const uint8_t* reqbuf, size_t reqsize,
+				uint8_t* respbuf, size_t respsize)
+{
+	int ret = -EINVAL;
+	struct sk_buff *skb = NULL;
+
+	skb = xb_sendrecv_atcmd(xb, atcmd, (uint8_t*)reqbuf, reqsize);
+	if(!skb) return -EINVAL;
+
+	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
+		if(respbuf) {
+			struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
+			memcpy(respbuf, resp->response, respsize);
+		}
+
+		ret = 0;
+	}
+	kfree_skb(skb);
+
+	return ret;
+}
+
 static int xbee_get_param(struct xb_device *xb, uint16_t atcmd, uint8_t* buf, size_t bufsize)
 {
-	int ret = -EINVAL;
-	struct sk_buff *skb = NULL;
-
-	skb = xb_sendrecv_atcmd(xb, atcmd, "", 0);
-	if(!skb) return -EINVAL;
-
-	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
-		struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
-		memcpy(buf, resp->response, bufsize);
-		ret = 0;
-	}
-	kfree_skb(skb);
-
-	return ret;
+	return xbee_set_get_param(xb, atcmd, NULL, 0, buf, bufsize);
 }
-
 static int xbee_set_param(struct xb_device *xb, uint16_t atcmd, const uint8_t* buf, size_t bufsize)
 {
-	int ret = -EINVAL;
-	struct sk_buff *skb = NULL;
-
-	skb = xb_sendrecv_atcmd(xb, atcmd, (uint8_t*)buf, bufsize);
-	if(!skb) return -EINVAL;
-
-	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
-		ret = 0;
-	}
-	kfree_skb(skb);
-
-	return ret;
+	return xbee_set_get_param(xb, atcmd, buf, bufsize, "", 0);
 }
+
 
 #if 0
 static int xbee_software_reset(struct xb_device *xb)
