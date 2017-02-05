@@ -1145,7 +1145,7 @@ static int xbee_energy_detect(struct xb_device* xb, u8 scantime, u8* edl, size_t
 	return xbee_set_get_param(xb, XBEE_AT_ED, &scantime, sizeof(scantime), edl, edllen);
 }
 
-static int xbee_active_scan(struct xb_device* xb, u8 scantime, u8 buffer, size_t bufsize)
+static int xbee_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_t bufsize)
 {
 	pr_debug("%s\n", __func__);
 	return xbee_set_get_param(xb, XBEE_AT_ED, &scantime, sizeof(scantime), buffer, bufsize);
@@ -1309,7 +1309,7 @@ static int xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *a
 	pr_debug("%s(addr=%1u:%016llx, channels=%u, page=%u, cap=%x\n", __func__, addr->mode,addr->extended_addr, channel, page, cap);
 	return 0;
 }
-//TODO
+//TODO not be implemented.
 static int xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr, __le16 short_addr, u8 status)
 {
 	pr_debug("%s(addr=%1u:%016llx, short=%04x status=%x\n", __func__, addr->mode,addr->extended_addr, short_addr, status);
