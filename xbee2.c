@@ -8,11 +8,15 @@
 #include <linux/workqueue.h>
 #include <linux/seq_buf.h>
 #include <linux/nl80211.h>
+#include <net/netlink.h>
+#include <linux/nl802154.h>
 #include <linux/rtnetlink.h>
+#include <net/genetlink.h>
 #include <linux/if_arp.h>
 #include <linux/jiffies.h>
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
+#include <net/nl802154.h>
 #include <net/regulatory.h>
 #include <net/ieee802154_netdev.h>
 
@@ -302,9 +306,11 @@ enum {
 
 enum {
 	XBEE_AT_AP = AT_DECL('A','P'),
+	XBEE_AT_AS = AT_DECL('A','S'),
 	XBEE_AT_CA = AT_DECL('C','A'),
 	XBEE_AT_CE = AT_DECL('C','E'),
 	XBEE_AT_CH = AT_DECL('C','H'),
+	XBEE_AT_ED = AT_DECL('E','D'),
 	XBEE_AT_FR = AT_DECL('F','R'),
 	XBEE_AT_ID = AT_DECL('I','D'),
 	XBEE_AT_MM = AT_DECL('M','M'),
@@ -1121,6 +1127,31 @@ static int xbee_get_api_mode(struct xb_device *xb, u8* apimode)
 	return 0;
 }
 
+static int xbee_set_scan_channels(struct xb_device* xb, u32 channels)
+{
+	pr_debug("%s\n", __func__);
+	return xbee_set_param(xb, XBEE_AT_SC, (uint8_t*)&channels, sizeof(channels) );
+}
+
+static int xbee_set_scan_duration(struct xb_device* xb, u8 duration)
+{
+	pr_debug("%s\n", __func__);
+	return xbee_set_param(xb, XBEE_AT_SD, &duration, sizeof(duration) );
+}
+
+static int xbee_energy_detect(struct xb_device* xb, u8 scantime, u8* edl, size_t edllen)
+{
+	pr_debug("%s\n", __func__);
+	return xbee_set_get_param(xb, XBEE_AT_ED, &scantime, sizeof(scantime), edl, edllen);
+}
+
+static int xbee_active_scan(struct xb_device* xb)
+{
+	u32 channels = 0;
+	pr_debug("%s\n", __func__);
+	return xbee_set_param(xb, XBEE_AT_AS, "", 0);
+}
+
 /**
  * xbee_recv_frame - ...
  *
@@ -1296,13 +1327,47 @@ static int xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *a
 {
 	pr_debug("%s(addr=%1u:%016llx, channel=%u, page=%u, bcn_ord=%u sf_ord=%u, pan_coord=%u, blx=%u, coord_realign=%u\n", __func__,
 			addr->mode,addr->extended_addr, channel, page, bcn_ord, sf_ord, pan_coord, blx, coord_realign);
+
+	//xbee_coordinator_enable(true);
 	return 0;
 }
-//TODO
+
 static int xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 page, u8 duration)
 {
+	struct xbee_sub_if_data *sdata = netdev_priv(dev);
+	struct xb_device* xb = sdata->local;
+	int ret = 0;
 	pr_debug("%s(type=%u, channels%x, page=%u, duration=%u\n", __func__, type, channels, page, duration);
-	return 0;
+
+	ret = xbee_set_scan_channels(xb, channels);
+	ret = xbee_set_scan_duration(xb, duration); // TODO duration
+
+	if(type == IEEE802154_MAC_SCAN_ED) {
+		u8 edl[32];
+		ret = xbee_energy_detect(xb, duration, edl, sizeof(edl) ); // TODO duration
+
+		// net/ieee802154/netlink.c are not export any functions.
+		// so, we can't send any response.
+		ret = -EOPNOTSUPP;
+	}
+	else if(type == IEEE802154_MAC_SCAN_ACTIVE) {
+		//ret = xbee_active_scan(xb);
+		// net/ieee802154/netlink.c are not export any functions.
+		// so, we can't send any response.
+	}
+	else { //passive, orphan
+		ret = -EOPNOTSUPP;
+	}
+
+	{
+		static bool msg_print = false;
+		if(!msg_print) {
+			printk("xbee: XBee module does not support response for scan_req.\n");
+			msg_print = true;
+		}
+	}
+
+	return ret;
 }
 
 static int xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802154_mac_params *params)
