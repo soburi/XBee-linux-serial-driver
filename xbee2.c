@@ -1145,11 +1145,10 @@ static int xbee_energy_detect(struct xb_device* xb, u8 scantime, u8* edl, size_t
 	return xbee_set_get_param(xb, XBEE_AT_ED, &scantime, sizeof(scantime), edl, edllen);
 }
 
-static int xbee_active_scan(struct xb_device* xb)
+static int xbee_active_scan(struct xb_device* xb, u8 scantime, u8 buffer, size_t bufsize)
 {
-	u32 channels = 0;
 	pr_debug("%s\n", __func__);
-	return xbee_set_param(xb, XBEE_AT_AS, "", 0);
+	return xbee_set_get_param(xb, XBEE_AT_ED, &scantime, sizeof(scantime), buffer, bufsize);
 }
 
 /**
@@ -1351,9 +1350,12 @@ static int xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 
 		ret = -EOPNOTSUPP;
 	}
 	else if(type == IEEE802154_MAC_SCAN_ACTIVE) {
-		//ret = xbee_active_scan(xb);
+		u8 buffer[128];
+		ret = xbee_energy_detect(xb, duration, buffer, sizeof(buffer) ); // TODO duration
+
 		// net/ieee802154/netlink.c are not export any functions.
 		// so, we can't send any response.
+		ret = -EOPNOTSUPP;
 	}
 	else { //passive, orphan
 		ret = -EOPNOTSUPP;
