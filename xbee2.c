@@ -42,6 +42,7 @@ struct xb_device {
 
 	struct completion cmd_resp_done;
 	struct completion send_done;
+	struct completion modem_status_receive;
 	uint8_t wait_frameid;
 
 	struct sk_buff_head recv_queue;
@@ -55,6 +56,7 @@ struct xb_device {
 
 	struct xb_work send_work;
 	struct xb_work recv_work;
+	struct xb_work init_work;
 
 	struct net_device* dev;
 	struct wpan_phy* phy;
@@ -742,6 +744,8 @@ static void frame_recv_atcmdr(struct xb_device *xbdev, struct sk_buff *skb)
 static void frame_recv_mstat(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_mstat* mstat = (struct xb_frame_mstat*)skb->data;
+	complete_all(&xbdev->modem_status_receive);
+	reinit_completion(&xbdev->modem_status_receive);
 	pr_debug("MSTA: status=%d\n", mstat->status);
 }
 
@@ -1183,42 +1187,6 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 	case XBEE_FRM_TXSTAT:	frame_recv_txstat(xbdev, skb);	break;
 	default:			frame_recv_default(xbdev, skb);	break;
 	}
-}
-
-static void recv_work_fn(struct work_struct *param)
-{
-	struct xb_work* xbw = (struct xb_work*)param;
-	struct xb_device* xb = xbw->xb;
-
-	pr_debug("enter %s\n", __func__);
-
-	if( !skb_queue_empty(&xb->recv_queue) ) {
-		struct sk_buff* skb = skb_peek(&xb->recv_queue);
-
-		if(skb) {
-			struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
-			if(frm->type != XBEE_FRM_ATCMDR) {
-				skb_unlink(skb, &xb->recv_queue);
-				frame_recv_dispatch(xb, skb);
-			}
-			complete_all(&xb->cmd_resp_done);
-			reinit_completion(&xb->cmd_resp_done);
-		}
-	}
-	pr_debug("exit  %s\n", __func__);
-}
-
-static void send_work_fn(struct work_struct *param)
-{
-	struct xb_work* xbw = (struct xb_work*)param;
-	struct xb_device* xb = xbw->xb;
-
-	int send_count = 0;
-
-	send_count = xb_send_queue(xb);
-
-	complete_all(&xb->send_done);
-	reinit_completion(&xb->send_done);
 }
 
 /*
@@ -2074,6 +2042,82 @@ static void ieee802154_if_setup(struct net_device *dev)
 
 
 
+static void recv_work_fn(struct work_struct *param)
+{
+	struct xb_work* xbw = (struct xb_work*)param;
+	struct xb_device* xb = xbw->xb;
+
+	pr_debug("enter %s\n", __func__);
+
+	if( !skb_queue_empty(&xb->recv_queue) ) {
+		struct sk_buff* skb = skb_peek(&xb->recv_queue);
+
+		if(skb) {
+			struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
+			if(frm->type != XBEE_FRM_ATCMDR) {
+				skb_unlink(skb, &xb->recv_queue);
+				frame_recv_dispatch(xb, skb);
+			}
+			complete_all(&xb->cmd_resp_done);
+			reinit_completion(&xb->cmd_resp_done);
+		}
+	}
+	pr_debug("exit  %s\n", __func__);
+}
+
+static void send_work_fn(struct work_struct *param)
+{
+	struct xb_work* xbw = (struct xb_work*)param;
+	struct xb_device* xb = xbw->xb;
+
+	int send_count = 0;
+
+	send_count = xb_send_queue(xb);
+
+	complete_all(&xb->send_done);
+	reinit_completion(&xb->send_done);
+}
+
+static void init_work_fn(struct work_struct *param)
+{
+	struct xb_work* xbw = (struct xb_work*)param;
+	struct xb_device* xbdev = xbw->xb;
+	struct tty_struct* tty = xbdev->tty;
+	int err = -EINVAL;
+
+	pr_debug("enter %s\n", __func__);
+
+	INIT_WORK( (struct work_struct*)&xbdev->send_work.work, send_work_fn);
+	INIT_WORK( (struct work_struct*)&xbdev->recv_work.work, recv_work_fn);
+
+	xb_enqueue_send_at(xbdev, XBEE_AT_FR, "", 0);
+	xb_send(xbdev);
+	wait_for_completion_timeout(&xbdev->modem_status_receive, msecs_to_jiffies(500) );
+
+	xbee_read_config(xbdev);
+	xbee_set_supported(xbdev);
+	xbee_setup(xbdev);
+	err = xbee_register_device(xbdev);
+	if (err) {
+		printk(KERN_ERR "%s: device register failed\n", __func__);
+		goto err;
+	}
+
+#ifdef MODTEST_ENABLE
+	INIT_MODTEST(xbdev);
+	RUN_MODTEST(xbdev);
+#endif
+
+	return;
+
+err:
+	tty->disc_data = NULL;
+	tty_kref_put(tty);
+	xbdev->tty = NULL;
+
+	xbee_unregister_device(xbdev);
+	xbee_free(xbdev);
+}
 
 
 /*****************************************************************************
@@ -2125,13 +2169,18 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 
 	init_completion(&xbdev->cmd_resp_done);
 	init_completion(&xbdev->send_done);
+	init_completion(&xbdev->modem_status_receive);
 	xbdev->send_workq = create_workqueue("send_workq");
 	xbdev->recv_workq = create_workqueue("recv_workq");
 	xbdev->send_work.xb = xbdev;
 	xbdev->recv_work.xb = xbdev;
-	INIT_WORK( (struct work_struct*)&xbdev->send_work.work, send_work_fn);
-	INIT_WORK( (struct work_struct*)&xbdev->recv_work.work, recv_work_fn);
+	xbdev->init_work.xb = xbdev;
+	//INIT_WORK( (struct work_struct*)&xbdev->send_work.work, send_work_fn);
+	INIT_WORK( (struct work_struct*)&xbdev->init_work.work, init_work_fn);
+	err = queue_work(xbdev->recv_workq, (struct work_struct*)&xbdev->init_work.work);
 
+	return 0;
+/*
 	xbee_read_config(xbdev);
 	xbee_set_supported(xbdev);
 	xbee_setup(xbdev);
@@ -2157,6 +2206,7 @@ err:
 	xbee_free(xbdev);
 
 	return err;
+*/
 }
 
 /**
