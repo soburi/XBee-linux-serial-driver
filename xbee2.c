@@ -623,6 +623,9 @@ static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, ch
 	uint8_t ret = xb->frameid;
 	frame_enqueue_send_at(&xb->send_queue, atcmd, xb->frameid, buf, buflen);
 	xb->frameid++;
+	if(xb->frameid == 0) {
+		xb->frameid++;
+	}
 	return ret;
 }
 
