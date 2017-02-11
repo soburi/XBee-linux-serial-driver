@@ -59,6 +59,8 @@ struct xb_device {
 	struct xb_work recv_work;
 	struct xb_work init_work;
 
+	struct mutex queue_mutex;
+
 	struct net_device* dev;
 	struct wpan_phy* phy;
 	
@@ -578,6 +580,7 @@ static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint
 {
 	struct sk_buff* skb = NULL;
 	struct xb_frame_header_id* hd = NULL;
+
 	skb_queue_walk(recv_queue, skb) {
 		hd = (struct xb_frame_header_id*)skb->data;
 		if(	hd->id == frameid &&
@@ -640,6 +643,8 @@ static int xb_send_queue(struct xb_device* xb)
 	int send_count = 0;
 	size_t esclen = 0;
 
+	mutex_lock(&xb->queue_mutex);
+
 	while( !skb_queue_empty(&xb->send_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
 		struct sk_buff* txskb = NULL;
@@ -666,6 +671,8 @@ static int xb_send_queue(struct xb_device* xb)
 		send_count++;
 	}
 
+	mutex_unlock(&xb->queue_mutex);
+
 	return send_count;
 }
 
@@ -679,7 +686,9 @@ static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid, unsigned lo
 	int ret = 0;
 	struct sk_buff* skb = NULL;
 
+	mutex_lock(&xb->queue_mutex);
 	skb = frame_dequeue_by_id(&xb->recv_queue, recvid);
+	mutex_unlock(&xb->queue_mutex);
 
 	if(skb != NULL) return skb;
 
@@ -688,7 +697,10 @@ static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid, unsigned lo
 	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(timeout) );
 
 	if(ret > 0) {
-		return frame_dequeue_by_id(&xb->recv_queue, recvid);
+		mutex_lock(&xb->queue_mutex);
+		skb = frame_dequeue_by_id(&xb->recv_queue, recvid);
+		mutex_unlock(&xb->queue_mutex);
+		return skb;
 	}
 	else if(ret == -ERESTARTSYS) {
 		pr_debug("%s: interrupted %d\n", __func__, ret);
@@ -702,8 +714,14 @@ static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid, unsigned lo
 
 static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 {
+	int i=0;
 	xb_send(xb);
-	return xb_recv(xb, recvid, 1000);
+	for(i=0; i<5; i++) {
+		pr_debug("%s %d", __func__, i);
+		struct sk_buff* skb = xb_recv(xb, recvid, 5000);
+		if(skb) return skb;
+	}
+	return NULL;
 }
 
 static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
@@ -809,8 +827,13 @@ static int xbee_set_get_param(struct xb_device *xb, uint16_t atcmd,
 	int ret = -EINVAL;
 	struct sk_buff *skb = NULL;
 
+	pr_debug("enter %s", __func__);
+
 	skb = xb_sendrecv_atcmd(xb, atcmd, (uint8_t*)reqbuf, reqsize);
-	if(!skb) return -EINVAL;
+	if(!skb) {
+		pr_debug("exit %s %d", __func__, -EINVAL);
+		return -EINVAL;
+	}
 
 	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
 		if(respbuf) {
@@ -822,6 +845,7 @@ static int xbee_set_get_param(struct xb_device *xb, uint16_t atcmd,
 	}
 	kfree_skb(skb);
 
+	pr_debug("exit %s %d", __func__, ret);
 	return ret;
 }
 
@@ -985,8 +1009,12 @@ static int xbee_get_pan_id(struct xb_device *xb, __le16 *pan_id)
 	int err = -EINVAL;
 	__be16 beid = 0;
 
+	pr_debug("enter %s", __func__);
+
 	if(!pan_id) return -EINVAL;
 	err = xbee_get_param(xb, XBEE_AT_ID, (uint8_t*)&beid, sizeof(beid) );
+
+	pr_debug("%s %d %x", __func__, err, beid);
 
 	if(err) return err;
 
@@ -1897,15 +1925,16 @@ static void xbee_read_config(struct xb_device* local)
 	bool ackreq = 0;
 	u8 api = 0;
 
-	xbee_get_channel(local, &page, &channel);
-	xbee_get_cca_ed_level(local, &ed_level);
-	xbee_get_tx_power(local, &tx_power);
+	xbee_get_api_mode(local, &api);
+	local->api = api;
+	xbee_get_extended_addr(local, &extended_addr);
 	xbee_get_pan_id(local, &pan_id);
+	xbee_get_channel(local, &page, &channel);
+	xbee_get_tx_power(local, &tx_power);
 	xbee_get_short_addr(local, &short_addr);
 	xbee_get_backoff_exponent(local, &min_be, &max_be);
 	xbee_get_ackreq_default(local, &ackreq);
-	xbee_get_extended_addr(local, &extended_addr);
-	xbee_get_api_mode(local, &api);
+	xbee_get_cca_ed_level(local, &ed_level);
 
 	phy->current_channel = channel;
 	phy->current_page = page;
@@ -1915,6 +1944,16 @@ static void xbee_read_config(struct xb_device* local)
 	//phy->cca = 0;
 	phy->symbol_duration = 16;
 
+	local->min_be = min_be;
+	local->max_be = max_be;
+	//local->csma_retries;
+	//local->frame_retries;
+	pr_debug("pan_id %x", pan_id);
+	local->pan_id = pan_id;
+	pr_debug("short_addr %x", short_addr);
+	local->short_addr = short_addr;
+	pr_debug("extended_addr %016llx", extended_addr);
+	local->dev_addr = extended_addr;
 
 	phy->lifs_period = IEEE802154_LIFS_PERIOD *
 				phy->symbol_duration;
@@ -1925,8 +1964,6 @@ static void xbee_read_config(struct xb_device* local)
 	phy->flags = WPAN_PHY_FLAG_TXPOWER |
 			          WPAN_PHY_FLAG_CCA_ED_LEVEL |
 					  WPAN_PHY_FLAG_CCA_MODE;
-
-	local->api = api;
 }
 
 //TODO
@@ -2042,6 +2079,7 @@ static void recv_work_fn(struct work_struct *param)
 	struct sk_buff* skb = NULL;
 	struct sk_buff* prev_atresp = xb->last_atresp;
 
+	mutex_lock(&xb->queue_mutex);
 	skb = skb_peek(&xb->recv_queue);
 	while(skb) {
 		struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
@@ -2059,6 +2097,8 @@ static void recv_work_fn(struct work_struct *param)
 	if(prev_atresp != xb->last_atresp) {
 		complete_all(&xb->cmd_resp_done);
 	}
+
+	mutex_unlock(&xb->queue_mutex);
 }
 
 static void send_work_fn(struct work_struct *param)
@@ -2166,6 +2206,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	
 	xbdev->last_atresp = NULL;
 
+	mutex_init(&xbdev->queue_mutex);
 	skb_queue_head_init(&xbdev->recv_queue);
 	skb_queue_head_init(&xbdev->send_queue);
 
@@ -2319,7 +2360,9 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 
 	if(ret == 0) return count;
 
+	mutex_lock(&xbdev->queue_mutex);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2) );
+	mutex_unlock(&xbdev->queue_mutex);
 
 	if(ret > 0) {
 		ret = queue_work(xbdev->recv_workq, (struct work_struct*)&xbdev->recv_work.work);
