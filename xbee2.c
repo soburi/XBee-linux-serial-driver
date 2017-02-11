@@ -61,6 +61,8 @@ struct xb_device {
 	struct net_device* dev;
 	struct wpan_phy* phy;
 	
+	struct sk_buff* last_atresp;
+
 	struct  device *parent;
 	int     extra_tx_headroom;
 
@@ -671,7 +673,7 @@ static int xb_send(struct xb_device* xb)
 	return xb_send_queue(xb);
 }
 
-static struct sk_buff* xb_recv_x(struct xb_device* xb, uint8_t recvid)
+static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid, unsigned long timeout)
 {
 	int ret = 0;
 	struct sk_buff* skb = NULL;
@@ -681,7 +683,8 @@ static struct sk_buff* xb_recv_x(struct xb_device* xb, uint8_t recvid)
 	if(skb != NULL) return skb;
 
 	queue_work(xb->recv_workq, (struct work_struct*)&xb->recv_work.work);
-	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(100) );
+	reinit_completion(&xb->cmd_resp_done);
+	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(timeout) );
 
 	if(ret > 0) {
 		return frame_dequeue_by_id(&xb->recv_queue, recvid);
@@ -696,20 +699,10 @@ static struct sk_buff* xb_recv_x(struct xb_device* xb, uint8_t recvid)
 	}
 }
 
-static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid)
-{
-	int i=0;
-	for(i=0; i<3; i++) {
-		struct sk_buff* skb = xb_recv_x(xb, recvid);
-		if(skb) return skb;
-	}
-	return NULL;
-}
-
 static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 {
 	xb_send(xb);
-	return xb_recv(xb, recvid);
+	return xb_recv(xb, recvid, 1000);
 }
 
 static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
@@ -2046,23 +2039,26 @@ static void recv_work_fn(struct work_struct *param)
 {
 	struct xb_work* xbw = (struct xb_work*)param;
 	struct xb_device* xb = xbw->xb;
+	struct sk_buff* skb = NULL;
+	struct sk_buff* prev_atresp = xb->last_atresp;
 
-	pr_debug("enter %s\n", __func__);
-
-	if( !skb_queue_empty(&xb->recv_queue) ) {
-		struct sk_buff* skb = skb_peek(&xb->recv_queue);
-
-		if(skb) {
-			struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
-			if(frm->type != XBEE_FRM_ATCMDR) {
-				skb_unlink(skb, &xb->recv_queue);
-				frame_recv_dispatch(xb, skb);
-			}
-			complete_all(&xb->cmd_resp_done);
-			reinit_completion(&xb->cmd_resp_done);
+	skb = skb_peek(&xb->recv_queue);
+	while(skb) {
+		struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
+		if(frm->type != XBEE_FRM_ATCMDR) {
+			struct sk_buff* consume = skb;
+			skb = skb_peek_next(consume, &xb->recv_queue);
+			skb_unlink(consume, &xb->recv_queue);
+			frame_recv_dispatch(xb, consume);
+		}
+		else {
+			xb->last_atresp = skb;
+			skb = skb_peek_next(skb, &xb->recv_queue);
 		}
 	}
-	pr_debug("exit  %s\n", __func__);
+	if(prev_atresp != xb->last_atresp) {
+		complete_all(&xb->cmd_resp_done);
+	}
 }
 
 static void send_work_fn(struct work_struct *param)
@@ -2164,6 +2160,8 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	xbdev->recv_buf = dev_alloc_skb(128);
 	xbdev->frameid = 1; // Device does not respond if zero.
 	
+	xbdev->last_atresp = NULL;
+
 	skb_queue_head_init(&xbdev->recv_queue);
 	skb_queue_head_init(&xbdev->send_queue);
 

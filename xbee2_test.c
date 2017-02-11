@@ -615,7 +615,7 @@ static struct modtest_result frame_enqueue_send_and_recv_vr(void* arg) {
 	FAIL_IF_NOT_EQ(0, xbdev->recv_buf->len);
 
 	xb_send(xbdev);
-	skb = xb_recv(xbdev, 1);
+	skb = xb_recv(xbdev, 1, 1000);
 
 	FAIL_IF_NULL(skb);
 
