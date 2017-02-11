@@ -53,6 +53,7 @@ struct xb_device {
 	unsigned short firmware_version;
 	struct workqueue_struct    *send_workq;
 	struct workqueue_struct    *recv_workq;
+	struct workqueue_struct    *init_workq;
 
 	struct xb_work send_work;
 	struct xb_work recv_work;
@@ -738,7 +739,6 @@ static void frame_recv_mstat(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_mstat* mstat = (struct xb_frame_mstat*)skb->data;
 	complete_all(&xbdev->modem_status_receive);
-	reinit_completion(&xbdev->modem_status_receive);
 	pr_debug("MSTA: status=%d\n", mstat->status);
 }
 
@@ -2071,7 +2071,6 @@ static void send_work_fn(struct work_struct *param)
 	send_count = xb_send_queue(xb);
 
 	complete_all(&xb->send_done);
-	reinit_completion(&xb->send_done);
 }
 
 static void init_work_fn(struct work_struct *param)
@@ -2088,7 +2087,12 @@ static void init_work_fn(struct work_struct *param)
 
 	xb_enqueue_send_at(xbdev, XBEE_AT_FR, "", 0);
 	xb_send(xbdev);
-	wait_for_completion_timeout(&xbdev->modem_status_receive, msecs_to_jiffies(500) );
+	pr_debug("wait_for_completion_timeout %s\n", __func__);
+	err = wait_for_completion_timeout(&xbdev->modem_status_receive, msecs_to_jiffies(3000) );
+	pr_debug("exit wait_for_completion_timeout %s\n", __func__);
+	if(err == 0) {
+		pr_debug("%s: timeout %d\n", __func__, err);
+	}
 
 	xbee_read_config(xbdev);
 	xbee_set_supported(xbdev);
@@ -2103,7 +2107,7 @@ static void init_work_fn(struct work_struct *param)
 	INIT_MODTEST(xbdev);
 	RUN_MODTEST(xbdev);
 #endif
-
+	destroy_workqueue(xbdev->init_workq);
 	return;
 
 err:
@@ -2170,12 +2174,13 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	init_completion(&xbdev->modem_status_receive);
 	xbdev->send_workq = create_workqueue("send_workq");
 	xbdev->recv_workq = create_workqueue("recv_workq");
+	xbdev->init_workq = create_workqueue("init_workq");
 	xbdev->send_work.xb = xbdev;
 	xbdev->recv_work.xb = xbdev;
 	xbdev->init_work.xb = xbdev;
 	//INIT_WORK( (struct work_struct*)&xbdev->send_work.work, send_work_fn);
 	INIT_WORK( (struct work_struct*)&xbdev->init_work.work, init_work_fn);
-	err = queue_work(xbdev->recv_workq, (struct work_struct*)&xbdev->init_work.work);
+	err = queue_work(xbdev->init_workq, (struct work_struct*)&xbdev->init_work.work);
 
 	return 0;
 /*

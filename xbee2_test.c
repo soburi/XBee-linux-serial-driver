@@ -354,6 +354,24 @@ static struct modtest_result frame_verify_valid_example(void* arg) {
 	TEST_SUCCESS();
 }
 
+#define TEST125 frame_verify_modem_status
+static struct modtest_result frame_verify_modem_status(void* arg) {
+	int ret = 0;
+	const char buf[] = { 0x7E, 0x00, 0x02, 0x8A, 0x01, 0x74 };
+	const int count = 6;
+
+	struct xb_device* xbdev = (struct xb_device*)arg;
+
+	unsigned char* tail = skb_put(xbdev->recv_buf, count);
+	memcpy(tail, buf, count);
+
+	ret = frame_verify(xbdev->recv_buf);
+
+	FAIL_IF_NOT_EQ(6, ret);
+
+	TEST_SUCCESS();
+}
+
 //TODO frame_put_received_data
 
 #define TEST26 frame_enqueue_received_zerobyte
