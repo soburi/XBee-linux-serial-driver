@@ -28,9 +28,7 @@
 
 #define XBEE802154_MAGIC 0x8BEE
 
-/*********************************************************************/
-/* privid for wpan_phys to determine whether they belong to us or not */
-const void *const xbee_wpan_phy_privid = &xbee_wpan_phy_privid;
+static const void *const xbee_wpan_phy_privid = &xbee_wpan_phy_privid;
 
 struct xb_device;
 struct xb_work {
@@ -39,20 +37,19 @@ struct xb_work {
 };
 
 struct xb_device {
-	//struct ieee802154_hw hw;
 	struct tty_struct *tty;
+	struct device *parent;
+	struct net_device* dev;
+	struct wpan_phy* phy;
 
 	struct completion cmd_resp_done;
 	struct completion send_done;
 	struct completion modem_status_receive;
-	uint8_t wait_frameid;
 
 	struct sk_buff_head recv_queue;
 	struct sk_buff_head send_queue;
 	struct sk_buff* recv_buf;
 
-	uint8_t frameid;
-	unsigned short firmware_version;
 	struct workqueue_struct    *send_workq;
 	struct workqueue_struct    *recv_workq;
 	struct workqueue_struct    *init_workq;
@@ -63,15 +60,10 @@ struct xb_device {
 
 	struct mutex queue_mutex;
 
-	struct net_device* dev;
-	struct wpan_phy* phy;
-	
-	struct sk_buff* last_atresp;
-
-	struct  device *parent;
-	int     extra_tx_headroom;
-
+	uint8_t frameid;
 	uint8_t api;
+	struct sk_buff* last_atresp;
+	unsigned short firmware_version;
 
 	uint16_t magic;
 
@@ -79,82 +71,6 @@ struct xb_device {
 	DECL_MODTEST_STRUCT();
 #endif
 };
-
-static void pr_wpan_phy_supported(struct wpan_phy* phy)
-{
-	struct wpan_phy_supported *supported = &phy->supported;
-	u32 *channels = supported->channels;
-	pr_debug("wpan_phy=%p {\n", phy);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[0], channels[1], channels[2], channels[3]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[4], channels[5], channels[6], channels[0]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[8], channels[9], channels[10], channels[11]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[12], channels[13], channels[14], channels[15]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[16], channels[17], channels[18], channels[19]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[20], channels[21], channels[22], channels[23]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[24], channels[25], channels[26], channels[27]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[28], channels[29], channels[30], channels[31]);
-	pr_debug("            cca_modes = %u\n", supported->cca_modes);
-	pr_debug("             cca_opts = %u\n", supported->cca_opts);
-	pr_debug("              iftypes = %u\n", supported->iftypes);
-	pr_debug("                  lbt = %u\n", supported->lbt);
-	pr_debug("            min_minbe = %u\n", supported->min_minbe);
-	pr_debug("            max_minbe = %u\n", supported->max_minbe);
-	pr_debug("            min_maxbe = %u\n", supported->min_maxbe);
-	pr_debug("            max_maxbe = %u\n", supported->max_maxbe);
-	pr_debug("    min_csma_backoffs = %u\n", supported->min_csma_backoffs);
-	pr_debug("    max_csma_backoffs = %u\n", supported->max_csma_backoffs);
-	pr_debug("    min_frame_retries = %u\n", supported->min_frame_retries);
-	pr_debug("    max_frame_retries = %u\n", supported->max_frame_retries);
-	pr_debug("       tx_powers_size = %lu\n", supported->tx_powers_size);
-	pr_debug("   cca_ed_levels_size = %lu\n", supported->cca_ed_levels_size);
-	pr_debug("}\n");
-
-//const s32 *tx_powers, *cca_ed_levels;
-}
-static void pr_wpan_phy(struct wpan_phy* phy)
-{
-	pr_debug("wpan_phy=%p {\n", phy);
-	pr_debug("               privid = %p\n", phy->privid);
-	pr_debug("                flags = %d\n", phy->flags);
-	pr_debug("      current_channel = %d\n", phy->current_channel);
-	pr_debug("         current_page = %d\n", phy->current_page);
-	pr_debug("       transmit_power = %d\n", phy->transmit_power);
-	pr_debug("             cca.mode = %d\n", phy->cca.mode);
-	pr_debug("              cca.opt = %d\n", phy->cca.opt);
-	pr_debug("   perm_extended_addr = %016llx\n", phy->perm_extended_addr);
-	pr_debug("         cca_ed_level = %d\n", phy->cca_ed_level);
-	pr_debug("      symbol_duration = %u\n", phy->symbol_duration);
-	pr_debug("          lifs_period = %u\n", phy->lifs_period);
-	pr_debug("          sifs_period = %u\n", phy->sifs_period);
-	//pr_debug("                 _net = %p\n", phy->_net->net);
-	pr_debug("                 priv = %p\n", phy->priv);
-	pr_debug("}\n");
-//struct wpan_phy_supported supported;
-//struct device dev;
-}
-static void pr_wpan_dev(struct wpan_dev* dev)
-{
-	pr_debug("wpan_dev=%p {\n", dev);
-	pr_debug("            wpan_phy = %p\n", dev->wpan_phy);
-	pr_debug("              iftype = %d\n", dev->iftype);
-	pr_debug("              netdev = %p\n", dev->netdev);
-	pr_debug("          lowpan_dev = %p\n", dev->lowpan_dev);
-	pr_debug("          identifier = %x\n", dev->identifier);
-	pr_debug("              pan_id = %04x\n", dev->pan_id);
-	pr_debug("          short_addr = %04x\n", dev->short_addr);
-	pr_debug("       extended_addr = %016llx\n", dev->extended_addr);
-	pr_debug("                 bsn = %u\n", dev->bsn.counter);
-	pr_debug("                 dsn = %u\n", dev->dsn.counter);
-	pr_debug("              min_be = %u\n", dev->min_be);
-	pr_debug("              max_be = %u\n", dev->max_be);
-	pr_debug("        csma_retries = %u\n", dev->csma_retries);
-	pr_debug("       frame_retries = %d\n", dev->frame_retries);
-	pr_debug("                 lbt = %u\n", dev->lbt);
-	pr_debug("    promiscuous_mode = %d\n", dev->promiscuous_mode);
-	pr_debug("              ackreq = %d\n", dev->ackreq);
-	pr_debug("}\n");
-}
-
 
 struct xbee_sub_if_data {
 	struct list_head list; /* the ieee802154_priv->slaves list */
@@ -164,13 +80,13 @@ struct xbee_sub_if_data {
 	struct xb_device* local;
 	struct net_device *dev;
 
-	unsigned long state;
-	char name[IFNAMSIZ];
+	//unsigned long state;
+	//char name[IFNAMSIZ];
 
 	/* protects sec from concurrent access by netlink. access by
 	* encrypt/decrypt/header_create safe without additional protection.
 	*/
-	struct mutex sec_mtx;
+	//struct mutex sec_mtx;
 
 	//struct mac802154_llsec sec;
 };
@@ -349,6 +265,82 @@ enum {
 	XBEE_ATCMDR_INVALID_COMMAND = 2,
 	XBEE_ATCMDR_INVALID_PARAMETER = 3,
 };
+
+static void pr_wpan_phy_supported(struct wpan_phy* phy)
+{
+	struct wpan_phy_supported *supported = &phy->supported;
+	u32 *channels = supported->channels;
+	pr_debug("wpan_phy=%p {\n", phy);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[0], channels[1], channels[2], channels[3]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[4], channels[5], channels[6], channels[0]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[8], channels[9], channels[10], channels[11]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[12], channels[13], channels[14], channels[15]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[16], channels[17], channels[18], channels[19]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[20], channels[21], channels[22], channels[23]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[24], channels[25], channels[26], channels[27]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[28], channels[29], channels[30], channels[31]);
+	pr_debug("            cca_modes = %u\n", supported->cca_modes);
+	pr_debug("             cca_opts = %u\n", supported->cca_opts);
+	pr_debug("              iftypes = %u\n", supported->iftypes);
+	pr_debug("                  lbt = %u\n", supported->lbt);
+	pr_debug("            min_minbe = %u\n", supported->min_minbe);
+	pr_debug("            max_minbe = %u\n", supported->max_minbe);
+	pr_debug("            min_maxbe = %u\n", supported->min_maxbe);
+	pr_debug("            max_maxbe = %u\n", supported->max_maxbe);
+	pr_debug("    min_csma_backoffs = %u\n", supported->min_csma_backoffs);
+	pr_debug("    max_csma_backoffs = %u\n", supported->max_csma_backoffs);
+	pr_debug("    min_frame_retries = %u\n", supported->min_frame_retries);
+	pr_debug("    max_frame_retries = %u\n", supported->max_frame_retries);
+	pr_debug("       tx_powers_size = %lu\n", supported->tx_powers_size);
+	pr_debug("   cca_ed_levels_size = %lu\n", supported->cca_ed_levels_size);
+	pr_debug("}\n");
+
+//const s32 *tx_powers, *cca_ed_levels;
+}
+static void pr_wpan_phy(struct wpan_phy* phy)
+{
+	pr_debug("wpan_phy=%p {\n", phy);
+	pr_debug("               privid = %p\n", phy->privid);
+	pr_debug("                flags = %d\n", phy->flags);
+	pr_debug("      current_channel = %d\n", phy->current_channel);
+	pr_debug("         current_page = %d\n", phy->current_page);
+	pr_debug("       transmit_power = %d\n", phy->transmit_power);
+	pr_debug("             cca.mode = %d\n", phy->cca.mode);
+	pr_debug("              cca.opt = %d\n", phy->cca.opt);
+	pr_debug("   perm_extended_addr = %016llx\n", phy->perm_extended_addr);
+	pr_debug("         cca_ed_level = %d\n", phy->cca_ed_level);
+	pr_debug("      symbol_duration = %u\n", phy->symbol_duration);
+	pr_debug("          lifs_period = %u\n", phy->lifs_period);
+	pr_debug("          sifs_period = %u\n", phy->sifs_period);
+	//pr_debug("                 _net = %p\n", phy->_net->net);
+	pr_debug("                 priv = %p\n", phy->priv);
+	pr_debug("}\n");
+//struct wpan_phy_supported supported;
+//struct device dev;
+}
+static void pr_wpan_dev(struct wpan_dev* dev)
+{
+	pr_debug("wpan_dev=%p {\n", dev);
+	pr_debug("            wpan_phy = %p\n", dev->wpan_phy);
+	pr_debug("              iftype = %d\n", dev->iftype);
+	pr_debug("              netdev = %p\n", dev->netdev);
+	pr_debug("          lowpan_dev = %p\n", dev->lowpan_dev);
+	pr_debug("          identifier = %x\n", dev->identifier);
+	pr_debug("              pan_id = %04x\n", dev->pan_id);
+	pr_debug("          short_addr = %04x\n", dev->short_addr);
+	pr_debug("       extended_addr = %016llx\n", dev->extended_addr);
+	pr_debug("                 bsn = %u\n", dev->bsn.counter);
+	pr_debug("                 dsn = %u\n", dev->dsn.counter);
+	pr_debug("              min_be = %u\n", dev->min_be);
+	pr_debug("              max_be = %u\n", dev->max_be);
+	pr_debug("        csma_retries = %u\n", dev->csma_retries);
+	pr_debug("       frame_retries = %d\n", dev->frame_retries);
+	pr_debug("                 lbt = %u\n", dev->lbt);
+	pr_debug("    promiscuous_mode = %d\n", dev->promiscuous_mode);
+	pr_debug("              ackreq = %d\n", dev->ackreq);
+	pr_debug("}\n");
+}
+
 
 static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t len)
 {
@@ -854,21 +846,6 @@ static int xbee_set_param(struct xb_device *xb, uint16_t atcmd, const uint8_t* b
 }
 
 
-#if 0
-static int xbee_software_reset(struct xb_device *xb)
-{
-	pr_debug("%s\n", __func__);
-	return xbee_set_param(xb, XBEE_AT_FR, "", 0);
-}
-
-static int xbee_restore_defaults(struct xb_device *xb)
-{
-	pr_debug("%s\n", __func__);
-	return xbee_set_param(xb, XBEE_AT_RE, "", 0);
-}
-#endif
-
-
 static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
 {
 	u8 ch = channel;
@@ -1066,28 +1043,14 @@ static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_b
 
 static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
 {
-	u8 rr = max_csma_backoffs;
-	pr_debug("%s\n", __func__);
-	// not supported RR on 802.15.4 mode
-	return xbee_set_param(xb, XBEE_AT_RR, &rr, sizeof(rr) );
+	return -EOPNOTSUPP;
 }
-
 #if 0
-// not supported
 static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoffs)
 {
-	int err = -EINVAL;
-	u8 rr = 0;
-	err = xbee_get_param(xb, XBEE_AT_RR, &rr, sizeof(rr) );
-
-	if(err) return err;
-
-	if(max_csma_backoffs) *max_csma_backoffs = rr;
-
-	return 0;
+	return -EOPNOTSUPP;
 }
 #endif
-
 static int xbee_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
 {
 	return -EOPNOTSUPP;
@@ -1096,6 +1059,7 @@ static int xbee_set_lbt_mode(struct xb_device *xb, bool mode)
 {
 	return -EOPNOTSUPP;
 }
+
 static int xbee_set_ackreq_default(struct xb_device *xb, bool ackreq)
 {
 	u8 mm = ackreq ? 2 : 1;
@@ -1410,21 +1374,23 @@ static void xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_m
 	return;
 }
 
-//TODO
 static int xbee_ndo_open(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
 	ASSERT_RTNL();
 
+	rcu_read_lock();
 	netif_start_queue(dev);
+	rcu_read_unlock();
 	return 0;
 }
 
-//TODO
 static int xbee_ndo_stop(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
+	rcu_read_lock();
 	netif_stop_queue(dev);
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -1550,19 +1516,30 @@ static void xbee_cfg802154_del_virtual_intf_deprecated(struct wpan_phy *wpan_phy
 {
 	pr_debug("%s\n", __func__);
 }
-//TODO
+
 static int xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 {
+	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
+	rcu_read_lock();
+	netif_stop_queue(xb->dev);
+	rcu_read_unlock();
 	synchronize_net();
 	return 0;
 }
-//TODO
+
 static int xbee_cfg802154_resume(struct wpan_phy *wpan_phy)
 {
+	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
+
+	rcu_read_lock();
+	netif_wake_queue(xb->dev);
+	rcu_read_unlock();
+
 	return 0;
 }
+
 // should NOT impl it.
 static int xbee_cfg802154_add_virtual_intf(struct wpan_phy *wpan_phy,
                                     const char *name,
@@ -1778,7 +1755,6 @@ static struct xb_device* xbee_alloc_device(size_t priv_data_len)
 	phy->privid = xbee_wpan_phy_privid;
 	pr_debug("wpan_phy_priv\n");
 	local = wpan_phy_priv(phy);
-	local->extra_tx_headroom = 0;
 
 	local->phy = phy;
 	ndev = xbee_alloc_netdev(local);
@@ -1946,24 +1922,22 @@ static void xbee_read_config(struct xb_device* local)
 	wpan_phy->sifs_period = IEEE802154_SIFS_PERIOD *
 				wpan_phy->symbol_duration;
 
-	/* only 2.4 GHz band */
-	wpan_phy->flags = WPAN_PHY_FLAG_TXPOWER |
-			WPAN_PHY_FLAG_CCA_ED_LEVEL |
-			WPAN_PHY_FLAG_CCA_MODE;
-
 	wpan_dev->min_be = min_be;
 	wpan_dev->max_be = max_be;
 	wpan_dev->pan_id = pan_id;
 	wpan_dev->short_addr = short_addr;
 	wpan_dev->extended_addr = extended_addr;
 	wpan_dev->ackreq = ackreq;
+
 	wpan_dev->csma_retries = 0;
 	wpan_dev->frame_retries = 0;
 	wpan_dev->promiscuous_mode = false;
 	wpan_dev->iftype = NL802154_IFTYPE_NODE;
+	wpan_phy->flags = WPAN_PHY_FLAG_TXPOWER |
+			WPAN_PHY_FLAG_CCA_ED_LEVEL |
+			WPAN_PHY_FLAG_CCA_MODE;
 }
 
-//TODO
 static void xbee_setup(struct xb_device* local)
 {
 	struct net_device* ndev = local->dev;
@@ -1990,10 +1964,6 @@ static void xbee_setup(struct xb_device* local)
 	sdata->dev->destructor = NULL;//mac802154_wpan_free;
 	sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
 	sdata->wpan_dev.header_ops = &xbee_wpan_dev_header_ops;
-
-	pr_wpan_phy(local->phy);
-	pr_wpan_phy_supported(local->phy);
-	pr_wpan_dev(&sdata->wpan_dev);
 }
 
 //TODO
@@ -2109,7 +2079,7 @@ static void init_work_fn(struct work_struct *param)
 	}
 
 	SET_NETDEV_DEV(xbdev->dev, &xbdev->phy->dev);
-	memcpy(sdata->name, xbdev->dev->name, IFNAMSIZ);
+	//memcpy(sdata->name, xbdev->dev->name, IFNAMSIZ);
 	sdata->dev = xbdev->dev;
 	sdata->wpan_dev.wpan_phy = xbdev->phy;
 	sdata->local = xbdev;
@@ -2117,6 +2087,11 @@ static void init_work_fn(struct work_struct *param)
 	xbee_read_config(xbdev);
 	xbee_set_supported(xbdev);
 	xbee_setup(xbdev);
+
+	pr_wpan_phy(xbdev->phy);
+	pr_wpan_phy_supported(xbdev->phy);
+	pr_wpan_dev(&sdata->wpan_dev);
+
 	err = xbee_register_device(xbdev);
 	if (err) {
 		printk(KERN_ERR "%s: device register failed\n", __func__);
