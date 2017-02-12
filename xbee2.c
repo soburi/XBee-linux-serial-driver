@@ -562,7 +562,7 @@ static void xbee_rx(struct xb_device *local, struct sk_buff *skb, u8 lqi)
 	mac_cb(skb)->lqi = lqi;
 	skb->pkt_type = 0;
 
-	WARN_ON_ONCE(softirq_count() == 0);
+	//WARN_ON_ONCE(softirq_count() == 0);
 
 	rcu_read_lock();
 
@@ -1115,15 +1115,47 @@ static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short at
 
 static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 {
+	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct xb_frame_rx64* rx64 = (struct xb_frame_rx64*)skb->data;
+	struct ieee802154_hdr hdr = {};
+	int hlen = 0;
+
 	pr_debug("RX64: addr=%016llx rssi=%d options=%x\n", rx64->srcaddr, rx64->rssi, rx64->options);
+	//hdr.fc = 0;
+	hdr.seq = 0; //XBee doesn't tell seqno.
+	hdr.source.mode = IEEE802154_ADDR_LONG;
+	ieee802154_be64_to_le64(&hdr.dest.extended_addr, &rx64->srcaddr);
+	hdr.source.pan_id = (rx64->options & 0x2) ? IEEE802154_PANID_BROADCAST : wpan_dev->pan_id;
+	hdr.dest.mode = (rx64->options & 0x1) ? IEEE802154_ADDR_SHORT : IEEE802154_ADDR_LONG;
+	hdr.dest.short_addr = IEEE802154_ADDR_BROADCAST;
+	hdr.dest.extended_addr = wpan_dev->extended_addr;
+	hdr.dest.pan_id = (rx64->options & 0x2) ? IEEE802154_PANID_BROADCAST : wpan_dev->pan_id;
+
+
+	hlen = ieee802154_hdr_push(skb, &hdr);
 	xbee_rx(xbdev, skb, rx64->rssi);
 }
 
 static void frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
 {
+	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct xb_frame_rx16* rx16 = (struct xb_frame_rx16*)skb->data;
+	struct ieee802154_hdr hdr = {};
+	int hlen = 0;
+
 	pr_debug("RX16: addr=%04x rssi=%d options=%x\n", rx16->srcaddr, rx16->rssi, rx16->options);
+	//hdr.fc = 0;
+	hdr.seq = 0; //XBee doesn't tell seqno.
+	hdr.source.mode = IEEE802154_ADDR_SHORT;
+	hdr.source.short_addr = htons(rx16->srcaddr);
+	hdr.source.pan_id = (rx16->options & 0x2) ? IEEE802154_PANID_BROADCAST : wpan_dev->pan_id;
+	hdr.dest.mode = IEEE802154_ADDR_SHORT;
+	hdr.dest.short_addr = (rx16->options & 0x1) ? IEEE802154_ADDR_BROADCAST : htons(rx16->srcaddr);
+	hdr.dest.pan_id = (rx16->options & 0x2) ? IEEE802154_PANID_BROADCAST : wpan_dev->pan_id;
+
+	hlen = ieee802154_hdr_push(skb, &hdr);
 	xbee_rx(xbdev, skb, rx16->rssi);
 }
 
