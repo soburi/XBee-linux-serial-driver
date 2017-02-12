@@ -740,7 +740,7 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 		unsigned char* append = NULL;
 		struct sk_buff* newframe = NULL;
 
-		newframe = dev_alloc_skb(128);
+		newframe = dev_alloc_skb(IEEE802154_MTU);
 
 		append = skb_put(newframe, verified_len);
 		memcpy(append, recv_buf->data, verified_len);
@@ -2287,7 +2287,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	tty_driver_flush_buffer(tty);
 
 
-	xbdev->recv_buf = dev_alloc_skb(128);
+	xbdev->recv_buf = dev_alloc_skb(IEEE802154_MTU);
 	xbdev->frameid = 1; // Device does not respond if zero.
 	
 	xbdev->last_atresp = NULL;
