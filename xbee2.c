@@ -876,6 +876,12 @@ static int frame_escape(struct sk_buff* frame)
 	return 0;
 }
 
+static void frame_unescape(struct sk_buff* recv_buf)
+{
+	int unesc_len = 0;
+	unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
+	skb_trim(recv_buf, unesc_len);
+}
 
 static int frame_verify(struct sk_buff* recv_buf)
 {
@@ -921,16 +927,13 @@ static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char
 	}
 }
 
-static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf, bool escape)
+static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf, bool apiv2)
 {
 	int frame_count = 0;
-	int unesc_len = 0;
 	int ret = 0;
 
-	if(escape) {
-		unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
-		skb_trim(recv_buf, unesc_len);
-	}
+	if(apiv2)
+		frame_unescape(recv_buf);
 
 	while ( (ret = frame_verify(recv_buf)) > 0) {
 		int verified_len = ret;
