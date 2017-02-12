@@ -482,6 +482,32 @@ static size_t buffer_escape_copy(unsigned char* dst, const size_t dst_len, const
 	return len+escape_count;
 }
 
+static int buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
+{
+	int i=0;
+	size_t tail_ptr=buf_len;
+
+	for(i=data_len-1; i>0; i--) {
+		if((buf[i] == XBEE_DELIMITER ||
+		    buf[i] == XBEE_ESCAPE ||
+		    buf[i] == XBEE_XON ||
+		    buf[i] == XBEE_XOFF) )
+		{
+			buf[--tail_ptr] = (buf[i] ^ XBEE_ESCMASK);
+			buf[--tail_ptr] = XBEE_ESCAPE;
+		}
+		else {
+			buf[--tail_ptr] = buf[i];
+		}
+		
+		if(tail_ptr < i) {
+			return -1;
+		}
+	}
+
+	return buf_len - tail_ptr;
+}
+
 static struct sk_buff* frame_new(size_t paylen, uint8_t type)
 {
 	struct sk_buff* new_skb = NULL;
@@ -513,6 +539,40 @@ static unsigned char frame_calc_checksum(struct sk_buff* frame)
 {
 	return buffer_calc_checksum(frame_payload_buffer(frame), frame_payload_length(frame) );
 }
+
+static void frame_put_checksum(struct sk_buff* frame)
+{
+	uint8_t csum = frame_calc_checksum(frame);
+	uint8_t* putbuf = skb_put(frame, 1);
+	*putbuf = csum;
+}
+
+static int frame_escape(struct sk_buff* frame)
+{
+	size_t esclen = 0;
+	size_t datalen = 0;
+	uint8_t csum = 0;
+
+	if(frame->len < 4) return -1;
+	
+	datalen = frame_payload_length(frame) + 3;
+	esclen = buffer_escaped_len(frame->data, datalen);
+
+	pr_debug("frame->len %d", frame->len);
+	pr_debug("data len %lu", datalen);
+	pr_debug("escaped len %lu", esclen);
+
+	if(esclen > datalen) {
+		csum = frame->data[datalen];
+		pr_debug("csum %x", csum);
+		skb_put(frame, esclen - datalen);
+		buffer_escape(frame->data, datalen, esclen);
+		frame->data[esclen] = csum;
+	}
+
+	return 0;
+}
+
 
 static int frame_verify(struct sk_buff* recv_buf)
 {
