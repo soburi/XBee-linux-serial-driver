@@ -266,6 +266,40 @@ enum {
 	XBEE_ATCMDR_INVALID_PARAMETER = 3,
 };
 
+static void pr_ieee802154_addr(const char *name, const struct ieee802154_addr *addr)
+{
+	if (!addr) {
+		pr_debug("%s address is null\n", name);
+		return;
+	}
+
+
+	if (addr->mode == IEEE802154_ADDR_NONE)
+		pr_debug("%s not present\n", name);
+
+	pr_debug("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
+	if (addr->mode == IEEE802154_ADDR_SHORT) {
+		pr_debug("%s is short: %04x\n", name,
+				le16_to_cpu(addr->short_addr));
+	} else {
+		u64 hw = swab64((__force u64)addr->extended_addr);
+
+		pr_debug("%s is hardware: %8phC\n", name, &hw);
+	}
+}
+
+static void pr_ieee802154_hdr(const struct ieee802154_hdr *hdr)
+{
+	struct ieee802154_hdr_fc fc = hdr->fc;
+
+	pr_debug("fc: intra_pan:%d ackreq:%x pending:%d secen:%x type:%x saddr_mode:%x version:%x daddr_mode:%x",
+			fc.intra_pan, fc.ack_request, fc.frame_pending, fc.security_enabled,
+			fc.type, fc.source_addr_mode, fc.version, fc.dest_addr_mode);
+
+	pr_debug("seq %d", hdr->seq);
+	pr_ieee802154_addr("src", &hdr->source);
+	pr_ieee802154_addr("dst", &hdr->dest);
+}
 static void pr_wpan_phy_supported(struct wpan_phy* phy)
 {
 	struct wpan_phy_supported *supported = &phy->supported;
