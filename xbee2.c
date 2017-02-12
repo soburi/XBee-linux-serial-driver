@@ -1560,7 +1560,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 
 	if(hdr.dest.pan_id != wpan_dev->pan_id) {
 		pr_debug("%s different pan_id %x:%x\n", __func__, hdr.dest.pan_id, wpan_dev->pan_id);
-		//goto err_xmit;
+		goto err_xmit;
 	}
 
 	if(hdr.dest.mode == IEEE802154_ADDR_SHORT) {
@@ -1601,9 +1601,9 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	pr_debug("%s\n", __func__);
 	return NETDEV_TX_OK;
 
-//err_xmit:
-//	kfree_skb(skb);
-//	return NETDEV_TX_OK;
+err_xmit:
+	kfree_skb(skb);
+	return NETDEV_TX_OK;
 }
 
 //same as mac802154
