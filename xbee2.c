@@ -455,7 +455,7 @@ static size_t buffer_escaped_len(const unsigned char* buf, const size_t len)
 
 	return len+escape_count;
 }
-
+/*
 static size_t buffer_escape_copy(unsigned char* dst, const size_t dst_len, const unsigned char* buf, const size_t len)
 {
 	int i=0;
@@ -481,7 +481,7 @@ static size_t buffer_escape_copy(unsigned char* dst, const size_t dst_len, const
 
 	return len+escape_count;
 }
-
+*/
 static int buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
 {
 	int i=0;
@@ -726,32 +726,26 @@ static int xb_send_queue(struct xb_device* xb)
 {
 	struct tty_struct* tty = xb->tty;
 	int send_count = 0;
-	size_t esclen = 0;
 
 	mutex_lock(&xb->queue_mutex);
 
 	while( !skb_queue_empty(&xb->send_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
-		struct sk_buff* txskb = NULL;
+
+		if(xb->api == 2) {
+			frame_escape(skb);
+		}
 
 		print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
 
-		txskb = pskb_copy(skb, GFP_ATOMIC);
-		if(xb->api == 2) {
-			esclen = buffer_escaped_len(skb->data, skb->len);
-			skb_put(txskb, esclen - skb->len);
-			buffer_escape_copy(txskb->data, txskb->len, skb->data, skb->len);
-		}
 		/*
 		if (newskb)
 			xbee_rx_irqsafe(xbdev, newskb, 0xcc);
 		*/
 
-
-		tty->ops->write(tty, txskb->data, txskb->len);
+		tty->ops->write(tty, skb->data, skb->len);
 		tty_driver_flush_buffer(tty);
 		kfree_skb(skb);
-		kfree_skb(txskb);
 
 		send_count++;
 	}
