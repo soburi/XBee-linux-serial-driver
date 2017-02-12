@@ -52,22 +52,48 @@ static struct modtest_result buffer_escaped_len_exampe(void* arg) {
 	TEST_SUCCESS();
 }
 
-#define TEST5 buffer_escape_len_exampe
-static struct modtest_result buffer_escape_len_exampe(void* arg) {
-	const char buf[] =    { 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB };
-	const char escbuf[] = { 0x7E, 0x00, 0x02, 0x23, 0x7D, 0x31, 0xCB };
+#define TEST5 buffer_escape_exampe
+static struct modtest_result buffer_escape_exampe(void* arg) {
+	char buf[] =		{ 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB, 0x00 };
+	const char escbuf[] =	{ 0x7E, 0x00, 0x02, 0x23, 0x7D, 0x31, 0xCB };
 	size_t esclen = 0;
-	size_t writelen = 0;
+	int err;
 
-	char cpbuf[255] = {0};
+	//pr_debug("bufsize %lu", sizeof(buf) );
 
-	pr_debug("bufsize %lu", sizeof(buf) );
+	esclen = buffer_escaped_len(buf, 5);
+	err = buffer_escape(buf, 5, esclen);
 
-	esclen = buffer_escaped_len(buf, sizeof(buf) );
-	writelen = buffer_escape_copy(cpbuf, esclen, buf, sizeof(buf) );
+	print_hex_dump_bytes("buf: ", DUMP_PREFIX_NONE, buf, 6);
+	print_hex_dump_bytes("esc: ", DUMP_PREFIX_NONE, escbuf, 6);
 
-	FAIL_IF_NOT_EQ(sizeof(escbuf), writelen);
-	FAIL_IF_NOT_EQ(0, memcmp(escbuf, cpbuf, writelen) );
+	FAIL_IF_ERROR(err);
+	FAIL_IF_NOT_EQ(0, memcmp(escbuf, buf, esclen) );
+
+	TEST_SUCCESS();
+}
+
+#define TEST205 frame_escape_exampe
+static struct modtest_result frame_escape_exampe(void* arg) {
+	char buf[] =		{ 0x7E, 0x00, 0x02, 0x23, 0x11, 0xCB };
+	const char escbuf[] =	{ 0x7E, 0x00, 0x02, 0x23, 0x7D, 0x31, 0xCB };
+	size_t esclen = 0;
+	struct sk_buff* skb = NULL;
+
+	//pr_debug("bufsize %lu", sizeof(buf) );
+	
+	skb = dev_alloc_skb(sizeof(buf) );
+	skb_put(skb, sizeof(buf) );
+	memcpy(skb->data, buf, sizeof(buf) );
+
+	print_hex_dump_bytes("skb: ", DUMP_PREFIX_NONE, skb->data, skb->len);
+	frame_escape(skb);
+	print_hex_dump_bytes("skb: ", DUMP_PREFIX_NONE, skb->data, skb->len);
+	print_hex_dump_bytes("esc: ", DUMP_PREFIX_NONE, escbuf, sizeof(escbuf));
+
+	//FAIL_IF_ERROR(err);
+	FAIL_IF_NOT_EQ(sizeof(escbuf), skb->len);
+	FAIL_IF_NOT_EQ(0, memcmp(escbuf, skb->data, sizeof(escbuf)) );
 
 	TEST_SUCCESS();
 }
