@@ -591,6 +591,14 @@ static void xbee_rx(struct xb_device *local, struct sk_buff *skb, u8 lqi)
 	return;
 }
 
+static void extended_addr_hton(uint64_t* dst, uint64_t* src)
+{
+#ifndef __BIG_ENDIAN
+	ieee802154_be64_to_le64(dst, src);
+#else
+	memcpy(dst, src, sizeof(uint64_t) );
+#endif
+}
 
 static void pr_ieee802154_addr(const char *name, const struct ieee802154_addr *addr)
 {
@@ -1156,7 +1164,7 @@ static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 	hdr.fc.type = IEEE802154_FC_TYPE_DATA;
 	hdr.seq = 0; //XBee doesn't tell seqno.
 	hdr.source.mode = IEEE802154_ADDR_LONG;
-	ieee802154_be64_to_le64(&hdr.dest.extended_addr, &rx->srcaddr);
+	extended_addr_hton(&hdr.dest.extended_addr, &rx->srcaddr);
 	hdr.source.pan_id = (rx->options & 0x2) ? IEEE802154_PANID_BROADCAST : wpan_dev->pan_id;
 	hdr.dest.mode = (rx->options & 0x1) ? IEEE802154_ADDR_SHORT : IEEE802154_ADDR_LONG;
 	hdr.dest.short_addr = IEEE802154_ADDR_BROADCAST;
@@ -1559,7 +1567,7 @@ static int xbee_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
 
 	addr = ((__be64)belo << 32) | behi;
 
-	ieee802154_be64_to_le64(extended_addr, &addr);
+	extended_addr_hton(extended_addr, &addr);
 	
 	return 0;
 }
