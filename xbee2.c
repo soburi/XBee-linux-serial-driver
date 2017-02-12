@@ -1269,7 +1269,6 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
  * and net/mac802154/mac802154.h from linux-wsn.
  */
 
-//TODO may not have to impl it.
 static int xbee_wpan_dev_header_create(struct sk_buff *skb,
 				    struct net_device *dev,
 				    const struct ieee802154_addr *daddr,
@@ -1283,6 +1282,10 @@ static int xbee_wpan_dev_header_create(struct sk_buff *skb,
 	int hlen;
 
 	pr_debug("%s\n", __func__);
+	pr_ieee802154_addr("dst", daddr);
+	pr_ieee802154_addr("src", saddr);
+	print_hex_dump_bytes("chdr> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+	WARN_ON(true);
 
 	if (!daddr)
 		return -EINVAL;
@@ -1324,6 +1327,10 @@ static int xbee_wpan_dev_header_create(struct sk_buff *skb,
 	if (len > ieee802154_max_payload(&hdr))
 		return -EMSGSIZE;
 
+	print_hex_dump_bytes("  cb> ", DUMP_PREFIX_NONE, cb, sizeof(struct ieee802154_mac_cb));
+	print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
+	pr_ieee802154_hdr(&hdr);
+	print_hex_dump_bytes(" skb> ", DUMP_PREFIX_NONE, skb->data, skb->len);
 	return hlen;
 }
 
@@ -1496,15 +1503,48 @@ static int xbee_rx_irqsafe(struct xb_device *xbdev, struct sk_buff *skb, u8 lqi)
 static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct xb_device *xbdev = sdata->local;
-	struct ieee802154_mac_cb *cb = mac_cb(skb);
+	struct ieee802154_hdr hdr = {};
+	struct xb_frame_tx16* tx16 = NULL;
+	struct xb_frame_tx64* tx64 = NULL;
+	int hlen = 0;
+	//int esclen = 0;
 
-	pr_debug("CB: %04x:%016llx => %04x:%016llx lqi=%d, type=%d, ackreq=%d, sec=%d, sec_o=%d seclv=%d, seclv_o=%d\n",
-			cb->source.pan_id, cb->source.extended_addr, cb->dest.pan_id, cb->dest.extended_addr,
-			cb->lqi, cb->type, cb->ackreq, cb->secen, cb->secen_override,
-			cb->seclevel, cb->seclevel_override);
+	hlen = ieee802154_hdr_pull(skb, &hdr);
+
+	pr_ieee802154_hdr(&hdr);
+
+	print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
+
+	if(hdr.dest.pan_id != wpan_dev->pan_id) {
+		pr_debug("%s different pan_id %x:%x\n", __func__, hdr.dest.pan_id, wpan_dev->pan_id);
+		//goto err_xmit;
+	}
+
+	if(hdr.dest.mode == IEEE802154_ADDR_SHORT) {
+		tx16 = (struct xb_frame_tx16*) skb_push(skb, sizeof(struct xb_frame_tx16) );
+		tx16->hd.start_delimiter = XBEE_DELIMITER;
+		tx16->hd.length = htons(skb->len - 3);
+		tx16->hd.type = XBEE_FRM_TX16;
+		tx16->id = xb_frameid(xbdev);
+		tx16->destaddr = htons(hdr.dest.short_addr);
+		tx16->options = 0;
+	}
+	else {
+		tx64 = (struct xb_frame_tx64*) skb_push(skb, sizeof(struct xb_frame_tx64) );
+		tx64->hd.start_delimiter = XBEE_DELIMITER;
+		tx64->hd.length = htons(skb->len - 3);
+		tx64->hd.type = XBEE_FRM_TX64;
+		tx64->id = xb_frameid(xbdev);
+		ieee802154_le64_to_be64(&tx64->destaddr, &hdr.dest.extended_addr);
+		tx64->options = 0;
+	}
+
+	frame_put_checksum(skb);
+
 	print_hex_dump_bytes("xmit> ", DUMP_PREFIX_NONE, skb->data, skb->len);
-	
+
 	/* loopback test code */
 	/*
 	{
@@ -1515,6 +1555,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	*/
 
 	frame_enqueue_send(&xbdev->send_queue, skb);
+	xb_send(xbdev);
 
 	pr_debug("%s\n", __func__);
 	return NETDEV_TX_OK;
