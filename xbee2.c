@@ -266,6 +266,115 @@ enum {
 	XBEE_ATCMDR_INVALID_PARAMETER = 3,
 };
 
+#define ieee802154_sub_if_data xbee_sub_if_data
+
+static inline struct ieee802154_sub_if_data *
+IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
+static int mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
+					 struct ieee802154_hdr *hdr,
+					 const struct ieee802154_mac_cb *cb)
+{
+	return 0;
+}
+
+// copy from Linux/net/mac802154/iface.c
+static void ieee802154_if_setup(struct net_device *dev)
+{
+	dev->addr_len		= IEEE802154_EXTENDED_ADDR_LEN;
+	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
+
+	/* Let hard_header_len set to IEEE802154_MIN_HEADER_LEN. AF_PACKET
+	 * will not send frames without any payload, but ack frames
+	 * has no payload, so substract one that we can send a 3 bytes
+	 * frame. The xmit callback assumes at least a hard header where two
+	 * bytes fc and sequence field are set.
+	 */
+	dev->hard_header_len	= IEEE802154_MIN_HEADER_LEN - 1;
+	/* The auth_tag header is for security and places in private payload
+	 * room of mac frame which stucks between payload and FCS field.
+	 */
+	dev->needed_tailroom	= IEEE802154_MAX_AUTH_TAG_LEN +
+				  IEEE802154_FCS_LEN;
+	/* The mtu size is the payload without mac header in this case.
+	 * We have a dynamic length header with a minimum header length
+	 * which is hard_header_len. In this case we let mtu to the size
+	 * of maximum payload which is IEEE802154_MTU - IEEE802154_FCS_LEN -
+	 * hard_header_len. The FCS which is set by hardware or ndo_start_xmit
+	 * and the minimum mac header which can be evaluated inside driver
+	 * layer. The rest of mac header will be part of payload if greater
+	 * than hard_header_len.
+	 */
+	dev->mtu		= IEEE802154_MTU - IEEE802154_FCS_LEN -
+				  dev->hard_header_len;
+	dev->tx_queue_len	= 300;
+	dev->flags		= IFF_NOARP | IFF_BROADCAST;
+}
+
+// copy from Linux/net/mac802154/iface.c
+static int ieee802154_header_create(struct sk_buff *skb,
+				    struct net_device *dev,
+				    const struct ieee802154_addr *daddr,
+				    const struct ieee802154_addr *saddr,
+				    unsigned len)
+{
+	struct ieee802154_hdr hdr;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_mac_cb *cb = mac_cb(skb);
+	int hlen;
+
+	if (!daddr)
+		return -EINVAL;
+
+	memset(&hdr.fc, 0, sizeof(hdr.fc));
+	hdr.fc.type = cb->type;
+	hdr.fc.security_enabled = cb->secen;
+	hdr.fc.ack_request = cb->ackreq;
+	hdr.seq = atomic_inc_return(&dev->ieee802154_ptr->dsn) & 0xFF;
+
+	if (mac802154_set_header_security(sdata, &hdr, cb) < 0)
+		return -EINVAL;
+
+	if (!saddr) {
+		if (wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
+		    wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
+		    wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
+			hdr.source.mode = IEEE802154_ADDR_LONG;
+			hdr.source.extended_addr = wpan_dev->extended_addr;
+		} else {
+			hdr.source.mode = IEEE802154_ADDR_SHORT;
+			hdr.source.short_addr = wpan_dev->short_addr;
+		}
+
+		hdr.source.pan_id = wpan_dev->pan_id;
+	} else {
+		hdr.source = *(const struct ieee802154_addr *)saddr;
+	}
+
+	hdr.dest = *(const struct ieee802154_addr *)daddr;
+
+	hlen = ieee802154_hdr_push(skb, &hdr);
+	if (hlen < 0)
+		return -EINVAL;
+
+	skb_reset_mac_header(skb);
+	skb->mac_len = hlen;
+
+	if (len > ieee802154_max_payload(&hdr))
+		return -EMSGSIZE;
+
+	return hlen;
+}
+
+#undef ieee802154_sub_if_data
+
+
+
+
 static void pr_ieee802154_addr(const char *name, const struct ieee802154_addr *addr)
 {
 	if (!addr) {
@@ -1262,78 +1371,14 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 	}
 }
 
+
+
 /*
  * Callbacks from mac802154 to the driver. Must handle xmit(). 
  *
  * See net/mac802154/ieee802154_hw.c, include/net/mac802154.h,
  * and net/mac802154/mac802154.h from linux-wsn.
  */
-
-static int xbee_wpan_dev_header_create(struct sk_buff *skb,
-				    struct net_device *dev,
-				    const struct ieee802154_addr *daddr,
-				    const struct ieee802154_addr *saddr,
-				    unsigned len)
-{
-	struct ieee802154_hdr hdr;
-	struct xbee_sub_if_data *sdata = netdev_priv(dev);
-	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct ieee802154_mac_cb *cb = mac_cb(skb);
-	int hlen;
-
-	pr_debug("%s\n", __func__);
-	pr_ieee802154_addr("dst", daddr);
-	pr_ieee802154_addr("src", saddr);
-	print_hex_dump_bytes("chdr> ", DUMP_PREFIX_NONE, skb->data, skb->len);
-	WARN_ON(true);
-
-	if (!daddr)
-		return -EINVAL;
-
-	memset(&hdr.fc, 0, sizeof(hdr.fc));
-	hdr.fc.type = cb->type;
-	hdr.fc.security_enabled = cb->secen;
-	hdr.fc.ack_request = cb->ackreq;
-	hdr.seq = atomic_inc_return(&dev->ieee802154_ptr->dsn) & 0xFF;
-
-	//if (mac802154_set_header_security(sdata, &hdr, cb) < 0)
-	//	return -EINVAL;
-
-	if (!saddr) {
-		if (wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
-		    wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
-		    wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
-			hdr.source.mode = IEEE802154_ADDR_LONG;
-			hdr.source.extended_addr = wpan_dev->extended_addr;
-		} else {
-			hdr.source.mode = IEEE802154_ADDR_SHORT;
-			hdr.source.short_addr = wpan_dev->short_addr;
-		}
-
-		hdr.source.pan_id = wpan_dev->pan_id;
-	} else {
-		hdr.source = *(const struct ieee802154_addr *)saddr;
-	}
-
-	hdr.dest = *(const struct ieee802154_addr *)daddr;
-
-	hlen = ieee802154_hdr_push(skb, &hdr);
-	if (hlen < 0)
-		return -EINVAL;
-
-	skb_reset_mac_header(skb);
-	skb->mac_len = hlen;
-
-	if (len > ieee802154_max_payload(&hdr))
-		return -EMSGSIZE;
-
-	print_hex_dump_bytes("  cb> ", DUMP_PREFIX_NONE, cb, sizeof(struct ieee802154_mac_cb));
-	print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
-	pr_ieee802154_hdr(&hdr);
-	print_hex_dump_bytes(" skb> ", DUMP_PREFIX_NONE, skb->data, skb->len);
-	return hlen;
-}
-
 
 //TODO
 static int xbee_header_create(struct sk_buff *skb,
@@ -1769,7 +1814,7 @@ static int xbee_cfg802154_set_ackreq_default(struct wpan_phy *wpan_phy,
 }
 
 static const struct wpan_dev_header_ops xbee_wpan_dev_header_ops = {
-	.create					= xbee_wpan_dev_header_create, //**
+	.create					= ieee802154_header_create, //**
 };
 
 static const struct header_ops xbee_header_ops = {
@@ -1839,8 +1884,6 @@ static const struct cfg802154_ops xbee_cfg802154_ops = {
  * See Documentation/tty.txt for details.
  */
 
-
-static void ieee802154_if_setup(struct net_device *dev);
 
 static struct net_device* xbee_alloc_netdev(struct xb_device* local)
 {
@@ -2099,46 +2142,6 @@ static void xbee_setup(struct xb_device* local)
 	sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
 	sdata->wpan_dev.header_ops = &xbee_wpan_dev_header_ops;
 }
-
-//TODO
-static void ieee802154_if_setup(struct net_device *dev)
-{
-
-	dev->addr_len		= IEEE802154_EXTENDED_ADDR_LEN;
-	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
-
-	/* Let hard_header_len set to IEEE802154_MIN_HEADER_LEN. AF_PACKET
-	 * will not send frames without any payload, but ack frames
-	 * has no payload, so substract one that we can send a 3 bytes
-	 * frame. The xmit callback assumes at least a hard header where two
-	 * bytes fc and sequence field are set.
-	 */
-	dev->hard_header_len	= IEEE802154_MIN_HEADER_LEN - 1;
-	/* The auth_tag header is for security and places in private payload
-	 * room of mac frame which stucks between payload and FCS field.
-	 */
-	dev->needed_tailroom	= IEEE802154_MAX_AUTH_TAG_LEN +
-				  IEEE802154_FCS_LEN;
-	/* The mtu size is the payload without mac header in this case.
-	 * We have a dynamic length header with a minimum header length
-	 * which is hard_header_len. In this case we let mtu to the size
-	 * of maximum payload which is IEEE802154_MTU - IEEE802154_FCS_LEN -
-	 * hard_header_len. The FCS which is set by hardware or ndo_start_xmit
-	 * and the minimum mac header which can be evaluated inside driver
-	 * layer. The rest of mac header will be part of payload if greater
-	 * than hard_header_len.
-	 */
-	dev->mtu		= IEEE802154_MTU - IEEE802154_FCS_LEN -
-				  dev->hard_header_len;
-	dev->tx_queue_len	= 300;
-	dev->flags		= IFF_NOARP | IFF_BROADCAST;
-}
-
-
-
-
-
-
 
 
 
