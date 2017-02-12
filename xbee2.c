@@ -646,15 +646,20 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 	frame_enqueue_send(send_queue, newskb);
 }
 
-static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
+static uint8_t xb_frameid(struct xb_device* xb) 
 {
-	uint8_t ret = xb->frameid;
-	frame_enqueue_send_at(&xb->send_queue, atcmd, xb->frameid, buf, buflen);
 	xb->frameid++;
 	if(xb->frameid == 0) {
 		xb->frameid++;
 	}
-	return ret;
+	return xb->frameid;
+}
+
+static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
+{
+	uint8_t frameid = xb_frameid(xb);
+	frame_enqueue_send_at(&xb->send_queue, atcmd, frameid, buf, buflen);
+	return frameid;
 }
 
 static int xb_send_queue(struct xb_device* xb)
