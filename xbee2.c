@@ -1555,8 +1555,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	hlen = ieee802154_hdr_pull(skb, &hdr);
 
 	pr_ieee802154_hdr(&hdr);
-
-	print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
+	//print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
 
 	if(hdr.dest.pan_id != wpan_dev->pan_id) {
 		pr_debug("%s different pan_id %x:%x\n", __func__, hdr.dest.pan_id, wpan_dev->pan_id);
@@ -1570,7 +1569,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 		tx16->hd.type = XBEE_FRM_TX16;
 		tx16->id = xb_frameid(xbdev);
 		tx16->destaddr = htons(hdr.dest.short_addr);
-		tx16->options = 0;
+		tx16->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
 	}
 	else {
 		tx64 = (struct xb_frame_tx64*) skb_push(skb, sizeof(struct xb_frame_tx64) );
@@ -1579,7 +1578,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 		tx64->hd.type = XBEE_FRM_TX64;
 		tx64->id = xb_frameid(xbdev);
 		ieee802154_le64_to_be64(&tx64->destaddr, &hdr.dest.extended_addr);
-		tx64->options = 0;
+		tx64->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
 	}
 
 	frame_put_checksum(skb);
