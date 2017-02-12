@@ -268,17 +268,18 @@ enum {
 
 #define ieee802154_sub_if_data xbee_sub_if_data
 
-static inline struct ieee802154_sub_if_data *
-IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
-{
-	return netdev_priv(dev);
-}
-
 static int mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
 					 struct ieee802154_hdr *hdr,
 					 const struct ieee802154_mac_cb *cb)
 {
 	return 0;
+}
+
+// copy from Linux/net/mac802154/ieee802154_i.h
+static inline struct ieee802154_sub_if_data *
+IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
+{
+	return netdev_priv(dev);
 }
 
 // copy from Linux/net/mac802154/iface.c
@@ -667,13 +668,8 @@ static int frame_escape(struct sk_buff* frame)
 	datalen = frame_payload_length(frame) + 3;
 	esclen = buffer_escaped_len(frame->data, datalen);
 
-	pr_debug("frame->len %d", frame->len);
-	pr_debug("data len %lu", datalen);
-	pr_debug("escaped len %lu", esclen);
-
 	if(esclen > datalen) {
 		csum = frame->data[datalen];
-		pr_debug("csum %x", csum);
 		skb_put(frame, esclen - datalen);
 		buffer_escape(frame->data, datalen, esclen);
 		frame->data[esclen] = csum;
