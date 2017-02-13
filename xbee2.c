@@ -1661,10 +1661,20 @@ static int xbee_header_create(struct sk_buff *skb,
 	return 0;
 }
 
-//TODO
 static int xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	pr_debug("%s\n", __func__);
+	struct ieee802154_hdr hdr;
+
+	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0) {
+		pr_debug("malformed packet\n");
+		return 0;
+	}
+
+	if (hdr.source.mode == IEEE802154_ADDR_LONG) {
+		extended_addr_hton((uint64_t*)haddr, &hdr.source.extended_addr);
+		return IEEE802154_EXTENDED_ADDR_LEN;
+	}
+
 	return 0;
 }
 
