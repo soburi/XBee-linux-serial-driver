@@ -1726,7 +1726,7 @@ static int xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 
 	}
 	else if(type == IEEE802154_MAC_SCAN_ACTIVE) {
 		u8 buffer[128];
-		ret = xbee_energy_detect(xb, duration, buffer, sizeof(buffer) ); // TODO duration
+		ret = xbee_active_scan(xb, duration, buffer, sizeof(buffer) ); // TODO duration
 
 		// net/ieee802154/netlink.c are not export any functions.
 		// so, we can't send any response.
