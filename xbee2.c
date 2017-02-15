@@ -1195,7 +1195,7 @@ static void frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
 	hdr.source.short_addr = htons(rx->srcaddr);
 	hdr.source.pan_id = (rx->options & 0x2) ? IEEE802154_PANID_BROADCAST : wpan_dev->pan_id;
 	hdr.dest.mode = IEEE802154_ADDR_SHORT;
-	hdr.dest.short_addr = (rx->options & 0x1) ? IEEE802154_ADDR_BROADCAST : htons(rx->srcaddr);
+	hdr.dest.short_addr = (rx->options & 0x1) ? IEEE802154_ADDR_BROADCAST : wpan_dev->short_addr;
 	hdr.dest.pan_id = (rx->options & 0x2) ? IEEE802154_PANID_BROADCAST : wpan_dev->pan_id;
 
 	skb_pull(skb, sizeof(struct xb_frame_rx16) );
