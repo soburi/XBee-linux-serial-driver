@@ -1834,7 +1834,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	pr_ieee802154_hdr(&hdr);
 	//print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
 
-	if(hdr.dest.pan_id != wpan_dev->pan_id) {
+	if(hdr.dest.pan_id != wpan_dev->pan_id && hdr.dest.pan_id != IEEE802154_PANID_BROADCAST) {
 		pr_debug("%s different pan_id %x:%x\n", __func__, hdr.dest.pan_id, wpan_dev->pan_id);
 		goto err_xmit;
 	}
