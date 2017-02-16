@@ -1684,6 +1684,16 @@ static int xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	return 0;
 }
 
+static bool xbee_header_validate(const char *ll_header, unsigned int len)
+{
+	WARN_ON(true);
+	pr_debug("%s\n", __func__);
+
+	print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, ll_header, len);
+
+	return true;
+}
+
 //TODO
 static int xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
 {
@@ -2099,8 +2109,8 @@ static const struct header_ops xbee_header_ops = {
 	.create					= xbee_header_create,
 	.parse					= xbee_header_parse,
 	.cache					= NULL, //(const struct neighbour *neigh, struct hh_cache *hh, __be16 type);
-	.cache_update			= NULL, //(struct hh_cache *hh, const struct net_device *dev, const unsigned char *haddr);
-	.validate				= NULL, //(const char *ll_header, unsigned int len);
+	.cache_update				= NULL, //(struct hh_cache *hh, const struct net_device *dev, const unsigned char *haddr);
+	.validate				= xbee_header_validate,
 };
 
 static const struct net_device_ops xbee_net_device_ops = {
