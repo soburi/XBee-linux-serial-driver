@@ -1640,16 +1640,6 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 	}
 }
 
-
-
-/*
- * Callbacks from mac802154 to the driver. Must handle xmit(). 
- *
- * See net/mac802154/ieee802154_hw.c, include/net/mac802154.h,
- * and net/mac802154/mac802154.h from linux-wsn.
- */
-
-//TODO
 static int xbee_header_create(struct sk_buff *skb,
 				   struct net_device *dev,
 				   unsigned short type,
@@ -1657,8 +1647,21 @@ static int xbee_header_create(struct sk_buff *skb,
 				   const void *saddr,
 				   unsigned len)
 {
-	pr_debug("%s\n", __func__);
-	return 0;
+	struct ieee802154_addr daddr802154;
+	struct ieee802154_addr saddr802154;
+
+	struct xbee_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+	daddr802154.mode = IEEE802154_ADDR_LONG;
+	daddr802154.pan_id = IEEE802154_PANID_BROADCAST;
+	extended_addr_hton(&daddr802154.extended_addr, (uint64_t*)daddr);
+
+	saddr802154.mode = IEEE802154_ADDR_LONG;
+	saddr802154.pan_id = wpan_dev->pan_id;
+	saddr802154.extended_addr = wpan_dev->extended_addr;
+
+	return ieee802154_header_create(skb, dev, &daddr802154, &saddr802154, len);
 }
 
 static int xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
