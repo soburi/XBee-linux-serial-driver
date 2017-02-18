@@ -921,7 +921,7 @@ static int frame_escape(struct sk_buff* frame)
 
 	if(frame->len < 4) return -1;
 	
-	datalen = frame_payload_length(frame) + 3;
+	datalen = frame_payload_length(frame) + XBEE_FRAME_OFFSET_PAYLOAD;
 	esclen = buffer_escaped_len(frame->data, datalen);
 
 	if(esclen > datalen) {
@@ -952,13 +952,13 @@ static int frame_verify(struct sk_buff* recv_buf)
 
 	if(recv_buf->data[0] != XBEE_DELIMITER) return -EINVAL;
 
-	if(recv_buf->len < 3) return -EAGAIN;
+	if(recv_buf->len < XBEE_FRAME_OFFSET_PAYLOAD) return -EAGAIN;
 
 	length = htons(header->length);
 	if(recv_buf->len < length+4) return -EAGAIN;
 
 	checksum = frame_calc_checksum(recv_buf);
-	if(checksum!=recv_buf->data[length+3]) return -EINVAL;
+	if(checksum!=recv_buf->data[length+XBEE_FRAME_OFFSET_PAYLOAD]) return -EINVAL;
 
 	return length+4;
 }
@@ -1065,7 +1065,7 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 	memmove(newskb->data + sizeof(struct xb_frame_atcmd), buf, buflen);
 
 	checksum = frame_calc_checksum(newskb);
-	newskb->data[datalen+3] = checksum;
+	newskb->data[datalen+XBEE_FRAME_OFFSET_PAYLOAD] = checksum;
 	//frame_put_checksum(newskb);
 
 	frame_enqueue_send(send_queue, newskb);
