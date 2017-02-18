@@ -944,7 +944,8 @@ unsigned char* frame_payload_buffer(struct sk_buff* frame)
 static unsigned
 char frame_calc_checksum(struct sk_buff* frame)
 {
-	return buffer_calc_checksum(frame_payload_buffer(frame), frame_payload_length(frame) );
+	return buffer_calc_checksum(frame_payload_buffer(frame),
+				frame_payload_length(frame) );
 }
 
 static void
@@ -1371,7 +1372,8 @@ static void
 frame_recv_rcmd(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rcmd* ratcmd = (struct xb_frame_rcmd*)skb->data;
-	pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c\n",
+	pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx "
+			"addr16=%04x cmd=%c%c\n",
 			ratcmd->id, ratcmd->destaddr64, ratcmd->destaddr16,
 			ratcmd->command&0xFF, (ratcmd->command & 0xFF00)>>8);
 }
@@ -1380,7 +1382,8 @@ static void
 frame_recv_rcmdr(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rcmdr* ratcmdr = (struct xb_frame_rcmdr*)skb->data;
-	pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c status=%d\n",
+	pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx "
+			"addr16=%04x cmd=%c%c status=%d\n",
 			ratcmdr->id,
 			ratcmdr->destaddr64, ratcmdr->destaddr16,
 			ratcmdr->command&0xFF,
@@ -1749,7 +1752,8 @@ static int
 xbee_set_scan_channels(struct xb_device* xb, u32 channels)
 {
 	pr_debug("%s\n", __func__);
-	return xbee_set_param(xb, XBEE_AT_SC, (uint8_t*)&channels, sizeof(channels) );
+	return xbee_set_param(xb, XBEE_AT_SC,
+			(uint8_t*)&channels, sizeof(channels) );
 }
 
 static int
@@ -1869,7 +1873,8 @@ static int
 xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
 {
 	pr_debug("%s(addr=%1u:%016llx, channels=%u, page=%u, cap=%x\n",
-			__func__, addr->mode,addr->extended_addr, channel, page, cap);
+			__func__, addr->mode,addr->extended_addr,
+			channel, page, cap);
 	return 0;
 }
 //TODO not be implemented.
@@ -1877,7 +1882,8 @@ static int
 xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr, __le16 short_addr, u8 status)
 {
 	pr_debug("%s(addr=%1u:%016llx, short=%04x status=%x\n",
-			__func__, addr->mode,addr->extended_addr, short_addr, status);
+			__func__, addr->mode,addr->extended_addr,
+			short_addr, status);
 	return 0;
 }
 //TODO
@@ -1885,15 +1891,20 @@ static int
 xbee_mlme_disassoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 reason)
 {
 	pr_debug("%s(addr=%1u:%016llx, reason=%x\n",
-			__func__, addr->mode,addr->extended_addr, reason);
+			__func__, addr->mode,addr->extended_addr,
+			reason);
 	return 0;
 }
 //TODO
 static int
 xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx, u8 coord_realign)
 {
-	pr_debug("%s(addr=%1u:%016llx, channel=%u, page=%u, bcn_ord=%u sf_ord=%u, pan_coord=%u, blx=%u, coord_realign=%u\n", __func__,
-			addr->mode,addr->extended_addr, channel, page, bcn_ord, sf_ord, pan_coord, blx, coord_realign);
+	pr_debug("%s(addr=%1u:%016llx, channel=%u, page=%u, "
+			"bcn_ord=%u sf_ord=%u, pan_coord=%u, blx=%u, "
+			"coord_realign=%u\n",
+			__func__, addr->mode,addr->extended_addr,
+			channel, page, bcn_ord, sf_ord, pan_coord,
+			blx, coord_realign);
 
 	//xbee_coordinator_enable(true);
 	return 0;
