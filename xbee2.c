@@ -93,15 +93,6 @@ struct xbee_sub_if_data {
 
 	struct mac802154_llsec sec;
 };
-/*
-static void
-mac802154_wpan_free(struct net_device *dev)
-{
-	//struct xbee_sub_if_data *sdata = netdev_priv(dev);
-	//mac802154_llsec_destroy(&sdata->sec);
-	free_netdev(dev);
-}
-*/
 
 struct xb_frame_header {
 	uint8_t start_delimiter; // 0x7e
@@ -625,10 +616,18 @@ ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 }
 #undef ieee802154_sub_if_data
 
+/*
+static void
+mac802154_wpan_free(struct net_device *dev)
+{
+	//struct xbee_sub_if_data *sdata = netdev_priv(dev);
+	//mac802154_llsec_destroy(&sdata->sec);
+	free_netdev(dev);
+}
+*/
 
 static void
-xbee_rx_handle_packet(struct xb_device *local,
-			      struct sk_buff *skb)
+xbee_rx_handle_packet(struct xb_device *local, struct sk_buff *skb)
 {
 	int ret;
 	struct xbee_sub_if_data *sdata = netdev_priv(local->dev);
@@ -799,8 +798,8 @@ pr_wpan_dev(struct wpan_dev* dev)
 }
 
 
-static unsigned
-char buffer_calc_checksum(const unsigned char* buf, const size_t len)
+static unsigned char
+buffer_calc_checksum(const unsigned char* buf, const size_t len)
 {
 	size_t i=0;
 	unsigned char checksum = 0;
@@ -901,8 +900,8 @@ buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
 	return buf_len - tail_ptr;
 }
 
-static struct
-sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
+static struct sk_buff*
+frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 {
 	struct sk_buff* new_skb = NULL;
 	struct xb_frame_header* frm = NULL;
@@ -925,8 +924,8 @@ sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 	return new_skb;
 }
 
-static unsigned
-short frame_payload_length(struct sk_buff* frame)
+static uint16_t
+frame_payload_length(struct sk_buff* frame)
 {
 	struct xb_frame_header* frm = (struct xb_frame_header*)frame->data;
 	if(!frm)
@@ -935,14 +934,14 @@ short frame_payload_length(struct sk_buff* frame)
 	return htons(frm->length);
 }
 
-static const
-unsigned char* frame_payload_buffer(struct sk_buff* frame)
+static const unsigned char*
+frame_payload_buffer(struct sk_buff* frame)
 {
 	return frame->data + XBEE_FRAME_OFFSET_PAYLOAD;
 }
 
-static unsigned
-char frame_calc_checksum(struct sk_buff* frame)
+static unsigned char
+frame_calc_checksum(struct sk_buff* frame)
 {
 	return buffer_calc_checksum(frame_payload_buffer(frame),
 				frame_payload_length(frame) );
@@ -1083,8 +1082,8 @@ frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf
 	return frame_count;
 }
 
-static struct
-sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
+static struct sk_buff*
+frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
 {
 	struct sk_buff* skb = NULL;
 	struct xb_frame_header_id* hd = NULL;
@@ -1228,8 +1227,8 @@ sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid, unsigned long timeout)
 	}
 }
 
-static struct
-sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
+static struct sk_buff*
+xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 {
 	int i=0;
 	struct sk_buff* skb = NULL;
@@ -1242,8 +1241,8 @@ sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 	return NULL;
 }
 
-static struct
-sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
+static struct sk_buff*
+xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	uint8_t recvid = xb_enqueue_send_at(xb, atcmd, buf, buflen);
 	return xb_sendrecv(xb, recvid);
@@ -2112,8 +2111,8 @@ xbee_ndo_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static struct
-net_device* xbee_cfg802154_add_virtual_intf_deprecated(struct wpan_phy *wpan_phy,
+static struct net_device*
+xbee_cfg802154_add_virtual_intf_deprecated(struct wpan_phy *wpan_phy,
                                                            const char *name,
                                                            unsigned char name_assign_type,
                                                            int type)
