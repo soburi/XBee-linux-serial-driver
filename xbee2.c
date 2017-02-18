@@ -254,6 +254,7 @@ static const size_t XBEE_FRAME_LENGTH_SIZE = 2;
 static const size_t XBEE_FRAME_CHECKSUM_SIZE = 1;
 
 static const size_t XBEE_FRAME_OFFSET_PAYLOAD = 3;
+static const size_t XBEE_FRAME_COMMON_HEADER_AND_TRAILER = 4;
 
 #define ieee802154_sub_if_data xbee_sub_if_data
 
@@ -955,12 +956,12 @@ static int frame_verify(struct sk_buff* recv_buf)
 	if(recv_buf->len < XBEE_FRAME_OFFSET_PAYLOAD) return -EAGAIN;
 
 	length = htons(header->length);
-	if(recv_buf->len < length+4) return -EAGAIN;
+	if(recv_buf->len < length + XBEE_FRAME_COMMON_HEADER_AND_TRAILER) return -EAGAIN;
 
 	checksum = frame_calc_checksum(recv_buf);
 	if(checksum!=recv_buf->data[length+XBEE_FRAME_OFFSET_PAYLOAD]) return -EINVAL;
 
-	return length+4;
+	return length + XBEE_FRAME_COMMON_HEADER_AND_TRAILER;
 }
 
 static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char* buf, const size_t len)
