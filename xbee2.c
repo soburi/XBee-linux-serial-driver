@@ -1782,19 +1782,22 @@ static bool xbee_header_validate(const char *ll_header, unsigned int len)
 //TODO
 static int xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
 {
-	pr_debug("%s(addr=%1u:%016llx, channels=%u, page=%u, cap=%x\n", __func__, addr->mode,addr->extended_addr, channel, page, cap);
+	pr_debug("%s(addr=%1u:%016llx, channels=%u, page=%u, cap=%x\n",
+			__func__, addr->mode,addr->extended_addr, channel, page, cap);
 	return 0;
 }
 //TODO not be implemented.
 static int xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr, __le16 short_addr, u8 status)
 {
-	pr_debug("%s(addr=%1u:%016llx, short=%04x status=%x\n", __func__, addr->mode,addr->extended_addr, short_addr, status);
+	pr_debug("%s(addr=%1u:%016llx, short=%04x status=%x\n",
+			__func__, addr->mode,addr->extended_addr, short_addr, status);
 	return 0;
 }
 //TODO
 static int xbee_mlme_disassoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 reason)
 {
-	pr_debug("%s(addr=%1u:%016llx, reason=%x\n", __func__, addr->mode,addr->extended_addr, reason);
+	pr_debug("%s(addr=%1u:%016llx, reason=%x\n",
+			__func__, addr->mode,addr->extended_addr, reason);
 	return 0;
 }
 //TODO
@@ -1812,7 +1815,8 @@ static int xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct xb_device* xb = sdata->local;
 	int ret = 0;
-	pr_debug("%s(type=%u, channels%x, page=%u, duration=%u\n", __func__, type, channels, page, duration);
+	pr_debug("%s(type=%u, channels%x, page=%u, duration=%u\n",
+			__func__, type, channels, page, duration);
 
 	ret = xbee_set_scan_channels(xb, channels);
 	ret = xbee_set_scan_duration(xb, duration); // TODO duration
@@ -1858,20 +1862,24 @@ static int xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802
 	if(wpan_dev->wpan_phy->transmit_power != params->transmit_power) {
 		xbee_set_tx_power(sdata->local, params->transmit_power);
 	}
-	if( (wpan_dev->min_be != params->min_be) || (wpan_dev->max_be != params->max_be) ) {
-		xbee_set_backoff_exponent(sdata->local, params->min_be, params->max_be);
+	if( (wpan_dev->min_be != params->min_be)
+	 || (wpan_dev->max_be != params->max_be) ) {
+		xbee_set_backoff_exponent(sdata->local,
+				params->min_be, params->max_be);
 	}
 	if(wpan_dev->csma_retries != params->csma_retries) {
-		xbee_set_max_csma_backoffs(sdata->local, params->csma_retries);
+		xbee_set_max_csma_backoffs(sdata->local,
+				params->csma_retries);
 	}
 	if(wpan_dev->frame_retries != params->frame_retries) {
-		xbee_set_max_frame_retries(sdata->local, params->frame_retries);
+		xbee_set_max_frame_retries(sdata->local,
+				params->frame_retries);
 	}
 	if(wpan_dev->lbt != params->lbt) {
 		xbee_set_lbt_mode(sdata->local, params->lbt);
 	}
-	if(wpan_dev->wpan_phy->cca.mode != params->cca.mode &&
-		wpan_dev->wpan_phy->cca.opt!= params->cca.opt) {
+	if( wpan_dev->wpan_phy->cca.mode != params->cca.mode
+	 && wpan_dev->wpan_phy->cca.opt  != params->cca.opt) {
 		xbee_set_cca_mode(sdata->local, &params->cca);
 	}
 	if(wpan_dev->wpan_phy->cca_ed_level != params->cca_ed_level) {
@@ -1935,8 +1943,10 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	pr_ieee802154_hdr(&hdr);
 	//print_hex_dump_bytes(" hdr> ", DUMP_PREFIX_NONE, &hdr, sizeof(hdr));
 
-	if(hdr.dest.pan_id != wpan_dev->pan_id && hdr.dest.pan_id != IEEE802154_PANID_BROADCAST) {
-		pr_debug("%s different pan_id %x:%x\n", __func__, hdr.dest.pan_id, wpan_dev->pan_id);
+	if( hdr.dest.pan_id != wpan_dev->pan_id
+	 && hdr.dest.pan_id != IEEE802154_PANID_BROADCAST) {
+		pr_debug("%s different pan_id %x:%x\n",
+				__func__, hdr.dest.pan_id, wpan_dev->pan_id);
 		goto err_xmit;
 	}
 
