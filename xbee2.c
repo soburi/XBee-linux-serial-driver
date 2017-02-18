@@ -879,12 +879,13 @@ static struct sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 	struct sk_buff* new_skb = NULL;
 	struct xb_frame_header* frm = NULL;
 	size_t csum_size = alloc_csum;
+	size_t frame_size = paylen + sizeof(struct xb_frame_header) + csum_size;
 
-	new_skb = dev_alloc_skb(paylen + sizeof(struct xb_frame_header) + csum_size);
+	new_skb = dev_alloc_skb(frame_size);
 	if(!new_skb)
 		return NULL;
 
-	frm = (struct xb_frame_header*)skb_put(new_skb, paylen + sizeof(struct xb_frame_header) + csum_size);
+	frm = (struct xb_frame_header*)skb_put(new_skb, frame_size);
 	if(!frm) {
 		kfree_skb(new_skb);
 		return NULL;
@@ -959,18 +960,25 @@ static int frame_verify(struct sk_buff* recv_buf)
 	uint8_t checksum = 0;
 	struct xb_frame_header* header = NULL;
 
-	if(recv_buf->len < XBEE_FRAME_DELIMITER_SIZE) return -EAGAIN;
+	if(recv_buf->len < XBEE_FRAME_DELIMITER_SIZE)
+		return -EAGAIN;
+
 	header = (struct xb_frame_header*)recv_buf->data;
 
-	if(recv_buf->data[0] != XBEE_DELIMITER) return -EINVAL;
-
-	if(recv_buf->len < XBEE_FRAME_OFFSET_PAYLOAD) return -EAGAIN;
+	if(recv_buf->data[0] != XBEE_DELIMITER)
+		return -EINVAL;
+	if(recv_buf->len < XBEE_FRAME_OFFSET_PAYLOAD)
+		return -EAGAIN;
 
 	length = htons(header->length);
-	if(recv_buf->len < length + XBEE_FRAME_COMMON_HEADER_AND_TRAILER) return -EAGAIN;
+
+	if(recv_buf->len < length + XBEE_FRAME_COMMON_HEADER_AND_TRAILER)
+		return -EAGAIN;
 
 	checksum = frame_calc_checksum(recv_buf);
-	if(checksum!=recv_buf->data[length+XBEE_FRAME_OFFSET_PAYLOAD]) return -EINVAL;
+
+	if(checksum!=recv_buf->data[length+XBEE_FRAME_OFFSET_PAYLOAD])
+		return -EINVAL;
 
 	return length + XBEE_FRAME_COMMON_HEADER_AND_TRAILER;
 }
@@ -2298,9 +2306,12 @@ static void xbee_set_supported(struct xb_device* local)
 	{
 	static const s32 ed_levels [] = {
 		-3600, -3700, -3800, -3900, -4000,
-		-4100, -4200, -4300, -4400, -4500, -4600, -4700, -4800, -4900, -5000,
-		-5100, -5200, -5300, -5400, -5500, -5600, -5700, -5800, -5900, -6000,
-		-6100, -6200, -6300, -6400, -6500, -6600, -6700, -6800, -6900, -8000,
+		-4100, -4200, -4300, -4400, -4500,
+		-4600, -4700, -4800, -4900, -5000,
+		-5100, -5200, -5300, -5400, -5500,
+		-5600, -5700, -5800, -5900, -6000,
+		-6100, -6200, -6300, -6400, -6500,
+		-6600, -6700, -6800, -6900, -8000,
 	};
 	phy->supported.cca_ed_levels = ed_levels;
 	phy->supported.cca_ed_levels_size = sizeof(ed_levels)/sizeof(ed_levels[0]);
@@ -2661,14 +2672,13 @@ static int xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 		return -EINVAL;
 
         switch (cmd) {
-		case SIOCGIFNAME:
-			tmp = strlen(xbdev->dev->name) + 1;
-			if (copy_to_user((void __user *)arg, xbdev->dev->name, tmp))
-				return -EFAULT;
-			return 0;
-		case SIOCSIFHWADDR:
-			return -EINVAL;
-
+	case SIOCGIFNAME:
+		tmp = strlen(xbdev->dev->name) + 1;
+		if (copy_to_user((void __user *)arg, xbdev->dev->name, tmp))
+			return -EFAULT;
+		return 0;
+	case SIOCSIFHWADDR:
+		return -EINVAL;
         default:
                 return tty_mode_ioctl(tty, file, cmd, arg);
         }
@@ -2686,7 +2696,7 @@ static int xbee_ldisc_hangup(struct tty_struct *tty)
 {
 	pr_debug("%s\n", __func__);
 	xbee_ldisc_close(tty);
-    return 0;
+	return 0;
 }
 
 /**
@@ -2716,15 +2726,16 @@ static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
 
 	ret = frame_put_received_data(xbdev->recv_buf, buf, count);
 
-	if(ret == 0) return count;
+	if(ret == 0)
+		return count;
 
 	mutex_lock(&xbdev->queue_mutex);
 	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2) );
 	mutex_unlock(&xbdev->queue_mutex);
 
-	if(ret > 0) {
+	if(ret > 0)
 		ret = queue_work(xbdev->recv_workq, (struct work_struct*)&xbdev->recv_work.work);
-	}
+
 	return count;
 }
 
