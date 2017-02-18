@@ -1424,6 +1424,7 @@ xbee_set_get_param(struct xb_device *xb, uint16_t atcmd,
 {
 	int ret = -EINVAL;
 	struct sk_buff *skb = NULL;
+	struct xb_frame_atcmdr *resp = NULL;
 
 	pr_debug("enter %s", __func__);
 
@@ -1435,7 +1436,7 @@ xbee_set_get_param(struct xb_device *xb, uint16_t atcmd,
 
 	if(frame_atcmdr_result(skb) == XBEE_ATCMDR_OK) {
 		if(respbuf) {
-			struct xb_frame_atcmdr *resp = (struct xb_frame_atcmdr*)skb->data;
+			resp = (struct xb_frame_atcmdr*)skb->data;
 			memcpy(respbuf, resp->response, respsize);
 		}
 
@@ -1723,9 +1724,11 @@ xbee_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
 	__be64 addr = 0;
 
 	err = xbee_get_param(xb, XBEE_AT_SH, (uint8_t*)&behi, sizeof(behi) );
-	if(err) return err;
+	if(err)
+		return err;
 	err = xbee_get_param(xb, XBEE_AT_SL, (uint8_t*)&belo, sizeof(belo) );
-	if(err) return err;
+	if(err)
+		return err;
 
 	addr = ((__be64)belo << 32) | behi;
 
@@ -2057,7 +2060,8 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if(hdr.dest.mode == IEEE802154_ADDR_SHORT) {
-		tx16 = (struct xb_frame_tx16*) skb_push(skb, sizeof(struct xb_frame_tx16) );
+		tx16 = (struct xb_frame_tx16*)
+			skb_push(skb, sizeof(struct xb_frame_tx16) );
 		tx16->hd.start_delimiter = XBEE_DELIMITER;
 		tx16->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
 		tx16->hd.type = XBEE_FRM_TX16;
@@ -2066,7 +2070,8 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx16->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
 	}
 	else {
-		tx64 = (struct xb_frame_tx64*) skb_push(skb, sizeof(struct xb_frame_tx64) );
+		tx64 = (struct xb_frame_tx64*)
+			skb_push(skb, sizeof(struct xb_frame_tx64) );
 		tx64->hd.start_delimiter = XBEE_DELIMITER;
 		tx64->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
 		tx64->hd.type = XBEE_FRM_TX64;
@@ -2380,14 +2385,10 @@ xb_device* xbee_alloc_device(size_t priv_data_len)
 
 	local->phy = phy;
 	ndev = xbee_alloc_netdev(local);
-	if(!ndev) {
+	if(!ndev)
 		goto free_phy;
-	}
+	
 	local->dev = ndev;
-
-	//local->hw.phy = local->phy;
-	//local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
-	//local->ops = ops;
 
 	pr_debug("wpan_phy_set_dev\n");
 	wpan_phy_set_dev(local->phy, local->parent);
@@ -2419,13 +2420,13 @@ xbee_register_device(struct xb_device* local)
 	int ret;
 		
 	ret = wpan_phy_register(local->phy);
-	if(ret < 0) {
+	if(ret < 0)
 		return ret;
-	}
+
 	ret = xbee_register_netdev(local->dev);
-	if(ret < 0) {
+	if(ret < 0)
 		goto unregister_wpan;
-	}
+	
 	return 0;
 
 unregister_wpan:
@@ -2437,7 +2438,8 @@ static void
 xbee_unregister_netdev(struct net_device* netdev)
 {
 	pr_debug("%s\n", __func__);
-	if(!netdev) return;
+	if(!netdev)
+		return;
 	pr_debug("%d\n", __LINE__);
 	rtnl_lock();
 	unregister_netdevice(netdev);
@@ -2632,9 +2634,9 @@ recv_work_fn(struct work_struct *param)
 			skb = skb_peek_next(skb, &xb->recv_queue);
 		}
 	}
-	if(prev_atresp != xb->last_atresp) {
+
+	if(prev_atresp != xb->last_atresp)
 		complete_all(&xb->cmd_resp_done);
-	}
 
 	mutex_unlock(&xb->queue_mutex);
 }
