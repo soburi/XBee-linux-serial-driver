@@ -770,16 +770,7 @@ static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t
 	}
 	return 0xFF - checksum;
 }
-/*
-static int buffer_find_delimiter_unescaped(const unsigned char* buf, const size_t len)
-{
-	int i=0;
-	for(i=0; i<len; i++) {
-		if(buf[i] == XBEE_DELIMITER) return i;
-	}
-	return -1;
-}
-*/
+
 static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
 {
 	int i=0;
