@@ -693,9 +693,11 @@ static void pr_ieee802154_hdr(const struct ieee802154_hdr *hdr)
 {
 	struct ieee802154_hdr_fc fc = hdr->fc;
 
-	pr_debug("fc: intra_pan:%d ackreq:%x pending:%d secen:%x type:%x saddr_mode:%x version:%x daddr_mode:%x",
-			fc.intra_pan, fc.ack_request, fc.frame_pending, fc.security_enabled,
-			fc.type, fc.source_addr_mode, fc.version, fc.dest_addr_mode);
+	pr_debug("fc: intra_pan:%d ackreq:%x pending:%d secen:%x "
+			"type:%x saddr_mode:%x version:%x daddr_mode:%x",
+			fc.intra_pan, fc.ack_request, fc.frame_pending,
+			fc.security_enabled, fc.type, fc.source_addr_mode,
+			fc.version, fc.dest_addr_mode);
 
 	pr_debug("seq %d", hdr->seq);
 	pr_ieee802154_addr("src", &hdr->source);
@@ -706,14 +708,22 @@ static void pr_wpan_phy_supported(struct wpan_phy* phy)
 	struct wpan_phy_supported *supported = &phy->supported;
 	u32 *channels = supported->channels;
 	pr_debug("wpan_phy=%p {\n", phy);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[0], channels[1], channels[2], channels[3]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[4], channels[5], channels[6], channels[0]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[8], channels[9], channels[10], channels[11]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[12], channels[13], channels[14], channels[15]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[16], channels[17], channels[18], channels[19]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[20], channels[21], channels[22], channels[23]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[24], channels[25], channels[26], channels[27]);
-	pr_debug("             channels = %08x, %08x, %08x, %08x\n", channels[28], channels[29], channels[30], channels[31]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+			channels[0], channels[1], channels[2], channels[3]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+			channels[4], channels[5], channels[6], channels[0]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+			channels[8], channels[9], channels[10], channels[11]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+			channels[12], channels[13], channels[14], channels[15]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+			channels[16], channels[17], channels[18], channels[19]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+			channels[20], channels[21], channels[22], channels[23]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+			channels[24], channels[25], channels[26], channels[27]);
+	pr_debug("             channels = %08x, %08x, %08x, %08x\n",
+			channels[28], channels[29], channels[30], channels[31]);
 	pr_debug("            cca_modes = %u\n", supported->cca_modes);
 	pr_debug("             cca_opts = %u\n", supported->cca_opts);
 	pr_debug("              iftypes = %u\n", supported->iftypes);
@@ -1024,7 +1034,8 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 		append = skb_put(newframe, verified_len);
 		memcpy(append, recv_buf->data, verified_len);
 
-		print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE, newframe->data, newframe->len);
+		print_hex_dump_bytes("<<<< ", DUMP_PREFIX_NONE,
+				newframe->data, newframe->len);
 		skb_queue_tail(recv_queue, newframe);
 
 		memmove(recv_buf->data, recv_buf->data+verified_len,  remains);
@@ -1121,7 +1132,8 @@ static int xb_send_queue(struct xb_device* xb)
 			frame_escape(skb);
 		}
 
-		print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE, skb->data, skb->len);
+		print_hex_dump_bytes(">>>> ", DUMP_PREFIX_NONE,
+				skb->data, skb->len);
 
 		/*
 		if (newskb)
@@ -1208,7 +1220,8 @@ static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 
 	rx = (struct xb_frame_rx64*)skb->data;
 
-	pr_debug("RX64: addr=%016llx rssi=%d options=%x\n", rx->srcaddr, rx->rssi, rx->options);
+	pr_debug("RX64: addr=%016llx rssi=%d options=%x\n",
+			rx->srcaddr, rx->rssi, rx->options);
 	hdr.fc.type = IEEE802154_FC_TYPE_DATA;
 	hdr.seq = 0; //XBee doesn't tell seqno.
 	hdr.source.mode = IEEE802154_ADDR_LONG;
@@ -1256,7 +1269,9 @@ static void frame_recv_atcmdr(struct xb_device *xbdev, struct sk_buff *skb)
 {
 	// AT command response must handle call side.
 	struct xb_frame_atcmdr* atresp = (struct xb_frame_atcmdr*)skb->data;
-	pr_debug("AT_R: id=0x%02x cmd=%c%c status=%d\n", atresp->id, atresp->command&0xFF, (atresp->command & 0xFF00)>>8 , atresp->status);
+	pr_debug("AT_R: id=0x%02x cmd=%c%c status=%d\n",
+			atresp->id, atresp->command&0xFF,
+			(atresp->command & 0xFF00)>>8 , atresp->status);
 }
 
 static void frame_recv_mstat(struct xb_device* xbdev, struct sk_buff *skb)
@@ -1275,50 +1290,67 @@ static void frame_recv_txstat(struct xb_device* xbdev, struct sk_buff *skb)
 static void frame_recv_rx64io(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rx64* rx64 = (struct xb_frame_rx64*)skb->data;
-	pr_debug("UNEXPECTED RX64IO: addr=%016llx rssi=%d options=%x\n", rx64->srcaddr, rx64->rssi, rx64->options);
+	pr_debug("UNEXPECTED RX64IO: addr=%016llx rssi=%d options=%x\n",
+			rx64->srcaddr, rx64->rssi, rx64->options);
 }
 
 static void frame_recv_rx16io(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rx16* rx16 = (struct xb_frame_rx16*)skb->data;
-	pr_debug("UNEXPECTED RX16IO: addr=%04x rssi=%d options=%x\n", rx16->srcaddr, rx16->rssi, rx16->options);
+	pr_debug("UNEXPECTED RX16IO: addr=%04x rssi=%d options=%x\n",
+			rx16->srcaddr, rx16->rssi, rx16->options);
 }
 
 static void frame_recv_atcmd(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
-	pr_debug("UNEXPECTED ATCMD: id=0x%02x cmd=%c%c\n", atcmd->id, atcmd->command&0xFF, (atcmd->command & 0xFF00)>>8);
+	pr_debug("UNEXPECTED ATCMD: id=0x%02x cmd=%c%c\n",
+			atcmd->id, atcmd->command&0xFF,
+			(atcmd->command & 0xFF00)>>8);
 }
 
 static void frame_recv_atcmdq(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
-	pr_debug("UNEXPECTED ATCMDQ: id=0x%02x cmd=%c%c\n", atcmd->id, atcmd->command&0xFF, (atcmd->command & 0xFF00)>>8);
+	pr_debug("UNEXPECTED ATCMDQ: id=0x%02x cmd=%c%c\n",
+			atcmd->id, atcmd->command&0xFF,
+			(atcmd->command & 0xFF00)>>8);
 }
 
 static void frame_recv_rcmd(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rcmd* ratcmd = (struct xb_frame_rcmd*)skb->data;
-	pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c\n", ratcmd->id, ratcmd->destaddr64, ratcmd->destaddr16, ratcmd->command&0xFF, (ratcmd->command & 0xFF00)>>8);
+	pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c\n",
+			ratcmd->id, ratcmd->destaddr64, ratcmd->destaddr16,
+			ratcmd->command&0xFF, (ratcmd->command & 0xFF00)>>8);
 }
 
 static void frame_recv_rcmdr(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rcmdr* ratcmdr = (struct xb_frame_rcmdr*)skb->data;
-	pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c status=%d\n", ratcmdr->id, ratcmdr->destaddr64, ratcmdr->destaddr16, ratcmdr->command&0xFF, (ratcmdr->command & 0xFF00)>>8, ratcmdr->status);
+	pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c status=%d\n",
+			ratcmdr->id,
+			ratcmdr->destaddr64, ratcmdr->destaddr16,
+			ratcmdr->command&0xFF,
+			(ratcmdr->command & 0xFF00)>>8, ratcmdr->status);
 }
 
 static void frame_recv_tx64(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_tx64* tx64 = (struct xb_frame_tx64*)skb->data;
-	pr_debug("UNEXPECTED TX64: id=0x%02x addr=%llx options=%x\n", tx64->id, tx64->destaddr, tx64->options);
+	pr_debug("UNEXPECTED TX64: id=0x%02x addr=%llx options=%x\n",
+			tx64->id, tx64->destaddr, tx64->options);
 }
 static void frame_recv_tx16(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_tx16* tx16 = (struct xb_frame_tx16*)skb->data;
-	pr_debug("UNEXPECTED TX16: id=0x%02x addr=%04x options=%x\n", tx16->id, tx16->destaddr, tx16->options);
+	pr_debug("UNEXPECTED TX16: id=0x%02x addr=%04x options=%x\n",
+			tx16->id, tx16->destaddr, tx16->options);
 }
-static void frame_recv_default(struct xb_device* xbdev, struct sk_buff *skb) { pr_debug("%s\n", __func__); }
+static void frame_recv_default(struct xb_device* xbdev, struct sk_buff *skb)
+{
+	pr_debug("%s\n", __func__);
+}
 
 static int frame_atcmdr_result(struct sk_buff* skb)
 {
@@ -1648,13 +1680,15 @@ static int xbee_set_scan_duration(struct xb_device* xb, u8 duration)
 static int xbee_energy_detect(struct xb_device* xb, u8 scantime, u8* edl, size_t edllen)
 {
 	pr_debug("%s\n", __func__);
-	return xbee_set_get_param(xb, XBEE_AT_ED, &scantime, sizeof(scantime), edl, edllen);
+	return xbee_set_get_param(xb, XBEE_AT_ED,
+			&scantime, sizeof(scantime), edl, edllen);
 }
 
 static int xbee_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_t bufsize)
 {
 	pr_debug("%s\n", __func__);
-	return xbee_set_get_param(xb, XBEE_AT_ED, &scantime, sizeof(scantime), buffer, bufsize);
+	return xbee_set_get_param(xb, XBEE_AT_ED,
+			&scantime, sizeof(scantime), buffer, bufsize);
 }
 
 /**
