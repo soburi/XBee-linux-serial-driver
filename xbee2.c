@@ -249,9 +249,18 @@ enum {
 	XBEE_ATCMDR_INVALID_PARAMETER = 3,
 };
 
+enum {
+	XBEE_API_1 = 1,
+	XBEE_API_2 = 1,
+};
+
+
 static const size_t XBEE_FRAME_DELIMITER_SIZE = 1;
 static const size_t XBEE_FRAME_LENGTH_SIZE = 2;
 static const size_t XBEE_FRAME_CHECKSUM_SIZE = 1;
+static const size_t XBEE_FRAME_TYPE_SIZE = 1;
+static const size_t XBEE_FRAME_ID_SIZE = 1;
+static const size_t XBEE_FRAME_AT_COMMAND_SIZE = 2;
 
 static const size_t XBEE_FRAME_OFFSET_PAYLOAD = 3;
 static const size_t XBEE_FRAME_COMMON_HEADER_AND_TRAILER = 4;
@@ -869,12 +878,13 @@ static struct sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 {
 	struct sk_buff* new_skb = NULL;
 	struct xb_frame_header* frm = NULL;
+	size_t csum_size = alloc_csum;
 
-	new_skb = dev_alloc_skb(paylen + XBEE_FRAME_OFFSET_PAYLOAD + 2); //delimiter, length, checksum
+	new_skb = dev_alloc_skb(paylen + sizeof(struct xb_frame_header) + csum_size);
 	if(!new_skb)
 		return NULL;
 
-	frm = (struct xb_frame_header*)skb_put(new_skb, paylen + XBEE_FRAME_OFFSET_PAYLOAD + 2);
+	frm = (struct xb_frame_header*)skb_put(new_skb, paylen + sizeof(struct xb_frame_header) + csum_size);
 	if(!frm) {
 		kfree_skb(new_skb);
 		return NULL;
@@ -905,13 +915,13 @@ static unsigned char frame_calc_checksum(struct sk_buff* frame)
 static void frame_put_checksum(struct sk_buff* frame)
 {
 	uint8_t csum = frame_calc_checksum(frame);
-	uint8_t* putbuf = skb_put(frame, 1);
+	uint8_t* putbuf = skb_put(frame, XBEE_FRAME_CHECKSUM_SIZE);
 	*putbuf = csum;
 }
 
 static void frame_trim_checksum(struct sk_buff* frame)
 {
-	skb_trim(frame, frame->len-1);
+	skb_trim(frame, frame->len - XBEE_FRAME_CHECKSUM_SIZE);
 }
 
 static int frame_escape(struct sk_buff* frame)
@@ -920,7 +930,8 @@ static int frame_escape(struct sk_buff* frame)
 	size_t datalen = 0;
 	uint8_t csum = 0;
 
-	if(frame->len < 4) return -1;
+	if(frame->len < XBEE_FRAME_COMMON_HEADER_AND_TRAILER)
+		return -1;
 	
 	datalen = frame_payload_length(frame) + XBEE_FRAME_OFFSET_PAYLOAD;
 	esclen = buffer_escaped_len(frame->data, datalen);
@@ -948,7 +959,7 @@ static int frame_verify(struct sk_buff* recv_buf)
 	uint8_t checksum = 0;
 	struct xb_frame_header* header = NULL;
 
-	if(recv_buf->len < 1) return -EAGAIN;
+	if(recv_buf->len < XBEE_FRAME_DELIMITER_SIZE) return -EAGAIN;
 	header = (struct xb_frame_header*)recv_buf->data;
 
 	if(recv_buf->data[0] != XBEE_DELIMITER) return -EINVAL;
@@ -1098,7 +1109,7 @@ static int xb_send_queue(struct xb_device* xb)
 	while( !skb_queue_empty(&xb->send_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
 
-		if(xb->api == 2) {
+		if(xb->api == XBEE_API_2) {
 			frame_escape(skb);
 		}
 
@@ -1184,7 +1195,7 @@ static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 	struct ieee802154_hdr hdr = {};
 	int hlen = 0;
 
-	if(xbdev->api == 2)
+	if(xbdev->api == XBEE_API_2)
 		frame_unescape(skb);
 
 	rx = (struct xb_frame_rx64*)skb->data;
@@ -1214,7 +1225,7 @@ static void frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
 	struct ieee802154_hdr hdr = {};
 	int hlen = 0;
 
-	if(xbdev->api == 2)
+	if(xbdev->api == XBEE_API_2)
 		frame_unescape(skb);
 
 	pr_debug("RX16: addr=%04x rssi=%d options=%x\n", rx->srcaddr, rx->rssi, rx->options);
@@ -1562,7 +1573,7 @@ static int xbee_set_lbt_mode(struct xb_device *xb, bool mode)
 
 static int xbee_set_ackreq_default(struct xb_device *xb, bool ackreq)
 {
-	u8 mm = ackreq ? 2 : 1;
+	u8 mm = ackreq ? XBEE_MM_802154_WITH_ACK : XBEE_MM_802154_NO_ACK;
 	pr_debug("%s\n", __func__);
 	return xbee_set_param(xb, XBEE_AT_MM, &mm, sizeof(mm) );
 }
@@ -1577,7 +1588,7 @@ static int xbee_get_ackreq_default(struct xb_device *xb, bool* ackreq)
 
 	if(err) return err;
 
-	*ackreq = (mm == 2);
+	*ackreq = (mm == XBEE_MM_802154_WITH_ACK);
 
 	return 0;
 }
@@ -1887,7 +1898,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	if(hdr.dest.mode == IEEE802154_ADDR_SHORT) {
 		tx16 = (struct xb_frame_tx16*) skb_push(skb, sizeof(struct xb_frame_tx16) );
 		tx16->hd.start_delimiter = XBEE_DELIMITER;
-		tx16->hd.length = htons(skb->len - 3);
+		tx16->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
 		tx16->hd.type = XBEE_FRM_TX16;
 		tx16->id = xb_frameid(xbdev);
 		tx16->destaddr = htons(hdr.dest.short_addr);
@@ -1896,7 +1907,7 @@ static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *d
 	else {
 		tx64 = (struct xb_frame_tx64*) skb_push(skb, sizeof(struct xb_frame_tx64) );
 		tx64->hd.start_delimiter = XBEE_DELIMITER;
-		tx64->hd.length = htons(skb->len - 3);
+		tx64->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
 		tx64->hd.type = XBEE_FRM_TX64;
 		tx64->id = xb_frameid(xbdev);
 		ieee802154_le64_to_be64(&tx64->destaddr, &hdr.dest.extended_addr);
