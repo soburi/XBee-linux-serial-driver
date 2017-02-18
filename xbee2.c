@@ -789,7 +789,7 @@ static void pr_wpan_dev(struct wpan_dev* dev)
 
 static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t len)
 {
-	int i=0;
+	size_t i=0;
 	unsigned char checksum = 0;
 	for(i=0; i<len; i++) {
 		checksum += buf[i];
@@ -799,7 +799,7 @@ static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t
 
 static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
 {
-	int i=0;
+	size_t i=0;
 	bool esc = false;
 	for(i=0; i<len; i++) {
 		if(buf[i] == XBEE_ESCAPE) {
@@ -818,7 +818,7 @@ static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t 
 
 static size_t buffer_unescape(unsigned char* buf, const size_t len)
 {
-	int i=0;
+	size_t i=0;
 	int escape_count = 0;
 	bool esc = false;
 
@@ -842,7 +842,7 @@ static size_t buffer_unescape(unsigned char* buf, const size_t len)
 
 static size_t buffer_escaped_len(const unsigned char* buf, const size_t len)
 {
-	int i=0;
+	size_t i=0;
 	int escape_count = 0;
 
 	for(i=1; i<len; i++) {
@@ -860,7 +860,7 @@ static size_t buffer_escaped_len(const unsigned char* buf, const size_t len)
 
 static int buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
 {
-	int i=0;
+	size_t i=0;
 	size_t tail_ptr=buf_len;
 
 	for(i=data_len-1; i>0; i--) {
