@@ -282,6 +282,12 @@ static int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *
 {
 	return 0;
 }
+
+static int mac802154_wpan_update_llsec(struct net_device *dev)
+{
+	return 0;
+}
+
 static void ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
 {
 	if (!addr) {
@@ -399,6 +405,71 @@ static int ieee802154_header_create(struct sk_buff *skb,
 
 	return hlen;
 }
+
+// copy from Linux/net/mac802154/iface.c
+static int
+mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct sockaddr_ieee802154 *sa =
+		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
+	int err = -ENOIOCTLCMD;
+
+	if (cmd != SIOCGIFADDR && cmd != SIOCSIFADDR)
+		return err;
+
+	rtnl_lock();
+
+	switch (cmd) {
+	case SIOCGIFADDR:
+	{
+		u16 pan_id, short_addr;
+
+		pan_id = le16_to_cpu(wpan_dev->pan_id);
+		short_addr = le16_to_cpu(wpan_dev->short_addr);
+		if (pan_id == IEEE802154_PANID_BROADCAST ||
+		    short_addr == IEEE802154_ADDR_BROADCAST) {
+			err = -EADDRNOTAVAIL;
+			break;
+		}
+
+		sa->family = AF_IEEE802154;
+		sa->addr.addr_type = IEEE802154_ADDR_SHORT;
+		sa->addr.pan_id = pan_id;
+		sa->addr.short_addr = short_addr;
+
+		err = 0;
+		break;
+	}
+	case SIOCSIFADDR:
+		if (netif_running(dev)) {
+			rtnl_unlock();
+			return -EBUSY;
+		}
+
+		dev_warn(&dev->dev,
+			 "Using DEBUGing ioctl SIOCSIFADDR isn't recommended!\n");
+		if (sa->family != AF_IEEE802154 ||
+		    sa->addr.addr_type != IEEE802154_ADDR_SHORT ||
+		    sa->addr.pan_id == IEEE802154_PANID_BROADCAST ||
+		    sa->addr.short_addr == IEEE802154_ADDR_BROADCAST ||
+		    sa->addr.short_addr == IEEE802154_ADDR_UNDEF) {
+			err = -EINVAL;
+			break;
+		}
+
+		wpan_dev->pan_id = cpu_to_le16(sa->addr.pan_id);
+		wpan_dev->short_addr = cpu_to_le16(sa->addr.short_addr);
+
+		err = mac802154_wpan_update_llsec(dev);
+		break;
+	}
+
+	rtnl_unlock();
+	return err;
+}
+
 
 // copy from Linux/net/mac802154/rx.c
 static int ieee802154_deliver_skb(struct sk_buff *skb)
@@ -1898,71 +1969,6 @@ err_xmit:
 	return NETDEV_TX_OK;
 }
 
-//same as mac802154
-//TODO
-static int
-xbee_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	struct xbee_sub_if_data *sdata = netdev_priv(dev);
-	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct sockaddr_ieee802154 *sa =
-		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
-	int err = -ENOIOCTLCMD;
-
-	if (cmd != SIOCGIFADDR && cmd != SIOCSIFADDR)
-		return err;
-
-	rtnl_lock();
-
-	switch (cmd) {
-	case SIOCGIFADDR:
-	{
-		u16 pan_id, short_addr;
-
-		pan_id = le16_to_cpu(wpan_dev->pan_id);
-		short_addr = le16_to_cpu(wpan_dev->short_addr);
-		if (pan_id == IEEE802154_PANID_BROADCAST ||
-		    short_addr == IEEE802154_ADDR_BROADCAST) {
-			err = -EADDRNOTAVAIL;
-			break;
-		}
-
-		sa->family = AF_IEEE802154;
-		sa->addr.addr_type = IEEE802154_ADDR_SHORT;
-		sa->addr.pan_id = pan_id;
-		sa->addr.short_addr = short_addr;
-
-		err = 0;
-		break;
-	}
-	case SIOCSIFADDR:
-		if (netif_running(dev)) {
-			rtnl_unlock();
-			return -EBUSY;
-		}
-
-		dev_warn(&dev->dev,
-			 "Using DEBUGing ioctl SIOCSIFADDR isn't recommended!\n");
-		if (sa->family != AF_IEEE802154 ||
-		    sa->addr.addr_type != IEEE802154_ADDR_SHORT ||
-		    sa->addr.pan_id == IEEE802154_PANID_BROADCAST ||
-		    sa->addr.short_addr == IEEE802154_ADDR_BROADCAST ||
-		    sa->addr.short_addr == IEEE802154_ADDR_UNDEF) {
-			err = -EINVAL;
-			break;
-		}
-
-		wpan_dev->pan_id = cpu_to_le16(sa->addr.pan_id);
-		wpan_dev->short_addr = cpu_to_le16(sa->addr.short_addr);
-
-		//err = mac802154_wpan_update_llsec(dev);
-		break;
-	}
-
-	rtnl_unlock();
-	return err;
-	return 0;
-}
 
 static int xbee_ndo_set_mac_address(struct net_device *dev, void *p)
 {
@@ -2117,7 +2123,7 @@ static const struct net_device_ops xbee_net_device_ops = {
 	.ndo_open				= xbee_ndo_open,		//**
 	.ndo_stop				= xbee_ndo_stop,		//**
 	.ndo_start_xmit			= xbee_ndo_start_xmit,		//**
-	.ndo_do_ioctl			= xbee_ndo_do_ioctl,
+	.ndo_do_ioctl			= mac802154_wpan_ioctl,
 	.ndo_set_mac_address	= xbee_ndo_set_mac_address,	// ?
 };
 
