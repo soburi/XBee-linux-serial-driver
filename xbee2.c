@@ -94,7 +94,8 @@ struct xbee_sub_if_data {
 	struct mac802154_llsec sec;
 };
 /*
-static void mac802154_wpan_free(struct net_device *dev)
+static void
+mac802154_wpan_free(struct net_device *dev)
 {
 	//struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	//mac802154_llsec_destroy(&sdata->sec);
@@ -267,24 +268,28 @@ static const size_t XBEE_FRAME_COMMON_HEADER_AND_TRAILER = 4;
 
 #define ieee802154_sub_if_data xbee_sub_if_data
 
-static int mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
+static int
+mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
 					 struct ieee802154_hdr *hdr,
 					 const struct ieee802154_mac_cb *cb)
 {
 	return 0;
 }
 
-static int mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
+static int
+mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 {
 	return 0;
 }
 
-static int mac802154_wpan_update_llsec(struct net_device *dev)
+static int
+mac802154_wpan_update_llsec(struct net_device *dev)
 {
 	return 0;
 }
 
-static void ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
+static void
+ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
 {
 	if (!addr) {
 		pr_debug("%s address is null\n", name);
@@ -642,7 +647,8 @@ xbee_rx_handle_packet(struct xb_device *local,
 	kfree_skb(skb);
 }
 
-static void xbee_rx(struct xb_device *local, struct sk_buff *skb, u8 lqi)
+static void
+xbee_rx(struct xb_device *local, struct sk_buff *skb, u8 lqi)
 {
 	mac_cb(skb)->lqi = lqi;
 	skb->pkt_type = 0;
@@ -658,7 +664,8 @@ static void xbee_rx(struct xb_device *local, struct sk_buff *skb, u8 lqi)
 	return;
 }
 
-static void extended_addr_hton(uint64_t* dst, uint64_t* src)
+static void
+extended_addr_hton(uint64_t* dst, uint64_t* src)
 {
 #ifndef __BIG_ENDIAN
 	ieee802154_be64_to_le64(dst, src);
@@ -667,7 +674,8 @@ static void extended_addr_hton(uint64_t* dst, uint64_t* src)
 #endif
 }
 
-static void pr_ieee802154_addr(const char *name, const struct ieee802154_addr *addr)
+static void
+pr_ieee802154_addr(const char *name, const struct ieee802154_addr *addr)
 {
 	if (!addr) {
 		pr_debug("%s address is null\n", name);
@@ -689,7 +697,8 @@ static void pr_ieee802154_addr(const char *name, const struct ieee802154_addr *a
 	}
 }
 
-static void pr_ieee802154_hdr(const struct ieee802154_hdr *hdr)
+static void
+pr_ieee802154_hdr(const struct ieee802154_hdr *hdr)
 {
 	struct ieee802154_hdr_fc fc = hdr->fc;
 
@@ -703,7 +712,8 @@ static void pr_ieee802154_hdr(const struct ieee802154_hdr *hdr)
 	pr_ieee802154_addr("src", &hdr->source);
 	pr_ieee802154_addr("dst", &hdr->dest);
 }
-static void pr_wpan_phy_supported(struct wpan_phy* phy)
+static void
+pr_wpan_phy_supported(struct wpan_phy* phy)
 {
 	struct wpan_phy_supported *supported = &phy->supported;
 	u32 *channels = supported->channels;
@@ -742,7 +752,8 @@ static void pr_wpan_phy_supported(struct wpan_phy* phy)
 
 //const s32 *tx_powers, *cca_ed_levels;
 }
-static void pr_wpan_phy(struct wpan_phy* phy)
+static void
+pr_wpan_phy(struct wpan_phy* phy)
 {
 	pr_debug("wpan_phy=%p {\n", phy);
 	pr_debug("               privid = %p\n", phy->privid);
@@ -763,7 +774,8 @@ static void pr_wpan_phy(struct wpan_phy* phy)
 //struct wpan_phy_supported supported;
 //struct device dev;
 }
-static void pr_wpan_dev(struct wpan_dev* dev)
+static void
+pr_wpan_dev(struct wpan_dev* dev)
 {
 	pr_debug("wpan_dev=%p {\n", dev);
 	pr_debug("            wpan_phy = %p\n", dev->wpan_phy);
@@ -787,7 +799,8 @@ static void pr_wpan_dev(struct wpan_dev* dev)
 }
 
 
-static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t len)
+static unsigned
+char buffer_calc_checksum(const unsigned char* buf, const size_t len)
 {
 	size_t i=0;
 	unsigned char checksum = 0;
@@ -797,7 +810,8 @@ static unsigned char buffer_calc_checksum(const unsigned char* buf, const size_t
 	return 0xFF - checksum;
 }
 
-static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
+static int
+buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
 {
 	size_t i=0;
 	bool esc = false;
@@ -816,7 +830,8 @@ static int buffer_find_delimiter_escaped(const unsigned char* buf, const size_t 
 	return -1;
 }
 
-static size_t buffer_unescape(unsigned char* buf, const size_t len)
+static size_t
+buffer_unescape(unsigned char* buf, const size_t len)
 {
 	size_t i=0;
 	int escape_count = 0;
@@ -840,7 +855,8 @@ static size_t buffer_unescape(unsigned char* buf, const size_t len)
 	return len-escape_count;
 }
 
-static size_t buffer_escaped_len(const unsigned char* buf, const size_t len)
+static size_t
+buffer_escaped_len(const unsigned char* buf, const size_t len)
 {
 	size_t i=0;
 	int escape_count = 0;
@@ -858,7 +874,8 @@ static size_t buffer_escaped_len(const unsigned char* buf, const size_t len)
 	return len+escape_count;
 }
 
-static int buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
+static int
+buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
 {
 	size_t i=0;
 	size_t tail_ptr=buf_len;
@@ -884,7 +901,8 @@ static int buffer_escape(unsigned char* buf, const size_t data_len, const size_t
 	return buf_len - tail_ptr;
 }
 
-static struct sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
+static struct
+sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 {
 	struct sk_buff* new_skb = NULL;
 	struct xb_frame_header* frm = NULL;
@@ -907,7 +925,8 @@ static struct sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 	return new_skb;
 }
 
-static unsigned short frame_payload_length(struct sk_buff* frame)
+static unsigned
+short frame_payload_length(struct sk_buff* frame)
 {
 	struct xb_frame_header* frm = (struct xb_frame_header*)frame->data;
 	if(!frm)
@@ -916,29 +935,34 @@ static unsigned short frame_payload_length(struct sk_buff* frame)
 	return htons(frm->length);
 }
 
-static const unsigned char* frame_payload_buffer(struct sk_buff* frame)
+static const
+unsigned char* frame_payload_buffer(struct sk_buff* frame)
 {
 	return frame->data + XBEE_FRAME_OFFSET_PAYLOAD;
 }
 
-static unsigned char frame_calc_checksum(struct sk_buff* frame)
+static unsigned
+char frame_calc_checksum(struct sk_buff* frame)
 {
 	return buffer_calc_checksum(frame_payload_buffer(frame), frame_payload_length(frame) );
 }
 
-static void frame_put_checksum(struct sk_buff* frame)
+static void
+frame_put_checksum(struct sk_buff* frame)
 {
 	uint8_t csum = frame_calc_checksum(frame);
 	uint8_t* putbuf = skb_put(frame, XBEE_FRAME_CHECKSUM_SIZE);
 	*putbuf = csum;
 }
 
-static void frame_trim_checksum(struct sk_buff* frame)
+static void
+frame_trim_checksum(struct sk_buff* frame)
 {
 	skb_trim(frame, frame->len - XBEE_FRAME_CHECKSUM_SIZE);
 }
 
-static int frame_escape(struct sk_buff* frame)
+static int
+frame_escape(struct sk_buff* frame)
 {
 	size_t esclen = 0;
 	size_t datalen = 0;
@@ -960,14 +984,16 @@ static int frame_escape(struct sk_buff* frame)
 	return 0;
 }
 
-static void frame_unescape(struct sk_buff* recv_buf)
+static void
+frame_unescape(struct sk_buff* recv_buf)
 {
 	int unesc_len = 0;
 	unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
 	skb_trim(recv_buf, unesc_len);
 }
 
-static int frame_verify(struct sk_buff* recv_buf)
+static int
+frame_verify(struct sk_buff* recv_buf)
 {
 	unsigned short length = 0;
 	uint8_t checksum = 0;
@@ -996,7 +1022,8 @@ static int frame_verify(struct sk_buff* recv_buf)
 	return length + XBEE_FRAME_COMMON_HEADER_AND_TRAILER;
 }
 
-static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char* buf, const size_t len)
+static int
+frame_put_received_data(struct sk_buff* recv_buf, const unsigned char* buf, const size_t len)
 {
 	int delimiter_pos = 0;
 	unsigned char* tail = NULL;
@@ -1018,7 +1045,8 @@ static int frame_put_received_data(struct sk_buff* recv_buf, const unsigned char
 	}
 }
 
-static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf, bool apiv2)
+static int
+frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf, bool apiv2)
 {
 	int frame_count = 0;
 	int ret = 0;
@@ -1054,7 +1082,8 @@ static int frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buf
 	return frame_count;
 }
 
-static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
+static struct
+sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
 {
 	struct sk_buff* skb = NULL;
 	struct xb_frame_header_id* hd = NULL;
@@ -1075,12 +1104,14 @@ static struct sk_buff* frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint
 	return NULL;
 }
 
-static void frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_buf)
+static void
+frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_buf)
 {
 	skb_queue_tail(send_queue, send_buf);
 }
 
-static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uint8_t id, char* buf, unsigned short buflen)
+static void
+frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uint8_t id, char* buf, unsigned short buflen)
 {
 	struct sk_buff* newskb = NULL;
 	struct xb_frame_atcmd* atfrm = NULL;
@@ -1105,7 +1136,8 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 	frame_enqueue_send(send_queue, newskb);
 }
 
-static uint8_t xb_frameid(struct xb_device* xb) 
+static uint8_t
+xb_frameid(struct xb_device* xb)
 {
 	xb->frameid++;
 	if(xb->frameid == 0) {
@@ -1114,14 +1146,16 @@ static uint8_t xb_frameid(struct xb_device* xb)
 	return xb->frameid;
 }
 
-static uint8_t xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
+static uint8_t
+xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	uint8_t frameid = xb_frameid(xb);
 	frame_enqueue_send_at(&xb->send_queue, atcmd, frameid, buf, buflen);
 	return frameid;
 }
 
-static int xb_send_queue(struct xb_device* xb)
+static int
+xb_send_queue(struct xb_device* xb)
 {
 	struct tty_struct* tty = xb->tty;
 	int send_count = 0;
@@ -1155,12 +1189,14 @@ static int xb_send_queue(struct xb_device* xb)
 	return send_count;
 }
 
-static int xb_send(struct xb_device* xb)
+static int
+xb_send(struct xb_device* xb)
 {
 	return xb_send_queue(xb);
 }
 
-static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid, unsigned long timeout)
+static struct
+sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid, unsigned long timeout)
 {
 	int ret = 0;
 	struct sk_buff* skb = NULL;
@@ -1191,7 +1227,8 @@ static struct sk_buff* xb_recv(struct xb_device* xb, uint8_t recvid, unsigned lo
 	}
 }
 
-static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
+static struct
+sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 {
 	int i=0;
 	struct sk_buff* skb = NULL;
@@ -1204,13 +1241,15 @@ static struct sk_buff* xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 	return NULL;
 }
 
-static struct sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
+static struct
+sk_buff* xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	uint8_t recvid = xb_enqueue_send_at(xb, atcmd, buf, buflen);
 	return xb_sendrecv(xb, recvid);
 }
 
-static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
+static void
+frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
@@ -1241,7 +1280,8 @@ static void frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 	xbee_rx(xbdev, skb, rx->rssi);
 }
 
-static void frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
@@ -1268,7 +1308,8 @@ static void frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
 	xbee_rx(xbdev, skb, rx->rssi);
 }
 
-static void frame_recv_atcmdr(struct xb_device *xbdev, struct sk_buff *skb)
+static void
+frame_recv_atcmdr(struct xb_device *xbdev, struct sk_buff *skb)
 {
 	// AT command response must handle call side.
 	struct xb_frame_atcmdr* atresp = (struct xb_frame_atcmdr*)skb->data;
@@ -1277,34 +1318,39 @@ static void frame_recv_atcmdr(struct xb_device *xbdev, struct sk_buff *skb)
 			(atresp->command & 0xFF00)>>8 , atresp->status);
 }
 
-static void frame_recv_mstat(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_mstat(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_mstat* mstat = (struct xb_frame_mstat*)skb->data;
 	complete_all(&xbdev->modem_status_receive);
 	pr_debug("MSTA: status=%d\n", mstat->status);
 }
 
-static void frame_recv_txstat(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_txstat(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_txstat* txstat = (struct xb_frame_txstat*)skb->data;
 	pr_debug("TXST: id->0x%02x options=%x\n", txstat->id, txstat->options);
 }
 
-static void frame_recv_rx64io(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_rx64io(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rx64* rx64 = (struct xb_frame_rx64*)skb->data;
 	pr_debug("UNEXPECTED RX64IO: addr=%016llx rssi=%d options=%x\n",
 			rx64->srcaddr, rx64->rssi, rx64->options);
 }
 
-static void frame_recv_rx16io(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_rx16io(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rx16* rx16 = (struct xb_frame_rx16*)skb->data;
 	pr_debug("UNEXPECTED RX16IO: addr=%04x rssi=%d options=%x\n",
 			rx16->srcaddr, rx16->rssi, rx16->options);
 }
 
-static void frame_recv_atcmd(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_atcmd(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
 	pr_debug("UNEXPECTED ATCMD: id=0x%02x cmd=%c%c\n",
@@ -1312,7 +1358,8 @@ static void frame_recv_atcmd(struct xb_device* xbdev, struct sk_buff *skb)
 			(atcmd->command & 0xFF00)>>8);
 }
 
-static void frame_recv_atcmdq(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_atcmdq(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
 	pr_debug("UNEXPECTED ATCMDQ: id=0x%02x cmd=%c%c\n",
@@ -1320,7 +1367,8 @@ static void frame_recv_atcmdq(struct xb_device* xbdev, struct sk_buff *skb)
 			(atcmd->command & 0xFF00)>>8);
 }
 
-static void frame_recv_rcmd(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_rcmd(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rcmd* ratcmd = (struct xb_frame_rcmd*)skb->data;
 	pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c\n",
@@ -1328,7 +1376,8 @@ static void frame_recv_rcmd(struct xb_device* xbdev, struct sk_buff *skb)
 			ratcmd->command&0xFF, (ratcmd->command & 0xFF00)>>8);
 }
 
-static void frame_recv_rcmdr(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_rcmdr(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_rcmdr* ratcmdr = (struct xb_frame_rcmdr*)skb->data;
 	pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx addr16=%04x cmd=%c%c status=%d\n",
@@ -1338,30 +1387,35 @@ static void frame_recv_rcmdr(struct xb_device* xbdev, struct sk_buff *skb)
 			(ratcmdr->command & 0xFF00)>>8, ratcmdr->status);
 }
 
-static void frame_recv_tx64(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_tx64(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_tx64* tx64 = (struct xb_frame_tx64*)skb->data;
 	pr_debug("UNEXPECTED TX64: id=0x%02x addr=%llx options=%x\n",
 			tx64->id, tx64->destaddr, tx64->options);
 }
-static void frame_recv_tx16(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_tx16(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_tx16* tx16 = (struct xb_frame_tx16*)skb->data;
 	pr_debug("UNEXPECTED TX16: id=0x%02x addr=%04x options=%x\n",
 			tx16->id, tx16->destaddr, tx16->options);
 }
-static void frame_recv_default(struct xb_device* xbdev, struct sk_buff *skb)
+static void
+frame_recv_default(struct xb_device* xbdev, struct sk_buff *skb)
 {
 	pr_debug("%s\n", __func__);
 }
 
-static int frame_atcmdr_result(struct sk_buff* skb)
+static int
+frame_atcmdr_result(struct sk_buff* skb)
 {
 	struct xb_frame_atcmdr* atcmdr = (struct xb_frame_atcmdr*)skb->data;
 	return -atcmdr->status;
 }
 
-static int xbee_set_get_param(struct xb_device *xb, uint16_t atcmd,
+static int
+xbee_set_get_param(struct xb_device *xb, uint16_t atcmd,
 				const uint8_t* reqbuf, size_t reqsize,
 				uint8_t* respbuf, size_t respsize)
 {
@@ -1390,17 +1444,20 @@ static int xbee_set_get_param(struct xb_device *xb, uint16_t atcmd,
 	return ret;
 }
 
-static int xbee_get_param(struct xb_device *xb, uint16_t atcmd, uint8_t* buf, size_t bufsize)
+static int
+xbee_get_param(struct xb_device *xb, uint16_t atcmd, uint8_t* buf, size_t bufsize)
 {
 	return xbee_set_get_param(xb, atcmd, NULL, 0, buf, bufsize);
 }
-static int xbee_set_param(struct xb_device *xb, uint16_t atcmd, const uint8_t* buf, size_t bufsize)
+static int
+xbee_set_param(struct xb_device *xb, uint16_t atcmd, const uint8_t* buf, size_t bufsize)
 {
 	return xbee_set_get_param(xb, atcmd, buf, bufsize, "", 0);
 }
 
 
-static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
+static int
+xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
 {
 	u8 ch = channel;
 	pr_debug("%s\n", __func__);
@@ -1408,7 +1465,8 @@ static int xbee_set_channel(struct xb_device *xb, u8 page, u8 channel)
 }
 
 
-static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
+static int
+xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 {
 	int err = -EINVAL;
 	u8 ch = 0;
@@ -1425,7 +1483,8 @@ static int xbee_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
 	return 0;
 }
 
-static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cca)
+static int
+xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cca)
 {
 	return -EOPNOTSUPP;
 #if 0
@@ -1450,14 +1509,16 @@ static int xbee_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cc
 #endif
 }
 
-static int xbee_set_cca_ed_level(struct xb_device *xb, s32 ed_level)
+static int
+xbee_set_cca_ed_level(struct xb_device *xb, s32 ed_level)
 {
 	u8 ca = -ed_level/100;
 	pr_debug("%s\n", __func__);
 	return xbee_set_param(xb, XBEE_AT_CA, &ca, sizeof(ca) );
 }
 
-static int xbee_get_cca_ed_level(struct xb_device *xb, s32 *ed_level)
+static int
+xbee_get_cca_ed_level(struct xb_device *xb, s32 *ed_level)
 {
 	int err = -EINVAL;
 	u8 ca = 0;
@@ -1473,7 +1534,8 @@ static int xbee_get_cca_ed_level(struct xb_device *xb, s32 *ed_level)
 	return 0;
 }
 
-static int xbee_set_tx_power(struct xb_device *xb, s32 power)
+static int
+xbee_set_tx_power(struct xb_device *xb, s32 power)
 {
 	u8 pl = 4;
 
@@ -1496,7 +1558,8 @@ static int xbee_set_tx_power(struct xb_device *xb, s32 power)
 	return xbee_set_param(xb, XBEE_AT_PL, &pl, sizeof(pl) );
 }
 
-static int xbee_get_tx_power(struct xb_device *xb, s32 *power)
+static int
+xbee_get_tx_power(struct xb_device *xb, s32 *power)
 {
 	int err = -EINVAL;
 	u8 pl = 0;
@@ -1522,7 +1585,8 @@ static int xbee_get_tx_power(struct xb_device *xb, s32 *power)
 	return 0;
 }
 
-static int xbee_set_pan_id(struct xb_device *xb, __le16 pan_id)
+static int
+xbee_set_pan_id(struct xb_device *xb, __le16 pan_id)
 {
 	__be16 id = htons(pan_id);
 	pr_debug("%s\n", __func__);
@@ -1530,7 +1594,8 @@ static int xbee_set_pan_id(struct xb_device *xb, __le16 pan_id)
 }
 
 
-static int xbee_get_pan_id(struct xb_device *xb, __le16 *pan_id)
+static int
+xbee_get_pan_id(struct xb_device *xb, __le16 *pan_id)
 {
 	int err = -EINVAL;
 	__be16 beid = 0;
@@ -1549,14 +1614,16 @@ static int xbee_get_pan_id(struct xb_device *xb, __le16 *pan_id)
 	return 0;
 }
 
-static int xbee_set_short_addr(struct xb_device *xb, __le16 short_addr)
+static int
+xbee_set_short_addr(struct xb_device *xb, __le16 short_addr)
 {
 	__be16 my = htons(short_addr);
 	pr_debug("%s\n", __func__);
 	return xbee_set_param(xb, XBEE_AT_MY, (uint8_t*)&my, sizeof(my) );
 }
 
-static int xbee_get_short_addr(struct xb_device *xb, __le16 *short_addr)
+static int
+xbee_get_short_addr(struct xb_device *xb, __le16 *short_addr)
 {
 	int err = -EINVAL;
 	__be16 beaddr = 0;
@@ -1572,14 +1639,16 @@ static int xbee_get_short_addr(struct xb_device *xb, __le16 *short_addr)
 	return 0;
 }
 
-static int xbee_set_backoff_exponent(struct xb_device *xb, u8 min_be, u8 max_be)
+static int
+xbee_set_backoff_exponent(struct xb_device *xb, u8 min_be, u8 max_be)
 {
 	u8 rr = min_be;
 	pr_debug("%s\n", __func__);
 	return xbee_set_param(xb, XBEE_AT_RN, &rr, sizeof(rr) );
 }
 
-static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_be)
+static int
+xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_be)
 {
 	int err = -EINVAL;
 	u8 rn = 0;
@@ -1595,33 +1664,39 @@ static int xbee_get_backoff_exponent(struct xb_device *xb, u8* min_be, u8* max_b
 	return 0;
 }
 
-static int xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
+static int
+xbee_set_max_csma_backoffs(struct xb_device *xb, u8 max_csma_backoffs)
 {
 	return -EOPNOTSUPP;
 }
 #if 0
-static int xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoffs)
+static int
+xbee_get_max_csma_backoffs(struct xb_device *xb, u8* max_csma_backoffs)
 {
 	return -EOPNOTSUPP;
 }
 #endif
-static int xbee_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
+static int
+xbee_set_max_frame_retries(struct xb_device *xb, s8 max_frame_retries)
 {
 	return -EOPNOTSUPP;
 }
-static int xbee_set_lbt_mode(struct xb_device *xb, bool mode)
+static int
+xbee_set_lbt_mode(struct xb_device *xb, bool mode)
 {
 	return -EOPNOTSUPP;
 }
 
-static int xbee_set_ackreq_default(struct xb_device *xb, bool ackreq)
+static int
+xbee_set_ackreq_default(struct xb_device *xb, bool ackreq)
 {
 	u8 mm = ackreq ? XBEE_MM_802154_WITH_ACK : XBEE_MM_802154_NO_ACK;
 	pr_debug("%s\n", __func__);
 	return xbee_set_param(xb, XBEE_AT_MM, &mm, sizeof(mm) );
 }
 
-static int xbee_get_ackreq_default(struct xb_device *xb, bool* ackreq)
+static int
+xbee_get_ackreq_default(struct xb_device *xb, bool* ackreq)
 {
 	int err = -EINVAL;
 	u8 mm = 0;
@@ -1636,7 +1711,8 @@ static int xbee_get_ackreq_default(struct xb_device *xb, bool* ackreq)
 	return 0;
 }
 
-static int xbee_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
+static int
+xbee_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
 {
 	int err = -EINVAL;
 	__be32 behi = 0;
@@ -1655,7 +1731,8 @@ static int xbee_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
 	return 0;
 }
 
-static int xbee_get_api_mode(struct xb_device *xb, u8* apimode)
+static int
+xbee_get_api_mode(struct xb_device *xb, u8* apimode)
 {
 	int err = -EINVAL;
 	u8 ap = 0;
@@ -1668,26 +1745,30 @@ static int xbee_get_api_mode(struct xb_device *xb, u8* apimode)
 	return 0;
 }
 
-static int xbee_set_scan_channels(struct xb_device* xb, u32 channels)
+static int
+xbee_set_scan_channels(struct xb_device* xb, u32 channels)
 {
 	pr_debug("%s\n", __func__);
 	return xbee_set_param(xb, XBEE_AT_SC, (uint8_t*)&channels, sizeof(channels) );
 }
 
-static int xbee_set_scan_duration(struct xb_device* xb, u8 duration)
+static int
+xbee_set_scan_duration(struct xb_device* xb, u8 duration)
 {
 	pr_debug("%s\n", __func__);
 	return xbee_set_param(xb, XBEE_AT_SD, &duration, sizeof(duration) );
 }
 
-static int xbee_energy_detect(struct xb_device* xb, u8 scantime, u8* edl, size_t edllen)
+static int
+xbee_energy_detect(struct xb_device* xb, u8 scantime, u8* edl, size_t edllen)
 {
 	pr_debug("%s\n", __func__);
 	return xbee_set_get_param(xb, XBEE_AT_ED,
 			&scantime, sizeof(scantime), edl, edllen);
 }
 
-static int xbee_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_t bufsize)
+static int
+xbee_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_t bufsize)
 {
 	pr_debug("%s\n", __func__);
 	return xbee_set_get_param(xb, XBEE_AT_ED,
@@ -1703,7 +1784,8 @@ static int xbee_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_
  * Verify the XBee frame, then take appropriate action depending on the
  * frame type.
  */
-static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
+static void
+frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 {
 	struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
 
@@ -1725,7 +1807,8 @@ static void frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
 	}
 }
 
-static int xbee_header_create(struct sk_buff *skb,
+static int
+xbee_header_create(struct sk_buff *skb,
 				   struct net_device *dev,
 				   unsigned short type,
 				   const void *daddr,
@@ -1749,7 +1832,8 @@ static int xbee_header_create(struct sk_buff *skb,
 	return ieee802154_header_create(skb, dev, &daddr802154, &saddr802154, len);
 }
 
-static int xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
+static int
+xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	struct ieee802154_hdr hdr;
 
@@ -1769,7 +1853,8 @@ static int xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	return 0;
 }
 
-static bool xbee_header_validate(const char *ll_header, unsigned int len)
+static bool
+xbee_header_validate(const char *ll_header, unsigned int len)
 {
 	WARN_ON(true);
 	pr_debug("%s\n", __func__);
@@ -1780,28 +1865,32 @@ static bool xbee_header_validate(const char *ll_header, unsigned int len)
 }
 
 //TODO
-static int xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
+static int
+xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
 {
 	pr_debug("%s(addr=%1u:%016llx, channels=%u, page=%u, cap=%x\n",
 			__func__, addr->mode,addr->extended_addr, channel, page, cap);
 	return 0;
 }
 //TODO not be implemented.
-static int xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr, __le16 short_addr, u8 status)
+static int
+xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr, __le16 short_addr, u8 status)
 {
 	pr_debug("%s(addr=%1u:%016llx, short=%04x status=%x\n",
 			__func__, addr->mode,addr->extended_addr, short_addr, status);
 	return 0;
 }
 //TODO
-static int xbee_mlme_disassoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 reason)
+static int
+xbee_mlme_disassoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 reason)
 {
 	pr_debug("%s(addr=%1u:%016llx, reason=%x\n",
 			__func__, addr->mode,addr->extended_addr, reason);
 	return 0;
 }
 //TODO
-static int xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx, u8 coord_realign)
+static int
+xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx, u8 coord_realign)
 {
 	pr_debug("%s(addr=%1u:%016llx, channel=%u, page=%u, bcn_ord=%u sf_ord=%u, pan_coord=%u, blx=%u, coord_realign=%u\n", __func__,
 			addr->mode,addr->extended_addr, channel, page, bcn_ord, sf_ord, pan_coord, blx, coord_realign);
@@ -1810,7 +1899,8 @@ static int xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *a
 	return 0;
 }
 
-static int xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 page, u8 duration)
+static int
+xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 page, u8 duration)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct xb_device* xb = sdata->local;
@@ -1852,7 +1942,8 @@ static int xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 
 	return ret;
 }
 
-static int xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802154_mac_params *params)
+static int
+xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802154_mac_params *params)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
@@ -1888,7 +1979,8 @@ static int xbee_mlme_set_mac_params(struct net_device *dev, const struct ieee802
 
 	return 0;
 }
-static void xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_mac_params *params)
+static void
+xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_mac_params *params)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
@@ -1907,7 +1999,8 @@ static void xbee_mlme_get_mac_params(struct net_device *dev, struct ieee802154_m
 	return;
 }
 
-static int xbee_ndo_open(struct net_device *dev)
+static int
+xbee_ndo_open(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
 	ASSERT_RTNL();
@@ -1918,7 +2011,8 @@ static int xbee_ndo_open(struct net_device *dev)
 	return 0;
 }
 
-static int xbee_ndo_stop(struct net_device *dev)
+static int
+xbee_ndo_stop(struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
 	rcu_read_lock();
@@ -1927,7 +2021,8 @@ static int xbee_ndo_stop(struct net_device *dev)
 	return 0;
 }
 
-static netdev_tx_t xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t
+xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
@@ -1994,13 +2089,15 @@ err_xmit:
 }
 
 
-static int xbee_ndo_set_mac_address(struct net_device *dev, void *p)
+static int
+xbee_ndo_set_mac_address(struct net_device *dev, void *p)
 {
 	pr_debug("%s\n", __func__);
 	return 0;
 }
 
-static struct net_device* xbee_cfg802154_add_virtual_intf_deprecated(struct wpan_phy *wpan_phy,
+static struct
+net_device* xbee_cfg802154_add_virtual_intf_deprecated(struct wpan_phy *wpan_phy,
                                                            const char *name,
                                                            unsigned char name_assign_type,
                                                            int type)
@@ -2008,13 +2105,15 @@ static struct net_device* xbee_cfg802154_add_virtual_intf_deprecated(struct wpan
 	pr_debug("%s\n", __func__);
 	return NULL;
 }
-static void xbee_cfg802154_del_virtual_intf_deprecated(struct wpan_phy *wpan_phy,
+static void
+xbee_cfg802154_del_virtual_intf_deprecated(struct wpan_phy *wpan_phy,
                                                struct net_device *dev)
 {
 	pr_debug("%s\n", __func__);
 }
 
-static int xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
+static int
+xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
@@ -2025,7 +2124,8 @@ static int xbee_cfg802154_suspend(struct wpan_phy *wpan_phy)
 	return 0;
 }
 
-static int xbee_cfg802154_resume(struct wpan_phy *wpan_phy)
+static int
+xbee_cfg802154_resume(struct wpan_phy *wpan_phy)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
@@ -2038,7 +2138,8 @@ static int xbee_cfg802154_resume(struct wpan_phy *wpan_phy)
 }
 
 // should NOT impl it.
-static int xbee_cfg802154_add_virtual_intf(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_add_virtual_intf(struct wpan_phy *wpan_phy,
                                     const char *name,
                                     unsigned char name_assign_type,
                                     enum nl802154_iftype type,
@@ -2048,67 +2149,77 @@ static int xbee_cfg802154_add_virtual_intf(struct wpan_phy *wpan_phy,
 	return 0;
 }
 // should NOT impl it.
-static int xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
                                     struct wpan_dev *wpan_dev)
 {
 	pr_debug("%s\n", __func__);
 	return 0;
 }
-static int xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
+static int
+xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 {
 
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_channel(xb, page, channel);
 }
-static int xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
 								const struct wpan_phy_cca *cca)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_cca_mode(xb, cca);
 }
-static int xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
+static int
+xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_cca_ed_level(xb, ed_level);
 }
-static int xbee_cfg802154_set_tx_power(struct wpan_phy *wpan_phy, s32 power)
+static int
+xbee_cfg802154_set_tx_power(struct wpan_phy *wpan_phy, s32 power)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_tx_power(xb, power);
 }
-static int xbee_cfg802154_set_pan_id(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_set_pan_id(struct wpan_phy *wpan_phy,
 								struct wpan_dev *wpan_dev, __le16 pan_id)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_pan_id(xb, pan_id);
 }
-static int xbee_cfg802154_set_short_addr(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_set_short_addr(struct wpan_phy *wpan_phy,
 								struct wpan_dev *wpan_dev, __le16 short_addr)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_short_addr(xb, short_addr);
 }
-static int xbee_cfg802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
 								struct wpan_dev *wpan_dev, u8 min_be, u8 max_be)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_backoff_exponent(xb, min_be, max_be);
 }
-static int xbee_cfg802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 								struct wpan_dev *wpan_dev, u8 max_csma_backoffs)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_max_csma_backoffs(xb, max_csma_backoffs);
 }
-static int xbee_cfg802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
                                          struct wpan_dev *wpan_dev,
                                          s8 max_frame_retries)
 {
@@ -2116,14 +2227,16 @@ static int xbee_cfg802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 	pr_debug("%s\n", __func__);
 	return xbee_set_max_frame_retries(xb, max_frame_retries);
 }
-static int xbee_cfg802154_set_lbt_mode(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_set_lbt_mode(struct wpan_phy *wpan_phy,
                                 struct wpan_dev *wpan_dev, bool mode)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
 	pr_debug("%s\n", __func__);
 	return xbee_set_lbt_mode(xb, mode);
 }
-static int xbee_cfg802154_set_ackreq_default(struct wpan_phy *wpan_phy,
+static int
+xbee_cfg802154_set_ackreq_default(struct wpan_phy *wpan_phy,
                                       struct wpan_dev *wpan_dev, bool ackreq)
 {
 	struct xb_device *xb = wpan_phy_priv(wpan_phy);
@@ -2162,7 +2275,8 @@ static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
 	.llsec					= NULL,
 };
 
-static const struct cfg802154_ops xbee_cfg802154_ops = {
+static const
+struct cfg802154_ops xbee_cfg802154_ops = {
 	.add_virtual_intf_deprecated	= xbee_cfg802154_add_virtual_intf_deprecated,
 	.del_virtual_intf_deprecated	= xbee_cfg802154_del_virtual_intf_deprecated,
 	.suspend				= xbee_cfg802154_suspend,
@@ -2203,7 +2317,8 @@ static const struct cfg802154_ops xbee_cfg802154_ops = {
  */
 
 
-static struct net_device* xbee_alloc_netdev(struct xb_device* local)
+static struct
+net_device* xbee_alloc_netdev(struct xb_device* local)
 {
 	struct net_device *ndev = local->dev;
 	struct xbee_sub_if_data *sdata = NULL;
@@ -2231,7 +2346,8 @@ free_dev:
 	return NULL;
 }
 
-static struct xb_device* xbee_alloc_device(size_t priv_data_len)
+static struct
+xb_device* xbee_alloc_device(size_t priv_data_len)
 {
 	struct xb_device *local = NULL;
 	struct net_device *ndev = NULL;
@@ -2272,7 +2388,8 @@ free_phy:
 	return NULL;
 }
 
-static int xbee_register_netdev(struct net_device* dev)
+static int
+xbee_register_netdev(struct net_device* dev)
 {
 	int ret;
 
@@ -2285,7 +2402,8 @@ static int xbee_register_netdev(struct net_device* dev)
 	return ret;
 }
 
-static int xbee_register_device(struct xb_device* local)
+static int
+xbee_register_device(struct xb_device* local)
 {
 	int ret;
 		
@@ -2304,7 +2422,8 @@ unregister_wpan:
 	return ret;
 }
 
-static void xbee_unregister_netdev(struct net_device* netdev)
+static void
+xbee_unregister_netdev(struct net_device* netdev)
 {
 	pr_debug("%s\n", __func__);
 	if(!netdev) return;
@@ -2315,20 +2434,23 @@ static void xbee_unregister_netdev(struct net_device* netdev)
 	pr_debug("%d\n", __LINE__);
 }
 
-static void xbee_unregister_device(struct xb_device* local)
+static void
+xbee_unregister_device(struct xb_device* local)
 {
 	pr_debug("%s\n", __func__);
 	xbee_unregister_netdev(local->dev);
 	wpan_phy_unregister(local->phy);
 }
 
-static void xbee_free(struct xb_device* local)
+static void
+xbee_free(struct xb_device* local)
 {
 	free_netdev(local->dev);
 	wpan_phy_free(local->phy);
 }
 
-static void xbee_set_supported(struct xb_device* local)
+static void
+xbee_set_supported(struct xb_device* local)
 {
 	struct wpan_phy *phy = local->phy;
 
@@ -2373,7 +2495,8 @@ static void xbee_set_supported(struct xb_device* local)
 	}
 }
 
-static void xbee_read_config(struct xb_device* local)
+static void
+xbee_read_config(struct xb_device* local)
 {
 	struct wpan_phy *wpan_phy = local->phy;
 	struct xbee_sub_if_data *sdata = netdev_priv(local->dev);
@@ -2436,7 +2559,8 @@ static void xbee_read_config(struct xb_device* local)
 			WPAN_PHY_FLAG_CCA_MODE;
 }
 
-static void xbee_setup(struct xb_device* local)
+static void
+xbee_setup(struct xb_device* local)
 {
 	struct net_device* ndev = local->dev;
 	struct xbee_sub_if_data *sdata = netdev_priv(ndev);
@@ -2474,7 +2598,8 @@ static void xbee_setup(struct xb_device* local)
 
 
 
-static void recv_work_fn(struct work_struct *param)
+static void
+recv_work_fn(struct work_struct *param)
 {
 	struct xb_work* xbw = (struct xb_work*)param;
 	struct xb_device* xb = xbw->xb;
@@ -2503,7 +2628,8 @@ static void recv_work_fn(struct work_struct *param)
 	mutex_unlock(&xb->queue_mutex);
 }
 
-static void send_work_fn(struct work_struct *param)
+static void
+send_work_fn(struct work_struct *param)
 {
 	struct xb_work* xbw = (struct xb_work*)param;
 	struct xb_device* xb = xbw->xb;
@@ -2515,7 +2641,8 @@ static void send_work_fn(struct work_struct *param)
 	complete_all(&xb->send_done);
 }
 
-static void init_work_fn(struct work_struct *param)
+static void
+init_work_fn(struct work_struct *param)
 {
 	struct xb_work* xbw = (struct xb_work*)param;
 	struct xb_device* xbdev = xbw->xb;
@@ -2585,7 +2712,8 @@ err:
  *
  * 
  */
-static int xbee_ldisc_open(struct tty_struct *tty)
+static int
+xbee_ldisc_open(struct tty_struct *tty)
 {
 	struct xb_device *xbdev = tty->disc_data;
 	int err = -EINVAL;
@@ -2670,7 +2798,8 @@ err:
  *
  * @tty: TTY info for line.
  */
-static void xbee_ldisc_close(struct tty_struct *tty)
+static void
+xbee_ldisc_close(struct tty_struct *tty)
 {
 	struct xb_device *xbdev = tty->disc_data;
 
@@ -2708,7 +2837,8 @@ static void xbee_ldisc_close(struct tty_struct *tty)
  * @cmd: ...
  * @arg: ...
  */
-static int xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
+static int
+xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
 	struct xb_device *xbdev = tty->disc_data;
@@ -2739,7 +2869,8 @@ static int xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
  * "The line discipline should cease I/O to the tty.
  * No further calls into the ldisc code will occur."
  */
-static int xbee_ldisc_hangup(struct tty_struct *tty)
+static int
+xbee_ldisc_hangup(struct tty_struct *tty)
 {
 	pr_debug("%s\n", __func__);
 	xbee_ldisc_close(tty);
@@ -2758,7 +2889,8 @@ static int xbee_ldisc_hangup(struct tty_struct *tty)
  * tty_flip_buffer_push(), either in IRQ context if low latency tty or from
  * a normal worker thread otherwise.
  */
-static int xbee_ldisc_receive_buf2(struct tty_struct *tty,
+static int
+xbee_ldisc_receive_buf2(struct tty_struct *tty,
 				const unsigned char *buf,
 				char *cflags, int count)
 {
