@@ -907,9 +907,12 @@ static struct sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 	return new_skb;
 }
 
-static const unsigned char frame_payload_length(struct sk_buff* frame)
+static unsigned short frame_payload_length(struct sk_buff* frame)
 {
 	struct xb_frame_header* frm = (struct xb_frame_header*)frame->data;
+	if(!frm)
+		return 0;
+
 	return htons(frm->length);
 }
 
