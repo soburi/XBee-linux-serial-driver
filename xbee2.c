@@ -873,7 +873,7 @@ static struct sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 	if(!new_skb)
 		return NULL;
 
-	frm = (struct xb_frame_header*)skb_put(new_skb, paylen + XBEE_FRAME_OFFSET_PAYLOAD + 2 + (alloc_csum ? XBEE_FRAME_CHECKSUM_SIZE : 0) );
+	frm = (struct xb_frame_header*)skb_put(new_skb, paylen + XBEE_FRAME_OFFSET_PAYLOAD + 2);
 	if(!frm) {
 		kfree_skb(new_skb);
 		return NULL;
