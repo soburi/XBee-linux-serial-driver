@@ -101,26 +101,6 @@ static void mac802154_wpan_free(struct net_device *dev)
 	free_netdev(dev);
 }
 */
-struct xbee_frame {
-	struct list_head list;
-	int ack;
-
-	u16 len;
-	u8 id;
-	unsigned char *raw_data;
-	u8 csum;
-
-	/* parsed elements */
-	u8 fid;
-	u8 status;
-	unsigned char cmd[2];
-	u8 addr[IEEE802154_ADDR_LEN];
-//	u8 saddr[IEEE802154_SHORT_ALEN];
-    __le16 saddr;
-	u8 flags;
-	u8 rssi;
-	unsigned char *data;
-};
 
 struct xb_frame_header {
 	uint8_t start_delimiter; // 0x7e
