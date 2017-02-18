@@ -1721,7 +1721,7 @@ static int xbee_header_create(struct sk_buff *skb,
 	struct ieee802154_addr daddr802154;
 	struct ieee802154_addr saddr802154;
 
-	struct xbee_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 
 	daddr802154.mode = IEEE802154_ADDR_LONG;
