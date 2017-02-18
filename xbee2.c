@@ -249,6 +249,12 @@ enum {
 	XBEE_ATCMDR_INVALID_PARAMETER = 3,
 };
 
+static const size_t XBEE_FRAME_DELIMITER_SIZE = 1;
+static const size_t XBEE_FRAME_LENGTH_SIZE = 2;
+static const size_t XBEE_FRAME_CHECKSUM_SIZE = 1;
+
+static const size_t XBEE_FRAME_OFFSET_PAYLOAD = 3;
+
 #define ieee802154_sub_if_data xbee_sub_if_data
 
 static int mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
@@ -858,23 +864,23 @@ static int buffer_escape(unsigned char* buf, const size_t data_len, const size_t
 	return buf_len - tail_ptr;
 }
 
-static struct sk_buff* frame_alloc(size_t paylen, uint8_t type)
+static struct sk_buff* frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 {
 	struct sk_buff* new_skb = NULL;
 	struct xb_frame_header* frm = NULL;
 
-	new_skb = dev_alloc_skb(paylen+5); //delimiter, length, checksum
+	new_skb = dev_alloc_skb(paylen + XBEE_FRAME_OFFSET_PAYLOAD + 2); //delimiter, length, checksum
 	if(!new_skb)
 		return NULL;
 
-	frm = (struct xb_frame_header*)skb_put(new_skb, paylen+5);
+	frm = (struct xb_frame_header*)skb_put(new_skb, paylen + XBEE_FRAME_OFFSET_PAYLOAD + 2 + (alloc_csum ? XBEE_FRAME_CHECKSUM_SIZE : 0) );
 	if(!frm) {
 		kfree_skb(new_skb);
 		return NULL;
 	}
 
 	frm->start_delimiter  = XBEE_DELIMITER;
-	frm->length = htons(paylen+1);
+	frm->length = htons(paylen + XBEE_FRAME_CHECKSUM_SIZE);
 	frm->type = type;
 	return new_skb;
 }
@@ -887,7 +893,7 @@ static const unsigned char frame_payload_length(struct sk_buff* frame)
 
 static const unsigned char* frame_payload_buffer(struct sk_buff* frame)
 {
-	return frame->data + 3;
+	return frame->data + XBEE_FRAME_OFFSET_PAYLOAD;
 }
 
 static unsigned char frame_calc_checksum(struct sk_buff* frame)
@@ -1048,7 +1054,7 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 	unsigned char checksum = 0;
 	int datalen = 0;
 
-	newskb = frame_alloc(buflen+3, XBEE_FRM_ATCMD);
+	newskb = frame_alloc(buflen + XBEE_FRAME_OFFSET_PAYLOAD, XBEE_FRM_ATCMD, true);
 	atfrm = (struct xb_frame_atcmd*)newskb->data;
 
 	atfrm->id = id;
@@ -1060,6 +1066,7 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 
 	checksum = frame_calc_checksum(newskb);
 	newskb->data[datalen+3] = checksum;
+	//frame_put_checksum(newskb);
 
 	frame_enqueue_send(send_queue, newskb);
 }

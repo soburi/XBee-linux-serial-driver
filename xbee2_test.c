@@ -206,9 +206,9 @@ static struct modtest_result buffer_unescape_end_escape(void* arg) {
 	TEST_SUCCESS();
 }
 
-#define TEST15 frame_new_test
-static struct modtest_result frame_new_test(void* arg) {
-	struct sk_buff* skb = frame_new(9, 0x0F);
+#define TEST15 frame_alloc_test
+static struct modtest_result frame_alloc_test(void* arg) {
+	struct sk_buff* skb = frame_alloc(9, 0x0F, true);
 	struct xb_frameheader* frm = NULL;
 
 	frm = (struct xb_frameheader*)skb->data;
