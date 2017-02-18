@@ -831,33 +831,7 @@ static size_t buffer_escaped_len(const unsigned char* buf, const size_t len)
 
 	return len+escape_count;
 }
-/*
-static size_t buffer_escape_copy(unsigned char* dst, const size_t dst_len, const unsigned char* buf, const size_t len)
-{
-	int i=0;
-	int escape_count = 0;
 
-	if(len > 0) dst[0] = buf[0];
-
-	for(i=1; i<len; i++) {
-		if( buf[i] == XBEE_DELIMITER ||
-		    buf[i] == XBEE_ESCAPE ||
-		    buf[i] == XBEE_XON ||
-		    buf[i] == XBEE_XOFF)
-		{
-			dst[i+escape_count] = XBEE_ESCAPE;
-			escape_count++;
-			dst[i+escape_count] = (buf[i] ^ XBEE_ESCMASK);
-		}
-		else {
-			dst[i+escape_count] = buf[i];
-		}
-
-	}
-
-	return len+escape_count;
-}
-*/
 static int buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
 {
 	int i=0;
