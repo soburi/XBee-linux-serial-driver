@@ -893,16 +893,21 @@ static int buffer_escape(unsigned char* buf, const size_t data_len, const size_t
 	return buf_len - tail_ptr;
 }
 
-static struct sk_buff* frame_new(size_t paylen, uint8_t type)
+static struct sk_buff* frame_alloc(size_t paylen, uint8_t type)
 {
 	struct sk_buff* new_skb = NULL;
 	struct xb_frame_header* frm = NULL;
-	unsigned char* tail = NULL;
 
 	new_skb = dev_alloc_skb(paylen+5); //delimiter, length, checksum
-	tail = skb_put(new_skb, paylen+5);
+	if(!new_skb)
+		return NULL;
 
-	frm = (struct xb_frame_header*)tail;
+	frm = (struct xb_frame_header*)skb_put(new_skb, paylen+5);
+	if(!frm) {
+		kfree_skb(new_skb);
+		return NULL;
+	}
+
 	frm->start_delimiter  = XBEE_DELIMITER;
 	frm->length = htons(paylen+1);
 	frm->type = type;
@@ -1078,7 +1083,7 @@ static void frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned shor
 	unsigned char checksum = 0;
 	int datalen = 0;
 
-	newskb = frame_new(buflen+3, XBEE_FRM_ATCMD);
+	newskb = frame_alloc(buflen+3, XBEE_FRM_ATCMD);
 	atfrm = (struct xb_frame_atcmd*)newskb->data;
 
 	atfrm->id = id;
