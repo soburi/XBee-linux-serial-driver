@@ -2644,10 +2644,9 @@ err_xmit:
 	return NETDEV_TX_OK;
 }
 
-
+#if 0
 /**
  * xbee_ndo_set_mac_address()
- * TODO
  * @dev: net_device that is associated with this XBee.
  * @p: -
  */
@@ -2657,6 +2656,7 @@ xbee_ndo_set_mac_address(struct net_device *dev, void *p)
 	pr_debug("%s\n", __func__);
 	return 0;
 }
+#endif
 
 /**
  * xbee_cfg802154_suspend()
@@ -2934,7 +2934,6 @@ static const struct net_device_ops xbee_net_device_ops = {
 	.ndo_stop		= xbee_ndo_stop,
 	.ndo_start_xmit		= xbee_ndo_start_xmit,
 	.ndo_do_ioctl		= mac802154_wpan_ioctl,
-	.ndo_set_mac_address	= xbee_ndo_set_mac_address,
 };
 
 static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
