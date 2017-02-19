@@ -1192,6 +1192,10 @@ frame_verify(struct sk_buff* recv_buf)
 
 /**
  * frame_put_received_data()
+ *
+ * @recv_buf: sk_buff to store received data.
+ * @buf: New received data.
+ * @len: Length of buf.
  */
 static int
 frame_put_received_data(struct sk_buff* recv_buf, const unsigned char* buf, const size_t len)
@@ -1218,6 +1222,9 @@ frame_put_received_data(struct sk_buff* recv_buf, const unsigned char* buf, cons
 
 /**
  * frame_enqueue_received()
+ *
+ * @recv_queue: Received frame queue.
+ * @recv_buf: sk_buff which contains received data.
  */
 static int
 frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf, bool apiv2)
@@ -1258,6 +1265,7 @@ frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf
 
 /**
  * frame_dequeue_by_id()
+ *
  * @recv_queue: receive queue
  * @frameid: Dequeue frame which has this id from receive queue.
  */
@@ -1345,7 +1353,11 @@ xb_frameid(struct xb_device* xb)
 
 /**
  * xb_enqueue_send_at()
+ *
  * @xb: XBee device context.
+ * @atcmd: AT command type.
+ * @buf: Buffer contains parameter for this AT command.
+ * @buflen: Length of buf.
  */
 static uint8_t
 xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
@@ -1460,7 +1472,11 @@ xb_sendrecv(struct xb_device* xb, uint8_t recvid)
 
 /**
  * xb_sendrecv_atcmd()
+ *
  * @xb: XBee device context.
+ * @atcmd: AT command type.
+ * @buf: Buffer contains parameter for this AT command.
+ * @buflen: Length of buf.
  */
 static struct sk_buff*
 xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigned short buflen)
@@ -1689,7 +1705,13 @@ frame_atcmdr_result(struct sk_buff* skb)
 
 /**
  * xb_set_get_param()
+ *
  * @xb: XBee device context.
+ * @atcmd: AT command type to get param.
+ * @reqbuf: AT command parameter for request.
+ * @reqsize: Length of reqbuf.
+ * @respbuf: Pointer to store command response.
+ * @respsize: Length of reqpbuf.
  */
 static int
 xb_set_get_param(struct xb_device *xb, uint16_t atcmd,
