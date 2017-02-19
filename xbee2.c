@@ -3069,7 +3069,7 @@ free_dev:
 /**
  * xb_alloc_device()
  */
-static struct xb_device* xb_alloc_device(void)
+static struct xb_device* xb_alloc_device(const struct cfg802154_ops* ptr_cfg802154_ops)
 {
 	struct xb_device *xb = NULL;
 	struct net_device *ndev = NULL;
@@ -3077,7 +3077,7 @@ static struct xb_device* xb_alloc_device(void)
 	size_t priv_size;
 
 	priv_size = ALIGN(sizeof(*xb), NETDEV_ALIGN) + sizeof(struct xb_device);
-	phy = wpan_phy_new(&xbee_cfg802154_ops, priv_size);
+	phy = wpan_phy_new(ptr_cfg802154_ops, priv_size);
 	if (!phy) {
 		pr_err("failure to allocate master IEEE802.15.4 device\n");
 		return NULL;
@@ -3303,48 +3303,6 @@ xb_read_config(struct xb_device* xb)
 			WPAN_PHY_FLAG_CCA_MODE;
 }
 
-/**
- * xb_setup()
- * @xb: XBee device context.
- */
-static void
-xb_setup(struct xb_device* xb)
-{
-	struct net_device* ndev = xb->dev;
-	struct xbee_sub_if_data *sdata = netdev_priv(ndev);
-	uint8_t tmp;
-
-	ndev->ieee802154_ptr = &sdata->wpan_dev;
-
-	ieee802154_le64_to_be64(ndev->perm_addr,
-				&xb->phy->perm_extended_addr);
-
-	if (ieee802154_is_valid_extended_unicast_addr(xb->phy->perm_extended_addr))
-		ieee802154_le64_to_be64(ndev->dev_addr, &xb->phy->perm_extended_addr);
-	else
-		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
-
-	get_random_bytes(&tmp, sizeof(tmp));
-	atomic_set(&sdata->wpan_dev.bsn, tmp);
-	get_random_bytes(&tmp, sizeof(tmp));
-	atomic_set(&sdata->wpan_dev.dsn, tmp);
-
-	sdata->dev->header_ops = &xbee_header_ops;
-	sdata->dev->netdev_ops = &xbee_net_device_ops;
-	sdata->dev->destructor = mac802154_wpan_free;
-	sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
-	sdata->wpan_dev.header_ops = &xbee_wpan_dev_header_ops;
-}
-
-
-
-
-
-
-
-
-
-
 
 /**
  * sendrecv_work_fn()
@@ -3396,6 +3354,8 @@ init_work_fn(struct work_struct *param)
 	struct xb_device* xb = xbw->xb;
 	struct tty_struct* tty = xb->tty;
 	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
+	struct net_device* ndev = xb->dev;
+	uint8_t tmp;
 	int err = -EINVAL;
 
 	INIT_WORK( (struct work_struct*)&xb->send_work.work, sendrecv_work_fn);
@@ -3416,7 +3376,29 @@ init_work_fn(struct work_struct *param)
 
 	xb_read_config(xb);
 	xb_set_supported(xb);
-	xb_setup(xb);
+
+
+
+	ndev->ieee802154_ptr = &sdata->wpan_dev;
+
+	ieee802154_le64_to_be64(ndev->perm_addr,
+				&xb->phy->perm_extended_addr);
+
+	if (ieee802154_is_valid_extended_unicast_addr(xb->phy->perm_extended_addr))
+		ieee802154_le64_to_be64(ndev->dev_addr, &xb->phy->perm_extended_addr);
+	else
+		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
+
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&sdata->wpan_dev.bsn, tmp);
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&sdata->wpan_dev.dsn, tmp);
+
+	sdata->dev->header_ops = &xbee_header_ops;
+	sdata->dev->netdev_ops = &xbee_net_device_ops;
+	sdata->dev->destructor = mac802154_wpan_free;
+	sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
+	sdata->wpan_dev.header_ops = &xbee_wpan_dev_header_ops;
 
 	pr_wpan_phy(xb->phy);
 	pr_wpan_phy_supported(xb->phy);
@@ -3470,7 +3452,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	if(xb && xb->magic == XBEE802154_MAGIC)
 		return -EEXIST;
 
-	xb = xb_alloc_device();
+	xb = xb_alloc_device(&xbee_cfg802154_ops);
 	if (!xb)
 		return -ENOMEM;
 
