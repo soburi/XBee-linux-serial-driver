@@ -52,7 +52,6 @@ struct xb_device {
 	struct sk_buff_head send_queue;
 	struct sk_buff* recv_buf;
 
-	struct workqueue_struct    *send_workq;
 	struct workqueue_struct    *recv_workq;
 	struct workqueue_struct    *init_workq;
 
@@ -1543,7 +1542,9 @@ xb_send_queue(struct xb_device* xb)
 static int
 xb_send(struct xb_device* xb)
 {
-	return xb_send_queue(xb);
+	queue_work(xb->recv_workq, (struct work_struct*)&xb->send_work.work);
+	//return xb_send_queue(xb);
+	return 0;
 }
 
 /**
@@ -3485,7 +3486,6 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	init_completion(&xb->cmd_resp_done);
 	init_completion(&xb->send_done);
 	init_completion(&xb->modem_status_receive);
-	xb->send_workq = create_workqueue("send_workq");
 	xb->recv_workq = create_workqueue("recv_workq");
 	xb->init_workq = create_workqueue("init_workq");
 	xb->send_work.xb = xb;
@@ -3547,10 +3547,7 @@ static void xbee_ldisc_close(struct tty_struct *tty)
 
 	destroy_workqueue(xb->init_workq);
 	destroy_workqueue(xb->recv_workq);
-	destroy_workqueue(xb->send_workq);
 
-	//ieee802154_unregister_hw(xb->hw);
-	//xbee_unregister_netdev(xb->dev);
 	xb_unregister_device(xb);
 
 	tty_ldisc_flush(tty);
