@@ -90,7 +90,7 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 	const size_t modtest_tests_num = sizeof(modtest_tests)/sizeof(fp_modtest);
 
 #define RUN_MODTEST(parent) \
-	queue_work(parent->_modtest_.workq, (struct work_struct*)&xbdev->_modtest_)
+	queue_work(parent->_modtest_.workq, (struct work_struct*)&xb->_modtest_)
 
 #define ALL_MODTESTS {}
 
