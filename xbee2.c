@@ -1032,7 +1032,10 @@ buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
 }
 
 /**
- * frame_alloc()
+ * frame_alloc() - allocate XBee frame as sk_buff.
+ * @paylen: payload length.
+ * @type: XBee frame type
+ * @alloc_csum: if true, allocate one more byte for checksum.
  */
 static struct sk_buff*
 frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
@@ -1060,6 +1063,7 @@ frame_alloc(size_t paylen, uint8_t type, bool alloc_csum)
 
 /**
  * frame_payload_length()
+ * @frame: XBee frame. (v1/v2)
  */
 static uint16_t
 frame_payload_length(struct sk_buff* frame)
@@ -1073,6 +1077,7 @@ frame_payload_length(struct sk_buff* frame)
 
 /**
  * frame_payload_buffer()
+ * @frame: XBee frame. (v1/v2)
  */
 static const unsigned char*
 frame_payload_buffer(struct sk_buff* frame)
@@ -1082,6 +1087,7 @@ frame_payload_buffer(struct sk_buff* frame)
 
 /**
  * frame_calc_checksum()
+ * @frame: XBee frame. (must be v1 API)
  */
 static unsigned char
 frame_calc_checksum(struct sk_buff* frame)
@@ -1092,6 +1098,7 @@ frame_calc_checksum(struct sk_buff* frame)
 
 /**
  * frame_put_checksum()
+ * @frame: XBee frame. (must be v1 API)
  */
 static void
 frame_put_checksum(struct sk_buff* frame)
@@ -1103,6 +1110,7 @@ frame_put_checksum(struct sk_buff* frame)
 
 /**
  * frame_trim_checksum()
+ * @frame: XBee frame. (must be v1 API)
  */
 static void
 frame_trim_checksum(struct sk_buff* frame)
@@ -1112,6 +1120,7 @@ frame_trim_checksum(struct sk_buff* frame)
 
 /**
  * frame_escape()
+ * @frame: XBee frame. (must be v1 API)
  */
 static int
 frame_escape(struct sk_buff* frame)
@@ -1138,13 +1147,14 @@ frame_escape(struct sk_buff* frame)
 
 /**
  * frame_unescape()
+ * @frame: XBee frame. (must be v2 API frame)
  */
 static void
-frame_unescape(struct sk_buff* recv_buf)
+frame_unescape(struct sk_buff* frame)
 {
 	int unesc_len = 0;
-	unesc_len = buffer_unescape(recv_buf->data, recv_buf->len);
-	skb_trim(recv_buf, unesc_len);
+	unesc_len = buffer_unescape(frame->data, frame->len);
+	skb_trim(frame, unesc_len);
 }
 
 /**
@@ -1248,6 +1258,8 @@ frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf
 
 /**
  * frame_dequeue_by_id()
+ * @recv_queue: receive queue
+ * @frameid: Dequeue frame which has this id from receive queue.
  */
 static struct sk_buff*
 frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
@@ -1273,15 +1285,23 @@ frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
 
 /**
  * frame_enqueue_send()
+ * @send_queue: send queue
+ * @send_frame: send frame
  */
 static void
-frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_buf)
+frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_frame)
 {
-	skb_queue_tail(send_queue, send_buf);
+	skb_queue_tail(send_queue, send_frame);
 }
 
 /**
  * frame_enqueue_send_at()
+ *
+ * @send_queue: send queue
+ * @atcmd: AT command type.
+ * @id: frameid to assign send frame.
+ * @buf: Buffer contains parameter for this AT command.
+ * @buflen: Length of buf.
  */
 static void
 frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uint8_t id, char* buf, unsigned short buflen)
@@ -1726,6 +1746,7 @@ xb_set_param(struct xb_device *xb, uint16_t atcmd, const uint8_t* buf, size_t bu
 /**
  * xb_set_channel()
  * @xb: XBee device context.
+ * @channel: New channel to use.
  */
 static int
 xb_set_channel(struct xb_device *xb, u8 page, u8 channel)
@@ -1824,6 +1845,7 @@ xb_get_cca_ed_level(struct xb_device *xb, s32 *ed_level)
 /**
  * xb_set_tx_power()
  * @xb: XBee device context.
+ * @power: New transmit power value.
  */
 static int
 xb_set_tx_power(struct xb_device *xb, s32 power)
@@ -1883,6 +1905,7 @@ xb_get_tx_power(struct xb_device *xb, s32 *power)
 /**
  * xb_set_pan_id()
  * @xb: XBee device context.
+ * @pan_id: New PAN id value.
  */
 static int
 xb_set_pan_id(struct xb_device *xb, __le16 pan_id)
@@ -1920,6 +1943,7 @@ xb_get_pan_id(struct xb_device *xb, __le16 *pan_id)
 /**
  * xb_set_short_addr()
  * @xb: XBee device context.
+ * @short_addr: New short address value.
  */
 static int
 xb_set_short_addr(struct xb_device *xb, __le16 short_addr)
@@ -2023,6 +2047,7 @@ xb_set_lbt_mode(struct xb_device *xb, bool mode)
 /**
  * xb_set_ackreq_default()
  * @xb: XBee device context.
+ * @ackreq: New ACK request value.
  */
 static int
 xb_set_ackreq_default(struct xb_device *xb, bool ackreq)
@@ -2081,6 +2106,7 @@ xb_get_extended_addr(struct xb_device *xb, __le64 *extended_addr)
 /**
  * xb_get_api_mode()
  * @xb: XBee device context.
+ * @apimode: Pointer to store apimode.
  */
 static int
 xb_get_api_mode(struct xb_device *xb, u8* apimode)
@@ -2099,6 +2125,7 @@ xb_get_api_mode(struct xb_device *xb, u8* apimode)
 /**
  * xb_set_scan_channels()
  * @xb: XBee device context.
+ * @channels: Scan channel bitmask.
  */
 static int
 xb_set_scan_channels(struct xb_device* xb, u32 channels)
@@ -2111,6 +2138,7 @@ xb_set_scan_channels(struct xb_device* xb, u32 channels)
 /**
  * xb_set_scan_duration()
  * @xb: XBee device context.
+ * @duration: scan duration in milliseconds.
  */
 static int
 xb_set_scan_duration(struct xb_device* xb, u8 duration)
@@ -2122,6 +2150,8 @@ xb_set_scan_duration(struct xb_device* xb, u8 duration)
 /**
  * xb_energy_detect()
  * @xb: XBee device context.
+ * @edl: Buffer to store ed scan result.
+ * @edllen: Length of edl buffer.
  */
 static int
 xb_energy_detect(struct xb_device* xb, u8 scantime, u8* edl, size_t edllen)
@@ -2626,7 +2656,9 @@ xbee_cfg802154_del_virtual_intf(struct wpan_phy *wpan_phy,
 #endif
 /**
  * xbee_cfg802154_set_channel()
+ *
  * @wpan_phy: WPAN phy that is associated with this XBee.
+ * @channel: New channel to use.
  */
 static int
 xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
@@ -2663,7 +2695,9 @@ xbee_cfg802154_set_cca_ed_level(struct wpan_phy *wpan_phy, s32 ed_level)
 
 /**
  * xbee_cfg802154_set_tx_power()
+ *
  * @wpan_phy: WPAN phy that is associated with this XBee.
+ * @power: New transmit power value.
  */
 static int
 xbee_cfg802154_set_tx_power(struct wpan_phy *wpan_phy, s32 power)
@@ -2674,8 +2708,10 @@ xbee_cfg802154_set_tx_power(struct wpan_phy *wpan_phy, s32 power)
 
 /**
  * xbee_cfg802154_set_pan_id()
+ *
  * @wpan_phy: WPAN phy that is associated with this XBee.
  * @wpan_dev: WPAN dev that is associated with this XBee.
+ * @pan_id: New PAN id value.
  */
 static int
 xbee_cfg802154_set_pan_id(struct wpan_phy *wpan_phy,
@@ -2687,8 +2723,10 @@ xbee_cfg802154_set_pan_id(struct wpan_phy *wpan_phy,
 
 /**
  * xbee_cfg802154_set_short_addr()
+ *
  * @wpan_phy: WPAN phy that is associated with this XBee.
  * @wpan_dev: WPAN dev that is associated with this XBee.
+ * @short_addr: New short address value.
  */
 static int
 xbee_cfg802154_set_short_addr(struct wpan_phy *wpan_phy,
