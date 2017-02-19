@@ -6,6 +6,7 @@
 #include <linux/skbuff.h>
 #include <linux/sched.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <linux/seq_buf.h>
 #include <linux/nl80211.h>
 #include <net/netlink.h>
@@ -24,7 +25,7 @@
 #include "modtest.h"
 #endif
 
-#define N_XBEE802154 25
+#define N_IEEE802154_XBEE 25
 
 #define XBEE802154_MAGIC 0x8BEE
 
@@ -3456,8 +3457,7 @@ err:
  *
  * 
  */
-static int
-xbee_ldisc_open(struct tty_struct *tty)
+static int xbee_ldisc_open(struct tty_struct *tty)
 {
 	struct xb_device *xb = tty->disc_data;
 	int err = -EINVAL;
@@ -3542,8 +3542,7 @@ err:
  *
  * @tty: TTY info for line.
  */
-static void
-xbee_ldisc_close(struct tty_struct *tty)
+static void xbee_ldisc_close(struct tty_struct *tty)
 {
 	struct xb_device *xb = tty->disc_data;
 
@@ -3613,8 +3612,7 @@ xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
  * "The line discipline should cease I/O to the tty.
  * No further calls into the ldisc code will occur."
  */
-static int
-xbee_ldisc_hangup(struct tty_struct *tty)
+static int xbee_ldisc_hangup(struct tty_struct *tty)
 {
 	pr_debug("%s\n", __func__);
 	xbee_ldisc_close(tty);
@@ -3667,24 +3665,13 @@ xbee_ldisc_receive_buf2(struct tty_struct *tty,
  * xbee_ldisc - TTY line discipline ops.
  */
 static struct tty_ldisc_ops xbee_ldisc_ops = {
-	.owner			= THIS_MODULE,
-	.magic			= TTY_LDISC_MAGIC,
-	.name			= "n_ieee802154_xbee",
-	.num			= 0,
-	.flags			= 0,
-	.open			= xbee_ldisc_open,
-	.close			= xbee_ldisc_close,
-	.flush_buffer	= NULL,
-	.read			= NULL,
-	.write			= NULL,
-	.ioctl			= xbee_ldisc_ioctl,
-	.compat_ioctl	= NULL,
-	.set_termios	= NULL,
-	.poll			= NULL,
-	.hangup			= xbee_ldisc_hangup,
-	.receive_buf	= NULL,
-	.write_wakeup	= NULL,
-	.dcd_change		= NULL,
+	.owner		= THIS_MODULE,
+	.magic		= TTY_LDISC_MAGIC,
+	.name		= "n_ieee802154_xbee",
+	.open		= xbee_ldisc_open,
+	.close		= xbee_ldisc_close,
+	.ioctl		= xbee_ldisc_ioctl,
+	.hangup		= xbee_ldisc_hangup,
 	.receive_buf2	= xbee_ldisc_receive_buf2,
 };
 
@@ -3696,7 +3683,7 @@ static int __init xbee_init(void)
 	pr_debug("%s\n", __func__);
 	printk(KERN_INFO "Initializing ZigBee TTY interface\n");
 
-	if (tty_register_ldisc(N_XBEE802154, &xbee_ldisc_ops) != 0) {
+	if (tty_register_ldisc(N_IEEE802154_XBEE, &xbee_ldisc_ops) != 0) {
 		printk(KERN_ERR "%s: line discipline register failed\n",
 				__func__);
 		return -EINVAL;
@@ -3711,9 +3698,10 @@ static int __init xbee_init(void)
 static void __exit xbee_exit(void)
 {
 	pr_debug("%s\n", __func__);
-	if (tty_unregister_ldisc(N_XBEE802154) != 0) {
-		printk(KERN_CRIT "failed to unregister ZigBee line discipline.\n");
-	}
+	if (tty_unregister_ldisc(N_IEEE802154_XBEE) != 0)
+		printk(KERN_CRIT
+			"failed to unregister ZigBee line discipline.\n");
+
 }
 
 #ifdef MODTEST_ENABLE
