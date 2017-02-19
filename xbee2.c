@@ -301,6 +301,15 @@ mac802154_wpan_update_llsec(struct net_device *dev)
 }
 
 /**
+ * mac802154_llsec_destroy()
+ * @sec: -
+ */
+static void mac802154_llsec_destroy(struct mac802154_llsec *sec)
+{
+	return;
+}
+
+/**
  * ieee802154_print_addr()
  * @name: -
  * @addr: -
@@ -506,6 +515,19 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return err;
 }
 
+/**
+ * mac802154_wpan_free() - Copy from Linux/net/mac802154/iface.c
+ * @dev: -
+ */
+static void mac802154_wpan_free(struct net_device *dev)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mac802154_llsec_destroy(&sdata->sec);
+
+	free_netdev(dev);
+}
+
 
 /**
  * ieee802154_deliver_skb() - Copy from Linux/net/mac802154/rx.c
@@ -675,16 +697,6 @@ ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 /**
  * DOC: <<<<<< end functions copied from other files.
  */
-
-/*
-static void
-mac802154_wpan_free(struct net_device *dev)
-{
-	//struct xbee_sub_if_data *sdata = netdev_priv(dev);
-	//mac802154_llsec_destroy(&sdata->sec);
-	free_netdev(dev);
-}
-*/
 
 /**
  * xbee_rx_handle_packet()
@@ -2307,6 +2319,10 @@ frame_recv_dispatch(struct xb_device *xb, struct sk_buff *frame)
 	}
 }
 
+
+
+
+
 /**
  * xbee_header_create()
  * @dev: net_device that is associated with this XBee.
@@ -2998,7 +3014,6 @@ static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
 	.scan_req		= xbee_mlme_scan_req,
 	.set_mac_params		= xbee_mlme_set_mac_params,
 	.get_mac_params		= xbee_mlme_get_mac_params,
-	.llsec			= NULL,
 };
 
 static const struct cfg802154_ops xbee_cfg802154_ops = {
@@ -3019,11 +3034,11 @@ static const struct cfg802154_ops xbee_cfg802154_ops = {
 
 
 /**
- * xbee_alloc_netdev()
+ * xb_alloc_netdev()
  * @xb: XBee device context.
  */
 static struct net_device*
-xbee_alloc_netdev(struct xb_device* xb)
+xb_alloc_netdev(struct xb_device* xb)
 {
 	struct net_device *ndev = xb->dev;
 	struct xbee_sub_if_data *sdata = NULL;
@@ -3052,9 +3067,9 @@ free_dev:
 }
 
 /**
- * xbee_alloc_device()
+ * xb_alloc_device()
  */
-static struct xb_device* xbee_alloc_device(void)
+static struct xb_device* xb_alloc_device(void)
 {
 	struct xb_device *xb = NULL;
 	struct net_device *ndev = NULL;
@@ -3072,7 +3087,7 @@ static struct xb_device* xbee_alloc_device(void)
 	xb = wpan_phy_priv(phy);
 
 	xb->phy = phy;
-	ndev = xbee_alloc_netdev(xb);
+	ndev = xb_alloc_netdev(xb);
 	if(!ndev)
 		goto free_phy;
 	
@@ -3089,11 +3104,11 @@ free_phy:
 }
 
 /**
- * xbee_register_netdev()
+ * xb_register_netdev()
  * @dev: net_device that is associated with this XBee.
  */
 static int
-xbee_register_netdev(struct net_device* dev)
+xb_register_netdev(struct net_device* dev)
 {
 	int ret;
 
@@ -3119,7 +3134,7 @@ xb_register_device(struct xb_device* xb)
 	if(ret < 0)
 		return ret;
 
-	ret = xbee_register_netdev(xb->dev);
+	ret = xb_register_netdev(xb->dev);
 	if(ret < 0)
 		goto unregister_wpan;
 	
@@ -3316,7 +3331,7 @@ xb_setup(struct xb_device* xb)
 
 	sdata->dev->header_ops = &xbee_header_ops;
 	sdata->dev->netdev_ops = &xbee_net_device_ops;
-	sdata->dev->destructor = NULL;//mac802154_wpan_free;
+	sdata->dev->destructor = mac802154_wpan_free;
 	sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
 	sdata->wpan_dev.header_ops = &xbee_wpan_dev_header_ops;
 }
@@ -3445,9 +3460,6 @@ err:
 static int xbee_ldisc_open(struct tty_struct *tty)
 {
 	struct xb_device *xb = tty->disc_data;
-	int err = -EINVAL;
-
-	pr_debug("%s\n", __func__);
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -3458,7 +3470,7 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	if(xb && xb->magic == XBEE802154_MAGIC)
 		return -EEXIST;
 
-	xb = xbee_alloc_device();
+	xb = xb_alloc_device();
 	if (!xb)
 		return -ENOMEM;
 
