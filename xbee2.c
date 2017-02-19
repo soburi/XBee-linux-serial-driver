@@ -30,6 +30,7 @@
 #define XBEE802154_MAGIC 0x8BEE
 
 static const void *const xbee_wpan_phy_privid = &xbee_wpan_phy_privid;
+struct workqueue_struct    *xbee_init_workq;
 
 struct xb_device;
 
@@ -52,8 +53,7 @@ struct xb_device {
 	struct sk_buff_head send_queue;
 	struct sk_buff* recv_buf;
 
-	struct workqueue_struct    *recv_workq;
-	struct workqueue_struct    *init_workq;
+	struct workqueue_struct    *sendrecv_workq;
 
 	struct xb_work send_work;
 	struct xb_work recv_work;
@@ -1542,7 +1542,7 @@ xb_send_queue(struct xb_device* xb)
 static int
 xb_send(struct xb_device* xb)
 {
-	queue_work(xb->recv_workq, (struct work_struct*)&xb->send_work.work);
+	queue_work(xb->sendrecv_workq, (struct work_struct*)&xb->send_work.work);
 	//return xb_send_queue(xb);
 	return 0;
 }
@@ -1566,7 +1566,7 @@ xb_recv(struct xb_device* xb, uint8_t expect_id, unsigned long timeout)
 
 	if(skb != NULL) return skb;
 
-	queue_work(xb->recv_workq, (struct work_struct*)&xb->recv_work.work);
+	queue_work(xb->sendrecv_workq, (struct work_struct*)&xb->recv_work.work);
 	reinit_completion(&xb->cmd_resp_done);
 	ret = wait_for_completion_timeout(&xb->cmd_resp_done, msecs_to_jiffies(timeout) );
 
@@ -3001,8 +3001,7 @@ static struct ieee802154_mlme_ops xbee_ieee802154_mlme_ops = {
 	.llsec			= NULL,
 };
 
-static const
-struct cfg802154_ops xbee_cfg802154_ops = {
+static const struct cfg802154_ops xbee_cfg802154_ops = {
 	.suspend		= xbee_cfg802154_suspend,
 	.resume			= xbee_cfg802154_resume,
 	.set_channel		= xbee_cfg802154_set_channel,
@@ -3384,8 +3383,6 @@ init_work_fn(struct work_struct *param)
 	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
 	int err = -EINVAL;
 
-	pr_debug("enter %s\n", __func__);
-
 	INIT_WORK( (struct work_struct*)&xb->send_work.work, sendrecv_work_fn);
 	INIT_WORK( (struct work_struct*)&xb->recv_work.work, sendrecv_work_fn);
 
@@ -3398,7 +3395,6 @@ init_work_fn(struct work_struct *param)
 	}
 
 	SET_NETDEV_DEV(xb->dev, &xb->phy->dev);
-	//memcpy(sdata->name, xb->dev->name, IFNAMSIZ);
 	sdata->dev = xb->dev;
 	sdata->wpan_dev.wpan_phy = xb->phy;
 	sdata->local = xb;
@@ -3473,10 +3469,8 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	tty->receive_room = 65536;
 	tty_driver_flush_buffer(tty);
 
-
 	xb->recv_buf = dev_alloc_skb(IEEE802154_MTU);
 	xb->frameid = 1; // Device does not respond if zero.
-	
 	xb->last_atresp = NULL;
 
 	mutex_init(&xb->queue_mutex);
@@ -3486,43 +3480,15 @@ static int xbee_ldisc_open(struct tty_struct *tty)
 	init_completion(&xb->cmd_resp_done);
 	init_completion(&xb->send_done);
 	init_completion(&xb->modem_status_receive);
-	xb->recv_workq = create_workqueue("recv_workq");
-	xb->init_workq = create_workqueue("init_workq");
+
+	xb->sendrecv_workq = create_workqueue("sendrecv_workq");
 	xb->send_work.xb = xb;
 	xb->recv_work.xb = xb;
 	xb->init_work.xb = xb;
-	//INIT_WORK( (struct work_struct*)&xb->send_work.work, send_work_fn);
+
 	INIT_WORK( (struct work_struct*)&xb->init_work.work, init_work_fn);
-	err = queue_work(xb->init_workq, (struct work_struct*)&xb->init_work.work);
-
+	queue_work(xbee_init_workq, (struct work_struct*)&xb->init_work.work);
 	return 0;
-/*
-	xb_read_config(xb);
-	xb_set_supported(xb);
-	xb_setup(xb);
-	err = xb_register_device(xb);
-	if (err) {
-		printk(KERN_ERR "%s: device register failed\n", __func__);
-		goto err;
-	}
-
-#ifdef MODTEST_ENABLE
-	INIT_MODTEST(xb);
-	RUN_MODTEST(xb);
-#endif
-
-	return 0;
-
-err:
-	tty->disc_data = NULL;
-	tty_kref_put(tty);
-	xb->tty = NULL;
-
-	xb_unregister_device(xb);
-	xb_free(xb);
-
-	return err;
-*/
 }
 
 /**
@@ -3545,15 +3511,13 @@ static void xbee_ldisc_close(struct tty_struct *tty)
 	tty_kref_put(tty);
 	xb->tty = NULL;
 
-	destroy_workqueue(xb->init_workq);
-	destroy_workqueue(xb->recv_workq);
+	destroy_workqueue(xb->sendrecv_workq);
 
 	xb_unregister_device(xb);
 
 	tty_ldisc_flush(tty);
 	tty_driver_flush_buffer(tty);
 
-	//ieee802154_free_hw(xb->hw);
 	xb_free(xb);
 }
 
@@ -3639,7 +3603,7 @@ xbee_ldisc_receive_buf2(struct tty_struct *tty,
 	mutex_unlock(&xb->queue_mutex);
 
 	if(ret > 0)
-		ret = queue_work(xb->recv_workq, (struct work_struct*)&xb->recv_work.work);
+		ret = queue_work(xb->sendrecv_workq, (struct work_struct*)&xb->recv_work.work);
 
 	return count;
 }
@@ -3668,6 +3632,11 @@ static int __init xbee_init(void)
 	pr_debug("%s\n", __func__);
 	printk(KERN_INFO "Initializing ZigBee TTY interface\n");
 
+	xbee_init_workq = create_workqueue("xbee_init_workq");
+	if(!xbee_init_workq) {
+		return -EINVAL;
+	}
+
 	if (tty_register_ldisc(N_IEEE802154_XBEE, &xbee_ldisc_ops) != 0) {
 		printk(KERN_ERR "%s: line discipline register failed\n",
 				__func__);
@@ -3683,6 +3652,9 @@ static int __init xbee_init(void)
 static void __exit xbee_exit(void)
 {
 	pr_debug("%s\n", __func__);
+
+	destroy_workqueue(xbee_init_workq);
+
 	if (tty_unregister_ldisc(N_IEEE802154_XBEE) != 0)
 		printk(KERN_CRIT
 			"failed to unregister ZigBee line discipline.\n");
