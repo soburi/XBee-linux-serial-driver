@@ -3053,18 +3053,14 @@ free_dev:
 /**
  * xbee_alloc_device()
  */
-static struct xb_device*
-xbee_alloc_device(size_t priv_data_len)
+static struct xb_device* xbee_alloc_device(void)
 {
 	struct xb_device *xb = NULL;
 	struct net_device *ndev = NULL;
 	struct wpan_phy *phy = NULL;
 	size_t priv_size;
 
-	pr_debug("%s(%lu)\n",__func__, priv_data_len);
-
-	priv_size = ALIGN(sizeof(*xb), NETDEV_ALIGN) + priv_data_len;
-
+	priv_size = ALIGN(sizeof(*xb), NETDEV_ALIGN) + sizeof(struct xb_device);
 	phy = wpan_phy_new(&xbee_cfg802154_ops, priv_size);
 	if (!phy) {
 		pr_err("failure to allocate master IEEE802.15.4 device\n");
@@ -3477,7 +3473,7 @@ xbee_ldisc_open(struct tty_struct *tty)
 	if(xb && xb->magic == XBEE802154_MAGIC)
 		return -EEXIST;
 
-	xb = (struct xb_device*)xbee_alloc_device(sizeof(struct xb_device));
+	xb = xbee_alloc_device();
 	if (!xb)
 		return -ENOMEM;
 
