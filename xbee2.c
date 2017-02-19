@@ -1362,6 +1362,17 @@ frame_put_received_data(struct sk_buff* recv_buf, const unsigned char* buf, cons
 }
 
 /**
+ * frame_atcmdr_result()
+ * @atcmd_resp_frame: AT command response frame.
+ */
+static int
+frame_atcmdr_result(struct sk_buff* atcmd_resp_frame)
+{
+	struct xb_frame_atcmdr* atcmdr = (struct xb_frame_atcmdr*)atcmd_resp_frame->data;
+	return -atcmdr->status;
+}
+
+/**
  * frame_enqueue_received()
  *
  * @recv_queue: Received frame queue.
@@ -1707,6 +1718,7 @@ xb_frame_recv_rx16(struct xb_device* xb, struct sk_buff *skb)
 
 /**
  * xb_frame_recv_mstat()
+ *
  * @xb: XBee device context.
  * @skb: Modem status frame.
  */
@@ -1719,25 +1731,48 @@ xb_frame_recv_mstat(struct xb_device *xb, struct sk_buff *skb)
 }
 
 /**
- * pr_frame_txstat()
+ * xb_frame_recv_txstat()
+ *
+ * @xb: XBee device context.
  * @skb: Transmit status frame to print.
  */
 static void
-pr_frame_txstat(struct sk_buff *skb)
+xb_frame_recv_txstat(struct xb_device* xb, struct sk_buff *skb)
 {
 	struct xb_frame_txstat* txstat = (struct xb_frame_txstat*)skb->data;
 	pr_debug("TXST: id->0x%02x options=%x\n", txstat->id, txstat->options);
 }
 
 /**
- * frame_atcmdr_result()
- * @atcmd_resp_frame: AT command response frame.
+ * xb_frame_recv_dispatch()
+ *
+ * @xb: xbee device
+ * @frame: sk_buff. That contains received frame from XBee.
+ *
+ * Verify the XBee frame, then take appropriate action depending on the
+ * frame type.
  */
-static int
-frame_atcmdr_result(struct sk_buff* atcmd_resp_frame)
+static void
+xb_frame_recv_dispatch(struct xb_device *xb, struct sk_buff *frame)
 {
-	struct xb_frame_atcmdr* atcmdr = (struct xb_frame_atcmdr*)atcmd_resp_frame->data;
-	return -atcmdr->status;
+	struct xb_frame_header* hdr= (struct xb_frame_header*)frame->data;
+
+	switch (hdr->type) {
+	case XBEE_FRM_MSTAT:	xb_frame_recv_mstat(xb, frame);	break;
+	case XBEE_FRM_ATCMDR:	pr_frame_atcmdr(frame);	break;
+	case XBEE_FRM_RCMDR:	pr_frame_rcmdr(frame);	break;
+	case XBEE_FRM_RX64:	xb_frame_recv_rx64(xb, frame);	break;
+	case XBEE_FRM_RX16:	xb_frame_recv_rx16(xb, frame);	break;
+	case XBEE_FRM_RX64IO:   pr_frame_rx64io(frame);	break;
+	case XBEE_FRM_RX16IO:   pr_frame_rx16io(frame);	break;
+	case XBEE_FRM_ATCMD:	pr_frame_atcmd(frame);	break;
+	case XBEE_FRM_ATCMDQ:	pr_frame_atcmdq(frame);	break;
+	case XBEE_FRM_RCMD:	pr_frame_rcmd(frame);	break;
+	case XBEE_FRM_TX64:	pr_frame_tx64(frame);	break;
+	case XBEE_FRM_TX16:	pr_frame_tx16(frame);	break;
+	case XBEE_FRM_TXSTAT:	xb_frame_recv_txstat(xb, frame);	break;
+	default:		pr_frame_default(frame);	break;
+	}
 }
 
 /**
@@ -2287,37 +2322,277 @@ xb_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_t bufsize)
 			&scantime, sizeof(scantime), buffer, bufsize);
 }
 
+
 /**
- * frame_recv_dispatch()
- *
- * @xb: xbee device
- * @frame: sk_buff. That contains received frame from XBee.
- *
- * Verify the XBee frame, then take appropriate action depending on the
- * frame type.
+ * xb_alloc_netdev()
+ * @xb: XBee device context.
+ */
+static struct net_device*
+xb_alloc_netdev(struct xb_device* xb)
+{
+	struct net_device *ndev = xb->dev;
+	struct xbee_sub_if_data *sdata = NULL;
+	int ret = 0;
+	
+	ndev = alloc_netdev(sizeof(*sdata), "wpan%d",
+			    NET_NAME_ENUM, ieee802154_if_setup);
+	if (!ndev) {
+		pr_err("failure to allocate netdev\n");
+		return NULL;
+	}
+
+	ndev->needed_headroom = IEEE802154_MAX_HEADER_LEN;
+	ndev->type = ARPHRD_IEEE802154;
+
+	ret = dev_alloc_name(ndev, ndev->name);
+	if (ret < 0) {
+		pr_err("failure to allocate device name\n");
+		goto free_dev;
+	}
+	return ndev;
+
+free_dev:
+	free_netdev(ndev);
+	return NULL;
+}
+
+/**
+ * xb_alloc_device()
+ */
+static struct xb_device* xb_alloc_device(const struct cfg802154_ops* ptr_cfg802154_ops)
+{
+	struct xb_device *xb = NULL;
+	struct net_device *ndev = NULL;
+	struct wpan_phy *phy = NULL;
+	size_t priv_size;
+
+	priv_size = ALIGN(sizeof(*xb), NETDEV_ALIGN) + sizeof(struct xb_device);
+	phy = wpan_phy_new(ptr_cfg802154_ops, priv_size);
+	if (!phy) {
+		pr_err("failure to allocate master IEEE802.15.4 device\n");
+		return NULL;
+	}
+	phy->privid = xbee_wpan_phy_privid;
+	pr_debug("wpan_phy_priv\n");
+	xb = wpan_phy_priv(phy);
+
+	xb->phy = phy;
+	ndev = xb_alloc_netdev(xb);
+	if(!ndev)
+		goto free_phy;
+	
+	xb->dev = ndev;
+
+	pr_debug("wpan_phy_set_dev\n");
+	wpan_phy_set_dev(xb->phy, xb->parent);
+
+	return xb;
+
+free_phy:
+	wpan_phy_free(phy);
+	return NULL;
+}
+
+/**
+ * xb_register_netdev()
+ * @dev: net_device that is associated with this XBee.
+ */
+static int
+xb_register_netdev(struct net_device* dev)
+{
+	int ret;
+
+	rtnl_lock();
+
+	ret = register_netdevice(dev);
+
+	rtnl_unlock();
+
+	return ret;
+}
+
+/**
+ * xb_register_device()
+ * @xb: XBee device context.
+ */
+static int
+xb_register_device(struct xb_device* xb)
+{
+	int ret;
+		
+	ret = wpan_phy_register(xb->phy);
+	if(ret < 0)
+		return ret;
+
+	ret = xb_register_netdev(xb->dev);
+	if(ret < 0)
+		goto unregister_wpan;
+	
+	return 0;
+
+unregister_wpan:
+	wpan_phy_unregister(xb->phy);
+	return ret;
+}
+
+/**
+ * xb_unregister_netdev()
+ * @dev: net_device that is associated with this XBee.
  */
 static void
-frame_recv_dispatch(struct xb_device *xb, struct sk_buff *frame)
+xb_unregister_netdev(struct net_device* dev)
 {
-	struct xb_frame_header* hdr= (struct xb_frame_header*)frame->data;
+	pr_debug("%s\n", __func__);
+	if(!dev)
+		return;
+	pr_debug("%d\n", __LINE__);
+	rtnl_lock();
+	unregister_netdevice(dev);
+	rtnl_unlock();
+	pr_debug("%d\n", __LINE__);
+}
 
-	switch (hdr->type) {
-	case XBEE_FRM_MSTAT:	xb_frame_recv_mstat(xb, frame);	break;
-	case XBEE_FRM_ATCMDR:	pr_frame_atcmdr(frame);	break;
-	case XBEE_FRM_RCMDR:	pr_frame_rcmdr(frame);	break;
-	case XBEE_FRM_RX64:	xb_frame_recv_rx64(xb, frame);	break;
-	case XBEE_FRM_RX16:	xb_frame_recv_rx16(xb, frame);	break;
-	case XBEE_FRM_RX64IO:   pr_frame_rx64io(frame);	break;
-	case XBEE_FRM_RX16IO:   pr_frame_rx16io(frame);	break;
-	case XBEE_FRM_ATCMD:	pr_frame_atcmd(frame);	break;
-	case XBEE_FRM_ATCMDQ:	pr_frame_atcmdq(frame);	break;
-	case XBEE_FRM_RCMD:	pr_frame_rcmd(frame);	break;
-	case XBEE_FRM_TX64:	pr_frame_tx64(frame);	break;
-	case XBEE_FRM_TX16:	pr_frame_tx16(frame);	break;
-	case XBEE_FRM_TXSTAT:	pr_frame_txstat(frame);	break;
-	default:		pr_frame_default(frame);	break;
+/**
+ * xb_unregister_device() - Unregister xb_device.
+ * @xb: XBee device context.
+ */
+static void
+xb_unregister_device(struct xb_device* xb)
+{
+	pr_debug("%s\n", __func__);
+	xb_unregister_netdev(xb->dev);
+	wpan_phy_unregister(xb->phy);
+}
+
+/**
+ * xb_free() - Free xb_device.
+ * @xb: XBee device context.
+ */
+static void
+xb_free(struct xb_device* xb)
+{
+	free_netdev(xb->dev);
+	wpan_phy_free(xb->phy);
+}
+
+/**
+ * xb_set_supported() - Set xbee support parameter.
+ * @xb: XBee device context.
+ */
+static void
+xb_set_supported(struct xb_device* xb)
+{
+	struct wpan_phy *phy = xb->phy;
+
+	/* always supported */
+	phy->supported.channels[0] = 0x7fff800;
+	phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY);
+	phy->supported.cca_opts = NL802154_CCA_ENERGY;
+	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
+	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
+	phy->supported.min_minbe = 0;
+	phy->supported.max_minbe = 3;
+	phy->supported.min_maxbe = 5; /* N/A */
+	phy->supported.max_maxbe = 5; /* N/A */
+	phy->supported.min_csma_backoffs = 0; /* N/A */
+	phy->supported.max_csma_backoffs = 0; /* N/A */
+	phy->supported.min_frame_retries = 0;
+	phy->supported.max_frame_retries = 0;
+	phy->supported.tx_powers_size = 0;
+
+	phy->supported.cca_ed_levels_size = 41;
+
+	{
+	static const s32 ed_levels [] = {
+		-3600, -3700, -3800, -3900, -4000,
+		-4100, -4200, -4300, -4400, -4500,
+		-4600, -4700, -4800, -4900, -5000,
+		-5100, -5200, -5300, -5400, -5500,
+		-5600, -5700, -5800, -5900, -6000,
+		-6100, -6200, -6300, -6400, -6500,
+		-6600, -6700, -6800, -6900, -8000,
+	};
+	phy->supported.cca_ed_levels = ed_levels;
+	phy->supported.cca_ed_levels_size = sizeof(ed_levels)/sizeof(ed_levels[0]);
+	}
+
+	{
+	static const s32 tx_powers[] = {
+		1000, 600, 400, 200, 0
+	};
+	phy->supported.tx_powers = tx_powers;
+	phy->supported.tx_powers_size = sizeof(tx_powers)/sizeof(tx_powers[0]);
 	}
 }
+
+/**
+ * xb_read_config() - Read current configuration from device.
+ * @xb: XBee device context.
+ */
+static void
+xb_read_config(struct xb_device* xb)
+{
+	struct wpan_phy *wpan_phy = xb->phy;
+	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
+	__le64 extended_addr = 0;
+	__le16 pan_id = 0;
+	__le16 short_addr = 0;
+	u8 page = 0;
+	u8 channel = 0;
+	u8 min_be = 0;
+	u8 max_be = 0;
+	s32 tx_power = 0;
+	s32 ed_level = 0;
+	bool ackreq = 0;
+	u8 api = 0;
+
+	xb_get_api_mode(xb, &api);
+	xb->api = api;
+
+	xb_get_extended_addr(xb, &extended_addr);
+	xb_get_pan_id(xb, &pan_id);
+	xb_get_channel(xb, &page, &channel);
+	xb_get_tx_power(xb, &tx_power);
+	xb_get_short_addr(xb, &short_addr);
+	xb_get_backoff_exponent(xb, &min_be, &max_be);
+	xb_get_ackreq_default(xb, &ackreq);
+	xb_get_cca_ed_level(xb, &ed_level);
+
+	wpan_phy->current_channel = channel;
+	wpan_phy->current_page = page;
+	wpan_phy->transmit_power = tx_power;
+	wpan_phy->cca_ed_level = ed_level;
+	wpan_phy->perm_extended_addr = extended_addr;
+	//phy->cca = 0;
+	wpan_phy->symbol_duration = 16;
+
+	pr_debug("pan_id %x", pan_id);
+	pr_debug("short_addr %x", short_addr);
+	pr_debug("extended_addr %016llx", extended_addr);
+
+	wpan_phy->lifs_period = IEEE802154_LIFS_PERIOD *
+				wpan_phy->symbol_duration;
+	wpan_phy->sifs_period = IEEE802154_SIFS_PERIOD *
+				wpan_phy->symbol_duration;
+
+	wpan_dev->min_be = min_be;
+	wpan_dev->max_be = max_be;
+	wpan_dev->pan_id = pan_id;
+	wpan_dev->short_addr = short_addr;
+	wpan_dev->extended_addr = extended_addr;
+	wpan_dev->ackreq = ackreq;
+
+	wpan_dev->csma_retries = 0;
+	wpan_dev->frame_retries = 0;
+	wpan_dev->promiscuous_mode = false;
+	wpan_dev->iftype = NL802154_IFTYPE_NODE;
+	wpan_phy->flags = WPAN_PHY_FLAG_TXPOWER |
+			WPAN_PHY_FLAG_CCA_ED_LEVEL |
+			WPAN_PHY_FLAG_CCA_MODE;
+}
+
 
 
 
@@ -3034,277 +3309,6 @@ static const struct cfg802154_ops xbee_cfg802154_ops = {
 
 
 /**
- * xb_alloc_netdev()
- * @xb: XBee device context.
- */
-static struct net_device*
-xb_alloc_netdev(struct xb_device* xb)
-{
-	struct net_device *ndev = xb->dev;
-	struct xbee_sub_if_data *sdata = NULL;
-	int ret = 0;
-	
-	ndev = alloc_netdev(sizeof(*sdata), "wpan%d",
-			    NET_NAME_ENUM, ieee802154_if_setup);
-	if (!ndev) {
-		pr_err("failure to allocate netdev\n");
-		return NULL;
-	}
-
-	ndev->needed_headroom = IEEE802154_MAX_HEADER_LEN;
-	ndev->type = ARPHRD_IEEE802154;
-
-	ret = dev_alloc_name(ndev, ndev->name);
-	if (ret < 0) {
-		pr_err("failure to allocate device name\n");
-		goto free_dev;
-	}
-	return ndev;
-
-free_dev:
-	free_netdev(ndev);
-	return NULL;
-}
-
-/**
- * xb_alloc_device()
- */
-static struct xb_device* xb_alloc_device(const struct cfg802154_ops* ptr_cfg802154_ops)
-{
-	struct xb_device *xb = NULL;
-	struct net_device *ndev = NULL;
-	struct wpan_phy *phy = NULL;
-	size_t priv_size;
-
-	priv_size = ALIGN(sizeof(*xb), NETDEV_ALIGN) + sizeof(struct xb_device);
-	phy = wpan_phy_new(ptr_cfg802154_ops, priv_size);
-	if (!phy) {
-		pr_err("failure to allocate master IEEE802.15.4 device\n");
-		return NULL;
-	}
-	phy->privid = xbee_wpan_phy_privid;
-	pr_debug("wpan_phy_priv\n");
-	xb = wpan_phy_priv(phy);
-
-	xb->phy = phy;
-	ndev = xb_alloc_netdev(xb);
-	if(!ndev)
-		goto free_phy;
-	
-	xb->dev = ndev;
-
-	pr_debug("wpan_phy_set_dev\n");
-	wpan_phy_set_dev(xb->phy, xb->parent);
-
-	return xb;
-
-free_phy:
-	wpan_phy_free(phy);
-	return NULL;
-}
-
-/**
- * xb_register_netdev()
- * @dev: net_device that is associated with this XBee.
- */
-static int
-xb_register_netdev(struct net_device* dev)
-{
-	int ret;
-
-	rtnl_lock();
-
-	ret = register_netdevice(dev);
-
-	rtnl_unlock();
-
-	return ret;
-}
-
-/**
- * xb_register_device()
- * @xb: XBee device context.
- */
-static int
-xb_register_device(struct xb_device* xb)
-{
-	int ret;
-		
-	ret = wpan_phy_register(xb->phy);
-	if(ret < 0)
-		return ret;
-
-	ret = xb_register_netdev(xb->dev);
-	if(ret < 0)
-		goto unregister_wpan;
-	
-	return 0;
-
-unregister_wpan:
-	wpan_phy_unregister(xb->phy);
-	return ret;
-}
-
-/**
- * xb_unregister_netdev()
- * @dev: net_device that is associated with this XBee.
- */
-static void
-xb_unregister_netdev(struct net_device* dev)
-{
-	pr_debug("%s\n", __func__);
-	if(!dev)
-		return;
-	pr_debug("%d\n", __LINE__);
-	rtnl_lock();
-	unregister_netdevice(dev);
-	rtnl_unlock();
-	pr_debug("%d\n", __LINE__);
-}
-
-/**
- * xb_unregister_device() - Unregister xb_device.
- * @xb: XBee device context.
- */
-static void
-xb_unregister_device(struct xb_device* xb)
-{
-	pr_debug("%s\n", __func__);
-	xb_unregister_netdev(xb->dev);
-	wpan_phy_unregister(xb->phy);
-}
-
-/**
- * xb_free() - Free xb_device.
- * @xb: XBee device context.
- */
-static void
-xb_free(struct xb_device* xb)
-{
-	free_netdev(xb->dev);
-	wpan_phy_free(xb->phy);
-}
-
-/**
- * xb_set_supported() - Set xbee support parameter.
- * @xb: XBee device context.
- */
-static void
-xb_set_supported(struct xb_device* xb)
-{
-	struct wpan_phy *phy = xb->phy;
-
-	/* always supported */
-	phy->supported.channels[0] = 0x7fff800;
-	phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY);
-	phy->supported.cca_opts = NL802154_CCA_ENERGY;
-	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
-	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
-	phy->supported.min_minbe = 0;
-	phy->supported.max_minbe = 3;
-	phy->supported.min_maxbe = 5; /* N/A */
-	phy->supported.max_maxbe = 5; /* N/A */
-	phy->supported.min_csma_backoffs = 0; /* N/A */
-	phy->supported.max_csma_backoffs = 0; /* N/A */
-	phy->supported.min_frame_retries = 0;
-	phy->supported.max_frame_retries = 0;
-	phy->supported.tx_powers_size = 0;
-
-	phy->supported.cca_ed_levels_size = 41;
-
-	{
-	static const s32 ed_levels [] = {
-		-3600, -3700, -3800, -3900, -4000,
-		-4100, -4200, -4300, -4400, -4500,
-		-4600, -4700, -4800, -4900, -5000,
-		-5100, -5200, -5300, -5400, -5500,
-		-5600, -5700, -5800, -5900, -6000,
-		-6100, -6200, -6300, -6400, -6500,
-		-6600, -6700, -6800, -6900, -8000,
-	};
-	phy->supported.cca_ed_levels = ed_levels;
-	phy->supported.cca_ed_levels_size = sizeof(ed_levels)/sizeof(ed_levels[0]);
-	}
-
-	{
-	static const s32 tx_powers[] = {
-		1000, 600, 400, 200, 0
-	};
-	phy->supported.tx_powers = tx_powers;
-	phy->supported.tx_powers_size = sizeof(tx_powers)/sizeof(tx_powers[0]);
-	}
-}
-
-/**
- * xb_read_config() - Read current configuration from device.
- * @xb: XBee device context.
- */
-static void
-xb_read_config(struct xb_device* xb)
-{
-	struct wpan_phy *wpan_phy = xb->phy;
-	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
-	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-
-	__le64 extended_addr = 0;
-	__le16 pan_id = 0;
-	__le16 short_addr = 0;
-	u8 page = 0;
-	u8 channel = 0;
-	u8 min_be = 0;
-	u8 max_be = 0;
-	s32 tx_power = 0;
-	s32 ed_level = 0;
-	bool ackreq = 0;
-	u8 api = 0;
-
-	xb_get_api_mode(xb, &api);
-	xb->api = api;
-
-	xb_get_extended_addr(xb, &extended_addr);
-	xb_get_pan_id(xb, &pan_id);
-	xb_get_channel(xb, &page, &channel);
-	xb_get_tx_power(xb, &tx_power);
-	xb_get_short_addr(xb, &short_addr);
-	xb_get_backoff_exponent(xb, &min_be, &max_be);
-	xb_get_ackreq_default(xb, &ackreq);
-	xb_get_cca_ed_level(xb, &ed_level);
-
-	wpan_phy->current_channel = channel;
-	wpan_phy->current_page = page;
-	wpan_phy->transmit_power = tx_power;
-	wpan_phy->cca_ed_level = ed_level;
-	wpan_phy->perm_extended_addr = extended_addr;
-	//phy->cca = 0;
-	wpan_phy->symbol_duration = 16;
-
-	pr_debug("pan_id %x", pan_id);
-	pr_debug("short_addr %x", short_addr);
-	pr_debug("extended_addr %016llx", extended_addr);
-
-	wpan_phy->lifs_period = IEEE802154_LIFS_PERIOD *
-				wpan_phy->symbol_duration;
-	wpan_phy->sifs_period = IEEE802154_SIFS_PERIOD *
-				wpan_phy->symbol_duration;
-
-	wpan_dev->min_be = min_be;
-	wpan_dev->max_be = max_be;
-	wpan_dev->pan_id = pan_id;
-	wpan_dev->short_addr = short_addr;
-	wpan_dev->extended_addr = extended_addr;
-	wpan_dev->ackreq = ackreq;
-
-	wpan_dev->csma_retries = 0;
-	wpan_dev->frame_retries = 0;
-	wpan_dev->promiscuous_mode = false;
-	wpan_dev->iftype = NL802154_IFTYPE_NODE;
-	wpan_phy->flags = WPAN_PHY_FLAG_TXPOWER |
-			WPAN_PHY_FLAG_CCA_ED_LEVEL |
-			WPAN_PHY_FLAG_CCA_MODE;
-}
-
-
-/**
  * sendrecv_work_fn()
  * @param: workqueue parameter.
  */
@@ -3329,7 +3333,7 @@ sendrecv_work_fn(struct work_struct *param)
 				struct sk_buff* consume = skb;
 				skb = skb_peek_next(consume, &xb->recv_queue);
 				skb_unlink(consume, &xb->recv_queue);
-				frame_recv_dispatch(xb, consume);
+				xb_frame_recv_dispatch(xb, consume);
 			} else {
 				xb->last_atresp = skb;
 				skb = skb_peek_next(skb, &xb->recv_queue);
