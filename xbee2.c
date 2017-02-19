@@ -244,7 +244,7 @@ enum {
 
 enum {
 	XBEE_API_1 = 1,
-	XBEE_API_2 = 1,
+	XBEE_API_2 = 2,
 };
 
 
