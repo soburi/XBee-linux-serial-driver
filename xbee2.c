@@ -673,10 +673,10 @@ mac802154_wpan_free(struct net_device *dev)
  * xbee_rx_handle_packet()
  */
 static void
-xbee_rx_handle_packet(struct xb_device *local, struct sk_buff *skb)
+xbee_rx_handle_packet(struct xb_device *xb, struct sk_buff *skb)
 {
 	int ret;
-	struct xbee_sub_if_data *sdata = netdev_priv(local->dev);
+	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
 	struct ieee802154_hdr hdr;
 
 	ret = ieee802154_parse_frame_start(skb, &hdr);
@@ -696,7 +696,7 @@ xbee_rx_handle_packet(struct xb_device *local, struct sk_buff *skb)
  * xbee_rx()
  */
 static void
-xbee_rx(struct xb_device *local, struct sk_buff *skb, u8 lqi)
+xbee_rx(struct xb_device *xb, struct sk_buff *skb, u8 lqi)
 {
 	mac_cb(skb)->lqi = lqi;
 	skb->pkt_type = 0;
@@ -705,7 +705,7 @@ xbee_rx(struct xb_device *local, struct sk_buff *skb, u8 lqi)
 
 	rcu_read_lock();
 
-	xbee_rx_handle_packet(local, skb);
+	xbee_rx_handle_packet(xb, skb);
 
 	rcu_read_unlock();
 
@@ -2691,9 +2691,9 @@ struct cfg802154_ops xbee_cfg802154_ops = {
  * xbee_alloc_netdev()
  */
 static struct net_device*
-xbee_alloc_netdev(struct xb_device* local)
+xbee_alloc_netdev(struct xb_device* xb)
 {
-	struct net_device *ndev = local->dev;
+	struct net_device *ndev = xb->dev;
 	struct xbee_sub_if_data *sdata = NULL;
 	int ret = 0;
 	
@@ -2725,14 +2725,14 @@ free_dev:
 static struct xb_device*
 xbee_alloc_device(size_t priv_data_len)
 {
-	struct xb_device *local = NULL;
+	struct xb_device *xb = NULL;
 	struct net_device *ndev = NULL;
 	struct wpan_phy *phy = NULL;
 	size_t priv_size;
 
 	pr_debug("%s(%lu)\n",__func__, priv_data_len);
 
-	priv_size = ALIGN(sizeof(*local), NETDEV_ALIGN) + priv_data_len;
+	priv_size = ALIGN(sizeof(*xb), NETDEV_ALIGN) + priv_data_len;
 
 	phy = wpan_phy_new(&xbee_cfg802154_ops, priv_size);
 	if (!phy) {
@@ -2741,19 +2741,19 @@ xbee_alloc_device(size_t priv_data_len)
 	}
 	phy->privid = xbee_wpan_phy_privid;
 	pr_debug("wpan_phy_priv\n");
-	local = wpan_phy_priv(phy);
+	xb = wpan_phy_priv(phy);
 
-	local->phy = phy;
-	ndev = xbee_alloc_netdev(local);
+	xb->phy = phy;
+	ndev = xbee_alloc_netdev(xb);
 	if(!ndev)
 		goto free_phy;
 	
-	local->dev = ndev;
+	xb->dev = ndev;
 
 	pr_debug("wpan_phy_set_dev\n");
-	wpan_phy_set_dev(local->phy, local->parent);
+	wpan_phy_set_dev(xb->phy, xb->parent);
 
-	return local;
+	return xb;
 
 free_phy:
 	wpan_phy_free(phy);
@@ -2781,22 +2781,22 @@ xbee_register_netdev(struct net_device* dev)
  * xb_register_device()
  */
 static int
-xb_register_device(struct xb_device* local)
+xb_register_device(struct xb_device* xb)
 {
 	int ret;
 		
-	ret = wpan_phy_register(local->phy);
+	ret = wpan_phy_register(xb->phy);
 	if(ret < 0)
 		return ret;
 
-	ret = xbee_register_netdev(local->dev);
+	ret = xbee_register_netdev(xb->dev);
 	if(ret < 0)
 		goto unregister_wpan;
 	
 	return 0;
 
 unregister_wpan:
-	wpan_phy_unregister(local->phy);
+	wpan_phy_unregister(xb->phy);
 	return ret;
 }
 
@@ -2820,30 +2820,30 @@ xb_unregister_netdev(struct net_device* netdev)
  * xb_unregister_device() - Unregister xb_device.
  */
 static void
-xb_unregister_device(struct xb_device* local)
+xb_unregister_device(struct xb_device* xb)
 {
 	pr_debug("%s\n", __func__);
-	xb_unregister_netdev(local->dev);
-	wpan_phy_unregister(local->phy);
+	xb_unregister_netdev(xb->dev);
+	wpan_phy_unregister(xb->phy);
 }
 
 /**
  * xb_free() - Free xb_device.
  */
 static void
-xb_free(struct xb_device* local)
+xb_free(struct xb_device* xb)
 {
-	free_netdev(local->dev);
-	wpan_phy_free(local->phy);
+	free_netdev(xb->dev);
+	wpan_phy_free(xb->phy);
 }
 
 /**
  * xb_set_supported() - Set xbee support parameter.
  */
 static void
-xb_set_supported(struct xb_device* local)
+xb_set_supported(struct xb_device* xb)
 {
-	struct wpan_phy *phy = local->phy;
+	struct wpan_phy *phy = xb->phy;
 
 	/* always supported */
 	phy->supported.channels[0] = 0x7fff800;
@@ -2888,13 +2888,13 @@ xb_set_supported(struct xb_device* local)
 
 /**
  * xb_read_config() - Read current configuration from device.
- * @local xbee device
+ * @xb xbee device
  */
 static void
-xb_read_config(struct xb_device* local)
+xb_read_config(struct xb_device* xb)
 {
-	struct wpan_phy *wpan_phy = local->phy;
-	struct xbee_sub_if_data *sdata = netdev_priv(local->dev);
+	struct wpan_phy *wpan_phy = xb->phy;
+	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 
 	__le64 extended_addr = 0;
@@ -2909,17 +2909,17 @@ xb_read_config(struct xb_device* local)
 	bool ackreq = 0;
 	u8 api = 0;
 
-	xb_get_api_mode(local, &api);
-	local->api = api;
+	xb_get_api_mode(xb, &api);
+	xb->api = api;
 
-	xb_get_extended_addr(local, &extended_addr);
-	xb_get_pan_id(local, &pan_id);
-	xb_get_channel(local, &page, &channel);
-	xb_get_tx_power(local, &tx_power);
-	xb_get_short_addr(local, &short_addr);
-	xb_get_backoff_exponent(local, &min_be, &max_be);
-	xb_get_ackreq_default(local, &ackreq);
-	xb_get_cca_ed_level(local, &ed_level);
+	xb_get_extended_addr(xb, &extended_addr);
+	xb_get_pan_id(xb, &pan_id);
+	xb_get_channel(xb, &page, &channel);
+	xb_get_tx_power(xb, &tx_power);
+	xb_get_short_addr(xb, &short_addr);
+	xb_get_backoff_exponent(xb, &min_be, &max_be);
+	xb_get_ackreq_default(xb, &ackreq);
+	xb_get_cca_ed_level(xb, &ed_level);
 
 	wpan_phy->current_channel = channel;
 	wpan_phy->current_page = page;
@@ -2958,19 +2958,19 @@ xb_read_config(struct xb_device* local)
  * xb_setup()
  */
 static void
-xb_setup(struct xb_device* local)
+xb_setup(struct xb_device* xb)
 {
-	struct net_device* ndev = local->dev;
+	struct net_device* ndev = xb->dev;
 	struct xbee_sub_if_data *sdata = netdev_priv(ndev);
 	uint8_t tmp;
 
 	ndev->ieee802154_ptr = &sdata->wpan_dev;
 
 	ieee802154_le64_to_be64(ndev->perm_addr,
-				&local->phy->perm_extended_addr);
+				&xb->phy->perm_extended_addr);
 
-	if (ieee802154_is_valid_extended_unicast_addr(local->phy->perm_extended_addr))
-		ieee802154_le64_to_be64(ndev->dev_addr, &local->phy->perm_extended_addr);
+	if (ieee802154_is_valid_extended_unicast_addr(xb->phy->perm_extended_addr))
+		ieee802154_le64_to_be64(ndev->dev_addr, &xb->phy->perm_extended_addr);
 	else
 		memcpy(ndev->dev_addr, ndev->perm_addr, IEEE802154_EXTENDED_ADDR_LEN);
 
