@@ -899,6 +899,134 @@ pr_wpan_dev(struct wpan_dev* dev)
 }
 
 /**
+ * pr_frame_atcmdr()
+ * @skb: AT Command response frame to print.
+ */
+static void
+pr_frame_atcmdr(struct sk_buff *skb)
+{
+	// AT command response must handle call side.
+	struct xb_frame_atcmdr* atresp = (struct xb_frame_atcmdr*)skb->data;
+	pr_debug("AT_R: id=0x%02x cmd=%c%c status=%d\n",
+			atresp->id, atresp->command&0xFF,
+			(atresp->command & 0xFF00)>>8 , atresp->status);
+}
+
+/**
+ * pr_frame_rx64io()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_rx64io(struct sk_buff *skb)
+{
+	struct xb_frame_rx64* rx64 = (struct xb_frame_rx64*)skb->data;
+	pr_debug("UNEXPECTED RX64IO: addr=%016llx rssi=%d options=%x\n",
+			rx64->srcaddr, rx64->rssi, rx64->options);
+}
+
+/**
+ * pr_frame_rx16io()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_rx16io(struct sk_buff *skb)
+{
+	struct xb_frame_rx16* rx16 = (struct xb_frame_rx16*)skb->data;
+	pr_debug("UNEXPECTED RX16IO: addr=%04x rssi=%d options=%x\n",
+			rx16->srcaddr, rx16->rssi, rx16->options);
+}
+
+/**
+ * pr_frame_atcmd()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_atcmd(struct sk_buff *skb)
+{
+	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
+	pr_debug("UNEXPECTED ATCMD: id=0x%02x cmd=%c%c\n",
+			atcmd->id, atcmd->command&0xFF,
+			(atcmd->command & 0xFF00)>>8);
+}
+
+/**
+ * pr_frame_atcmdq()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_atcmdq(struct sk_buff *skb)
+{
+	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
+	pr_debug("UNEXPECTED ATCMDQ: id=0x%02x cmd=%c%c\n",
+			atcmd->id, atcmd->command&0xFF,
+			(atcmd->command & 0xFF00)>>8);
+}
+
+/**
+ * pr_frame_rcmd()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_rcmd(struct sk_buff *skb)
+{
+	struct xb_frame_rcmd* ratcmd = (struct xb_frame_rcmd*)skb->data;
+	pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx "
+			"addr16=%04x cmd=%c%c\n",
+			ratcmd->id, ratcmd->destaddr64, ratcmd->destaddr16,
+			ratcmd->command&0xFF, (ratcmd->command & 0xFF00)>>8);
+}
+
+/**
+ * pr_frame_rcmdr()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_rcmdr(struct sk_buff *skb)
+{
+	struct xb_frame_rcmdr* ratcmdr = (struct xb_frame_rcmdr*)skb->data;
+	pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx "
+			"addr16=%04x cmd=%c%c status=%d\n",
+			ratcmdr->id,
+			ratcmdr->destaddr64, ratcmdr->destaddr16,
+			ratcmdr->command&0xFF,
+			(ratcmdr->command & 0xFF00)>>8, ratcmdr->status);
+}
+
+/**
+ * pr_frame_tx64()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_tx64(struct sk_buff *skb)
+{
+	struct xb_frame_tx64* tx64 = (struct xb_frame_tx64*)skb->data;
+	pr_debug("UNEXPECTED TX64: id=0x%02x addr=%llx options=%x\n",
+			tx64->id, tx64->destaddr, tx64->options);
+}
+
+/**
+ * pr_frame_tx16()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_tx16(struct sk_buff *skb)
+{
+	struct xb_frame_tx16* tx16 = (struct xb_frame_tx16*)skb->data;
+	pr_debug("UNEXPECTED TX16: id=0x%02x addr=%04x options=%x\n",
+			tx16->id, tx16->destaddr, tx16->options);
+}
+
+/**
+ * pr_frame_default()
+ * @skb: frame to print.
+ */
+static void
+pr_frame_default(struct sk_buff *skb)
+{
+	pr_debug("%s\n", __func__);
+}
+
+/**
  * buffer_calc_checksum()
  *
  * @buf: data which formatted by APIv1.
@@ -1565,20 +1693,6 @@ xb_frame_recv_rx16(struct xb_device* xb, struct sk_buff *skb)
 }
 
 /**
- * pr_frame_atcmdr()
- * @skb: AT Command response frame to print.
- */
-static void
-pr_frame_atcmdr(struct sk_buff *skb)
-{
-	// AT command response must handle call side.
-	struct xb_frame_atcmdr* atresp = (struct xb_frame_atcmdr*)skb->data;
-	pr_debug("AT_R: id=0x%02x cmd=%c%c status=%d\n",
-			atresp->id, atresp->command&0xFF,
-			(atresp->command & 0xFF00)>>8 , atresp->status);
-}
-
-/**
  * xb_frame_recv_mstat()
  * @xb: XBee device context.
  * @skb: Modem status frame.
@@ -1600,120 +1714,6 @@ pr_frame_txstat(struct sk_buff *skb)
 {
 	struct xb_frame_txstat* txstat = (struct xb_frame_txstat*)skb->data;
 	pr_debug("TXST: id->0x%02x options=%x\n", txstat->id, txstat->options);
-}
-
-/**
- * pr_frame_rx64io()
- * @skb: frame to print.
- */
-static void
-pr_frame_rx64io(struct sk_buff *skb)
-{
-	struct xb_frame_rx64* rx64 = (struct xb_frame_rx64*)skb->data;
-	pr_debug("UNEXPECTED RX64IO: addr=%016llx rssi=%d options=%x\n",
-			rx64->srcaddr, rx64->rssi, rx64->options);
-}
-
-/**
- * pr_frame_rx16io()
- * @skb: frame to print.
- */
-static void
-pr_frame_rx16io(struct sk_buff *skb)
-{
-	struct xb_frame_rx16* rx16 = (struct xb_frame_rx16*)skb->data;
-	pr_debug("UNEXPECTED RX16IO: addr=%04x rssi=%d options=%x\n",
-			rx16->srcaddr, rx16->rssi, rx16->options);
-}
-
-/**
- * pr_frame_atcmd()
- * @skb: frame to print.
- */
-static void
-pr_frame_atcmd(struct sk_buff *skb)
-{
-	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
-	pr_debug("UNEXPECTED ATCMD: id=0x%02x cmd=%c%c\n",
-			atcmd->id, atcmd->command&0xFF,
-			(atcmd->command & 0xFF00)>>8);
-}
-
-/**
- * pr_frame_atcmdq()
- * @skb: frame to print.
- */
-static void
-pr_frame_atcmdq(struct sk_buff *skb)
-{
-	struct xb_frame_atcmd* atcmd = (struct xb_frame_atcmd*)skb->data;
-	pr_debug("UNEXPECTED ATCMDQ: id=0x%02x cmd=%c%c\n",
-			atcmd->id, atcmd->command&0xFF,
-			(atcmd->command & 0xFF00)>>8);
-}
-
-/**
- * pr_frame_rcmd()
- * @skb: frame to print.
- */
-static void
-pr_frame_rcmd(struct sk_buff *skb)
-{
-	struct xb_frame_rcmd* ratcmd = (struct xb_frame_rcmd*)skb->data;
-	pr_debug("UNEXPECTED RATCMD: id=0x%02x addr64=%016llx "
-			"addr16=%04x cmd=%c%c\n",
-			ratcmd->id, ratcmd->destaddr64, ratcmd->destaddr16,
-			ratcmd->command&0xFF, (ratcmd->command & 0xFF00)>>8);
-}
-
-/**
- * pr_frame_rcmdr()
- * @skb: frame to print.
- */
-static void
-pr_frame_rcmdr(struct sk_buff *skb)
-{
-	struct xb_frame_rcmdr* ratcmdr = (struct xb_frame_rcmdr*)skb->data;
-	pr_debug("UNEXPECTED RATCMDR: id=0x%02x addr64=%016llx "
-			"addr16=%04x cmd=%c%c status=%d\n",
-			ratcmdr->id,
-			ratcmdr->destaddr64, ratcmdr->destaddr16,
-			ratcmdr->command&0xFF,
-			(ratcmdr->command & 0xFF00)>>8, ratcmdr->status);
-}
-
-/**
- * pr_frame_tx64()
- * @skb: frame to print.
- */
-static void
-pr_frame_tx64(struct sk_buff *skb)
-{
-	struct xb_frame_tx64* tx64 = (struct xb_frame_tx64*)skb->data;
-	pr_debug("UNEXPECTED TX64: id=0x%02x addr=%llx options=%x\n",
-			tx64->id, tx64->destaddr, tx64->options);
-}
-
-/**
- * pr_frame_tx16()
- * @skb: frame to print.
- */
-static void
-pr_frame_tx16(struct sk_buff *skb)
-{
-	struct xb_frame_tx16* tx16 = (struct xb_frame_tx16*)skb->data;
-	pr_debug("UNEXPECTED TX16: id=0x%02x addr=%04x options=%x\n",
-			tx16->id, tx16->destaddr, tx16->options);
-}
-
-/**
- * pr_frame_default()
- * @skb: frame to print.
- */
-static void
-pr_frame_default(struct sk_buff *skb)
-{
-	pr_debug("%s\n", __func__);
 }
 
 /**
