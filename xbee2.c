@@ -3332,54 +3332,42 @@ xb_setup(struct xb_device* xb)
 
 
 /**
- * recv_work_fn()
+ * sendrecv_work_fn()
  * @param: workqueue parameter.
  */
 static void
-recv_work_fn(struct work_struct *param)
+sendrecv_work_fn(struct work_struct *param)
 {
 	struct xb_work* xbw = (struct xb_work*)param;
 	struct xb_device* xb = xbw->xb;
 	struct sk_buff* skb = NULL;
 	struct sk_buff* prev_atresp = xb->last_atresp;
 
-	mutex_lock(&xb->queue_mutex);
-	skb = skb_peek(&xb->recv_queue);
-	while(skb) {
-		struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
-		if(frm->type != XBEE_FRM_ATCMDR) {
-			struct sk_buff* consume = skb;
-			skb = skb_peek_next(consume, &xb->recv_queue);
-			skb_unlink(consume, &xb->recv_queue);
-			frame_recv_dispatch(xb, consume);
+	if(&xb->send_work.work == param) {
+		int send_count = 0;
+		send_count = xb_send_queue(xb);
+		complete_all(&xb->send_done);
+	} else {
+		mutex_lock(&xb->queue_mutex);
+		skb = skb_peek(&xb->recv_queue);
+		while(skb) {
+			struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
+			if(frm->type != XBEE_FRM_ATCMDR) {
+				struct sk_buff* consume = skb;
+				skb = skb_peek_next(consume, &xb->recv_queue);
+				skb_unlink(consume, &xb->recv_queue);
+				frame_recv_dispatch(xb, consume);
+			} else {
+				xb->last_atresp = skb;
+				skb = skb_peek_next(skb, &xb->recv_queue);
+			}
 		}
-		else {
-			xb->last_atresp = skb;
-			skb = skb_peek_next(skb, &xb->recv_queue);
-		}
+
+		if(prev_atresp != xb->last_atresp)
+			complete_all(&xb->cmd_resp_done);
+
+		mutex_unlock(&xb->queue_mutex);
 	}
-
-	if(prev_atresp != xb->last_atresp)
-		complete_all(&xb->cmd_resp_done);
-
-	mutex_unlock(&xb->queue_mutex);
-}
-
-/**
- * send_work_fn()
- * @param: workqueue parameter.
- */
-static void
-send_work_fn(struct work_struct *param)
-{
-	struct xb_work* xbw = (struct xb_work*)param;
-	struct xb_device* xb = xbw->xb;
-
-	int send_count = 0;
-
-	send_count = xb_send_queue(xb);
-
-	complete_all(&xb->send_done);
 }
 
 /**
@@ -3397,8 +3385,8 @@ init_work_fn(struct work_struct *param)
 
 	pr_debug("enter %s\n", __func__);
 
-	INIT_WORK( (struct work_struct*)&xb->send_work.work, send_work_fn);
-	INIT_WORK( (struct work_struct*)&xb->recv_work.work, recv_work_fn);
+	INIT_WORK( (struct work_struct*)&xb->send_work.work, sendrecv_work_fn);
+	INIT_WORK( (struct work_struct*)&xb->recv_work.work, sendrecv_work_fn);
 
 	xb_enqueue_send_at(xb, XBEE_AT_FR, "", 0);
 	xb_send(xb);
