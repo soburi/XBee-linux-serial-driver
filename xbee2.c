@@ -2582,10 +2582,10 @@ xb_read_config(struct xb_device* xb)
 	pr_debug("short_addr %x", short_addr);
 	pr_debug("extended_addr %016llx", extended_addr);
 
-	wpan_phy->lifs_period = IEEE802154_LIFS_PERIOD *
-				wpan_phy->symbol_duration;
-	wpan_phy->sifs_period = IEEE802154_SIFS_PERIOD *
-				wpan_phy->symbol_duration;
+	wpan_phy->lifs_period =
+		IEEE802154_LIFS_PERIOD * wpan_phy->symbol_duration;
+	wpan_phy->sifs_period =
+		IEEE802154_SIFS_PERIOD * wpan_phy->symbol_duration;
 
 	wpan_dev->min_be = min_be;
 	wpan_dev->max_be = max_be;
