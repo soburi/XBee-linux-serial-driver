@@ -1419,7 +1419,10 @@ xb_send(struct xb_device* xb)
 
 /**
  * xb_recv()
+ *
  * @xb: XBee device context.
+ * @expect_id: Wait to receive frame that have this ID.
+ * @timeout: timeout in milliseconds
  */
 static struct sk_buff*
 xb_recv(struct xb_device* xb, uint8_t expect_id, unsigned long timeout)
@@ -1455,7 +1458,9 @@ xb_recv(struct xb_device* xb, uint8_t expect_id, unsigned long timeout)
 
 /**
  * xb_sendrecv()
+ *
  * @xb: XBee device context.
+ * @expect_id: Wait to receive frame that have this ID.
  */
 static struct sk_buff*
 xb_sendrecv(struct xb_device* xb, uint8_t expect_id)
@@ -1488,7 +1493,9 @@ xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigne
 
 /**
  * xb_frame_recv_rx64()
+ *
  * @xb: XBee device context.
+ * @skb: RX frame with 64bit address.
  */
 static void
 xb_frame_recv_rx64(struct xb_device *xb, struct sk_buff *skb)
@@ -1524,7 +1531,9 @@ xb_frame_recv_rx64(struct xb_device *xb, struct sk_buff *skb)
 
 /**
  * xb_frame_recv_rx16()
+ *
  * @xb: XBee device context.
+ * @skb: RX frame with 16bit address.
  */
 static void
 xb_frame_recv_rx16(struct xb_device* xb, struct sk_buff *skb)
@@ -1791,7 +1800,7 @@ xb_set_param(struct xb_device *xb, uint16_t atcmd, const uint8_t* reqbuf, size_t
  * xb_set_channel()
  *
  * @xb: XBee device context.
- * @page: New page to use.
+ * @page: New channel page to use.
  * @channel: New channel to use.
  */
 static int
@@ -1807,7 +1816,7 @@ xb_set_channel(struct xb_device *xb, u8 page, u8 channel)
  * xb_get_channel()
  *
  * @xb: XBee device context.
- * @page: Pointer to the value that store page.
+ * @page: Pointer to the value that store channel page.
  * @channel: Pointer to the value that store channel.
  */
 static int
@@ -1832,6 +1841,7 @@ xb_get_channel(struct xb_device *xb, u8 *page, u8 *channel)
  * xb_set_cca_mode()
  *
  * @xb: XBee device context.
+ * @cca: Pointer to value that contains new cca seting.
  */
 static int
 xb_set_cca_mode(struct xb_device *xb, const struct wpan_phy_cca *cca)
@@ -2298,6 +2308,11 @@ frame_recv_dispatch(struct xb_device *xb, struct sk_buff *frame)
 /**
  * xbee_header_create()
  * @dev: net_device that is associated with this XBee.
+ * @skb: -
+ * @type: -
+ * @daddr: -
+ * @saddr: -
+ * @len: -
  */
 static int
 xbee_header_create(struct sk_buff *skb,
@@ -2326,6 +2341,9 @@ xbee_header_create(struct sk_buff *skb,
 
 /**
  * xbee_header_parse()
+ *
+ * @skb: Received packet
+ * @haddr: Hardware address
  */
 static int
 xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
@@ -2350,6 +2368,9 @@ xbee_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 
 /**
  * xbee_header_validate()
+ *
+ * @ll_header: -
+ * @len: -
  */
 static bool
 xbee_header_validate(const char *ll_header, unsigned int len)
@@ -2364,8 +2385,13 @@ xbee_header_validate(const char *ll_header, unsigned int len)
 
 /**
  * xbee_mlme_assoc_req()
- * TODO
+ *
  * @dev: net_device that is associated with this XBee.
+ * @addr: Address to send association request.
+ * @channel: Channel to use.
+ * @page: Channel page to use.
+ * @cap: Capability
+ * TODO
  */
 static int
 xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 cap)
@@ -2378,8 +2404,13 @@ xbee_mlme_assoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 cha
 
 /**
  * xbee_mlme_assoc_req()
- * TODO not be implemented.
+ *
  * @dev: net_device that is associated with this XBee.
+ * @addr: -
+ * @short_addr: -
+ * @status: -
+ *
+ * TODO not be implemented.
  */
 static int
 xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr, __le16 short_addr, u8 status)
@@ -2392,8 +2423,12 @@ xbee_mlme_assoc_resp(struct net_device *dev, struct ieee802154_addr *addr, __le1
 
 /**
  * xbee_mlme_disassoc_req()
- * TODO not be implemented.
+ *
  * @dev: net_device that is associated with this XBee.
+ * @addr: -
+ * @reason: -
+ *
+ * TODO not be implemented.
  */
 static int
 xbee_mlme_disassoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 reason)
@@ -2406,7 +2441,18 @@ xbee_mlme_disassoc_req(struct net_device *dev, struct ieee802154_addr *addr, u8 
 
 /**
  * xbee_mlme_start_req()
+ *
  * @dev: net_device that is associated with this XBee.
+ * @addr: -
+ * @channel: Channel to use.
+ * @page: Channel page to use.
+ * @bcn_ord: -
+ * @sf_ord: -
+ * @pan_coord: -
+ * @blx: -
+ * @coord_realign: -
+ *
+ * TODO
  */
 static int
 xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *addr, u8 channel, u8 page, u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx, u8 coord_realign)
@@ -2424,7 +2470,12 @@ xbee_mlme_start_req(struct net_device *dev, struct ieee802154_addr *addr, u8 cha
 
 /**
  * xbee_mlme_scan_req()
+ *
  * @dev: net_device that is associated with this XBee.
+ * @type: Scan type
+ * @channels: Scan channels bitmask.
+ * @page: Channel page to use.
+ * @duration: Scan duration.
  */
 static int
 xbee_mlme_scan_req(struct net_device *dev, u8 type, u32 channels, u8 page, u8 duration)
@@ -2775,6 +2826,7 @@ xbee_cfg802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
  * xbee_cfg802154_set_cca_mode()
  *
  * @wpan_phy: WPAN phy that is associated with this XBee.
+ * @cca: Pointer to value that contains new cca seting.
  */
 static int
 xbee_cfg802154_set_cca_mode(struct wpan_phy *wpan_phy,
