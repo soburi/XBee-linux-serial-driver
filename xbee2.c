@@ -243,8 +243,8 @@ enum {
 };
 
 enum {
-	XBEE_API_1 = 1,
-	XBEE_API_2 = 2,
+	XBEE_API_V1 = 1,
+	XBEE_API_V2 = 2,
 };
 
 
@@ -1534,7 +1534,7 @@ xb_send_queue(struct xb_device* xb)
 	while( !skb_queue_empty(&xb->send_queue) ) {
 		struct sk_buff* skb = skb_dequeue(&xb->send_queue);
 
-		if(xb->api == XBEE_API_2) {
+		if(xb->api == XBEE_API_V2) {
 			frame_escape(skb);
 		}
 
@@ -1659,7 +1659,7 @@ xb_frame_recv_rx64(struct xb_device *xb, struct sk_buff *skb)
 	struct ieee802154_hdr hdr = {};
 	int hlen = 0;
 
-	if(xb->api == XBEE_API_2)
+	if(xb->api == XBEE_API_V2)
 		frame_unescape(skb);
 
 	rx = (struct xb_frame_rx64*)skb->data;
@@ -1697,7 +1697,7 @@ xb_frame_recv_rx16(struct xb_device* xb, struct sk_buff *skb)
 	struct ieee802154_hdr hdr = {};
 	int hlen = 0;
 
-	if(xb->api == XBEE_API_2)
+	if(xb->api == XBEE_API_V2)
 		frame_unescape(skb);
 
 	pr_debug("RX16: addr=%04x rssi=%d options=%x\n", rx->srcaddr, rx->rssi, rx->options);
