@@ -1309,7 +1309,7 @@ xb_send_queue(struct xb_device* xb)
 
 		/*
 		if (newskb)
-			xbee_rx_irqsafe(xbdev, newskb, 0xcc);
+			xbee_rx_irqsafe(xb, newskb, 0xcc);
 		*/
 
 		tty->ops->write(tty, skb->data, skb->len);
@@ -1399,15 +1399,15 @@ xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd, char* buf, unsigne
  * xb_frame_recv_rx64()
  */
 static void
-xb_frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
+xb_frame_recv_rx64(struct xb_device *xb, struct sk_buff *skb)
 {
-	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
+	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct xb_frame_rx64* rx = (struct xb_frame_rx64*)skb->data;
 	struct ieee802154_hdr hdr = {};
 	int hlen = 0;
 
-	if(xbdev->api == XBEE_API_2)
+	if(xb->api == XBEE_API_2)
 		frame_unescape(skb);
 
 	rx = (struct xb_frame_rx64*)skb->data;
@@ -1427,22 +1427,22 @@ xb_frame_recv_rx64(struct xb_device *xbdev, struct sk_buff *skb)
 	skb_pull(skb, sizeof(struct xb_frame_rx64) );
 	frame_trim_checksum(skb);
 	hlen = ieee802154_hdr_push(skb, &hdr);
-	xbee_rx(xbdev, skb, rx->rssi);
+	xbee_rx(xb, skb, rx->rssi);
 }
 
 /**
  * xb_frame_recv_rx16()
  */
 static void
-xb_frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
+xb_frame_recv_rx16(struct xb_device* xb, struct sk_buff *skb)
 {
-	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
+	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct xb_frame_rx16* rx = (struct xb_frame_rx16*)skb->data;
 	struct ieee802154_hdr hdr = {};
 	int hlen = 0;
 
-	if(xbdev->api == XBEE_API_2)
+	if(xb->api == XBEE_API_2)
 		frame_unescape(skb);
 
 	pr_debug("RX16: addr=%04x rssi=%d options=%x\n", rx->srcaddr, rx->rssi, rx->options);
@@ -1458,7 +1458,7 @@ xb_frame_recv_rx16(struct xb_device* xbdev, struct sk_buff *skb)
 	skb_pull(skb, sizeof(struct xb_frame_rx16) );
 	frame_trim_checksum(skb);
 	hlen = ieee802154_hdr_push(skb, &hdr);
-	xbee_rx(xbdev, skb, rx->rssi);
+	xbee_rx(xb, skb, rx->rssi);
 }
 
 /**
@@ -1478,10 +1478,10 @@ pr_frame_atcmdr(struct sk_buff *skb)
  * xb_frame_recv_mstat()
  */
 static void
-xb_frame_recv_mstat(struct xb_device *xbdev, struct sk_buff *skb)
+xb_frame_recv_mstat(struct xb_device *xb, struct sk_buff *skb)
 {
 	struct xb_frame_mstat* mstat = (struct xb_frame_mstat*)skb->data;
-	complete_all(&xbdev->modem_status_receive);
+	complete_all(&xb->modem_status_receive);
 	pr_debug("MSTA: status=%d\n", mstat->status);
 }
 
@@ -2062,23 +2062,23 @@ xb_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_t bufsize)
 /**
  * frame_recv_dispatch()
  *
- * @xbdev: ...
+ * @xb: ...
  * @frame: ...
  *
  * Verify the XBee frame, then take appropriate action depending on the
  * frame type.
  */
 static void
-frame_recv_dispatch(struct xb_device *xbdev, struct sk_buff *skb)
+frame_recv_dispatch(struct xb_device *xb, struct sk_buff *skb)
 {
 	struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
 
 	switch (frm->type) {
-	case XBEE_FRM_MSTAT:	xb_frame_recv_mstat(xbdev, skb);	break;
+	case XBEE_FRM_MSTAT:	xb_frame_recv_mstat(xb, skb);	break;
 	case XBEE_FRM_ATCMDR:	pr_frame_atcmdr(skb);	break;
 	case XBEE_FRM_RCMDR:	pr_frame_rcmdr(skb);	break;
-	case XBEE_FRM_RX64:	xb_frame_recv_rx64(xbdev, skb);	break;
-	case XBEE_FRM_RX16:	xb_frame_recv_rx16(xbdev, skb);	break;
+	case XBEE_FRM_RX64:	xb_frame_recv_rx64(xb, skb);	break;
+	case XBEE_FRM_RX16:	xb_frame_recv_rx16(xb, skb);	break;
 	case XBEE_FRM_RX64IO:   pr_frame_rx64io(skb);	break;
 	case XBEE_FRM_RX16IO:   pr_frame_rx16io(skb);	break;
 	case XBEE_FRM_ATCMD:	pr_frame_atcmd(skb);	break;
@@ -2359,7 +2359,7 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xbee_sub_if_data *sdata = netdev_priv(dev);
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct xb_device *xbdev = sdata->local;
+	struct xb_device *xb = sdata->local;
 	struct ieee802154_hdr hdr = {};
 	struct xb_frame_tx16* tx16 = NULL;
 	struct xb_frame_tx64* tx64 = NULL;
@@ -2384,7 +2384,7 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx16->hd.start_delimiter = XBEE_DELIMITER;
 		tx16->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
 		tx16->hd.type = XBEE_FRM_TX16;
-		tx16->id = xb_frameid(xbdev);
+		tx16->id = xb_frameid(xb);
 		tx16->destaddr = htons(hdr.dest.short_addr);
 		tx16->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
 	}
@@ -2394,7 +2394,7 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx64->hd.start_delimiter = XBEE_DELIMITER;
 		tx64->hd.length = htons(skb->len - XBEE_FRAME_OFFSET_PAYLOAD);
 		tx64->hd.type = XBEE_FRM_TX64;
-		tx64->id = xb_frameid(xbdev);
+		tx64->id = xb_frameid(xb);
 		ieee802154_le64_to_be64(&tx64->destaddr, &hdr.dest.extended_addr);
 		tx64->options |= (hdr.fc.ack_request ? 0x00 : 0x01);
 	}
@@ -2408,12 +2408,12 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	{
 	struct sk_buff *newskb = pskb_copy(skb, GFP_ATOMIC);
  	if (newskb)
- 		xbee_rx_irqsafe(xbdev, newskb, 0xcc);
+ 		xbee_rx_irqsafe(xb, newskb, 0xcc);
 	}
 	*/
 
-	frame_enqueue_send(&xbdev->send_queue, skb);
-	xb_send(xbdev);
+	frame_enqueue_send(&xb->send_queue, skb);
+	xb_send(xb);
 
 	pr_debug("%s\n", __func__);
 	return NETDEV_TX_OK;
@@ -3052,57 +3052,57 @@ static void
 init_work_fn(struct work_struct *param)
 {
 	struct xb_work* xbw = (struct xb_work*)param;
-	struct xb_device* xbdev = xbw->xb;
-	struct tty_struct* tty = xbdev->tty;
-	struct xbee_sub_if_data *sdata = netdev_priv(xbdev->dev);
+	struct xb_device* xb = xbw->xb;
+	struct tty_struct* tty = xb->tty;
+	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
 	int err = -EINVAL;
 
 	pr_debug("enter %s\n", __func__);
 
-	INIT_WORK( (struct work_struct*)&xbdev->send_work.work, send_work_fn);
-	INIT_WORK( (struct work_struct*)&xbdev->recv_work.work, recv_work_fn);
+	INIT_WORK( (struct work_struct*)&xb->send_work.work, send_work_fn);
+	INIT_WORK( (struct work_struct*)&xb->recv_work.work, recv_work_fn);
 
-	xb_enqueue_send_at(xbdev, XBEE_AT_FR, "", 0);
-	xb_send(xbdev);
-	err = wait_for_completion_timeout(&xbdev->modem_status_receive, msecs_to_jiffies(3000) );
+	xb_enqueue_send_at(xb, XBEE_AT_FR, "", 0);
+	xb_send(xb);
+	err = wait_for_completion_timeout(&xb->modem_status_receive, msecs_to_jiffies(3000) );
 	if(err == 0) {
 		printk(KERN_ERR "%s: XBee software reset failed\n", __func__);
 		goto err;
 	}
 
-	SET_NETDEV_DEV(xbdev->dev, &xbdev->phy->dev);
-	//memcpy(sdata->name, xbdev->dev->name, IFNAMSIZ);
-	sdata->dev = xbdev->dev;
-	sdata->wpan_dev.wpan_phy = xbdev->phy;
-	sdata->local = xbdev;
+	SET_NETDEV_DEV(xb->dev, &xb->phy->dev);
+	//memcpy(sdata->name, xb->dev->name, IFNAMSIZ);
+	sdata->dev = xb->dev;
+	sdata->wpan_dev.wpan_phy = xb->phy;
+	sdata->local = xb;
 
-	xb_read_config(xbdev);
-	xb_set_supported(xbdev);
-	xb_setup(xbdev);
+	xb_read_config(xb);
+	xb_set_supported(xb);
+	xb_setup(xb);
 
-	pr_wpan_phy(xbdev->phy);
-	pr_wpan_phy_supported(xbdev->phy);
+	pr_wpan_phy(xb->phy);
+	pr_wpan_phy_supported(xb->phy);
 	pr_wpan_dev(&sdata->wpan_dev);
 
-	err = xb_register_device(xbdev);
+	err = xb_register_device(xb);
 	if (err) {
 		printk(KERN_ERR "%s: device register failed\n", __func__);
 		goto err;
 	}
 
 #ifdef MODTEST_ENABLE
-	INIT_MODTEST(xbdev);
-	RUN_MODTEST(xbdev);
+	INIT_MODTEST(xb);
+	RUN_MODTEST(xb);
 #endif
 	return;
 
 err:
 	tty->disc_data = NULL;
 	tty_kref_put(tty);
-	xbdev->tty = NULL;
+	xb->tty = NULL;
 
-	xb_unregister_device(xbdev);
-	xb_free(xbdev);
+	xb_unregister_device(xb);
+	xb_free(xb);
 }
 
 
@@ -3122,7 +3122,7 @@ err:
 static int
 xbee_ldisc_open(struct tty_struct *tty)
 {
-	struct xb_device *xbdev = tty->disc_data;
+	struct xb_device *xb = tty->disc_data;
 	int err = -EINVAL;
 
 	pr_debug("%s\n", __func__);
@@ -3133,57 +3133,57 @@ xbee_ldisc_open(struct tty_struct *tty)
 	if(tty->ops->write == NULL)
 		return -EOPNOTSUPP;
 
-	if(xbdev && xbdev->magic == XBEE802154_MAGIC)
+	if(xb && xb->magic == XBEE802154_MAGIC)
 		return -EEXIST;
 
-	xbdev = (struct xb_device*)xbee_alloc_device(sizeof(struct xb_device));
-	if (!xbdev)
+	xb = (struct xb_device*)xbee_alloc_device(sizeof(struct xb_device));
+	if (!xb)
 		return -ENOMEM;
 
-	xbdev->parent = tty->dev;
-	tty->disc_data = xbdev;
+	xb->parent = tty->dev;
+	tty->disc_data = xb;
 
-	xbdev->tty = tty_kref_get(tty);
+	xb->tty = tty_kref_get(tty);
 	tty->receive_room = 65536;
 	tty_driver_flush_buffer(tty);
 
 
-	xbdev->recv_buf = dev_alloc_skb(IEEE802154_MTU);
-	xbdev->frameid = 1; // Device does not respond if zero.
+	xb->recv_buf = dev_alloc_skb(IEEE802154_MTU);
+	xb->frameid = 1; // Device does not respond if zero.
 	
-	xbdev->last_atresp = NULL;
+	xb->last_atresp = NULL;
 
-	mutex_init(&xbdev->queue_mutex);
-	skb_queue_head_init(&xbdev->recv_queue);
-	skb_queue_head_init(&xbdev->send_queue);
+	mutex_init(&xb->queue_mutex);
+	skb_queue_head_init(&xb->recv_queue);
+	skb_queue_head_init(&xb->send_queue);
 
-	init_completion(&xbdev->cmd_resp_done);
-	init_completion(&xbdev->send_done);
-	init_completion(&xbdev->modem_status_receive);
-	xbdev->send_workq = create_workqueue("send_workq");
-	xbdev->recv_workq = create_workqueue("recv_workq");
-	xbdev->init_workq = create_workqueue("init_workq");
-	xbdev->send_work.xb = xbdev;
-	xbdev->recv_work.xb = xbdev;
-	xbdev->init_work.xb = xbdev;
-	//INIT_WORK( (struct work_struct*)&xbdev->send_work.work, send_work_fn);
-	INIT_WORK( (struct work_struct*)&xbdev->init_work.work, init_work_fn);
-	err = queue_work(xbdev->init_workq, (struct work_struct*)&xbdev->init_work.work);
+	init_completion(&xb->cmd_resp_done);
+	init_completion(&xb->send_done);
+	init_completion(&xb->modem_status_receive);
+	xb->send_workq = create_workqueue("send_workq");
+	xb->recv_workq = create_workqueue("recv_workq");
+	xb->init_workq = create_workqueue("init_workq");
+	xb->send_work.xb = xb;
+	xb->recv_work.xb = xb;
+	xb->init_work.xb = xb;
+	//INIT_WORK( (struct work_struct*)&xb->send_work.work, send_work_fn);
+	INIT_WORK( (struct work_struct*)&xb->init_work.work, init_work_fn);
+	err = queue_work(xb->init_workq, (struct work_struct*)&xb->init_work.work);
 
 	return 0;
 /*
-	xb_read_config(xbdev);
-	xb_set_supported(xbdev);
-	xb_setup(xbdev);
-	err = xb_register_device(xbdev);
+	xb_read_config(xb);
+	xb_set_supported(xb);
+	xb_setup(xb);
+	err = xb_register_device(xb);
 	if (err) {
 		printk(KERN_ERR "%s: device register failed\n", __func__);
 		goto err;
 	}
 
 #ifdef MODTEST_ENABLE
-	INIT_MODTEST(xbdev);
-	RUN_MODTEST(xbdev);
+	INIT_MODTEST(xb);
+	RUN_MODTEST(xb);
 #endif
 
 	return 0;
@@ -3191,10 +3191,10 @@ xbee_ldisc_open(struct tty_struct *tty)
 err:
 	tty->disc_data = NULL;
 	tty_kref_put(tty);
-	xbdev->tty = NULL;
+	xb->tty = NULL;
 
-	xb_unregister_device(xbdev);
-	xb_free(xbdev);
+	xb_unregister_device(xb);
+	xb_free(xb);
 
 	return err;
 */
@@ -3208,32 +3208,32 @@ err:
 static void
 xbee_ldisc_close(struct tty_struct *tty)
 {
-	struct xb_device *xbdev = tty->disc_data;
+	struct xb_device *xb = tty->disc_data;
 
 	pr_debug("%s\n", __func__);
 
-	if (NULL == xbdev) {
+	if (NULL == xb) {
 		printk(KERN_WARNING "%s: match is not found\n", __func__);
 		return;
 	}
 
 	tty->disc_data = NULL;
 	tty_kref_put(tty);
-	xbdev->tty = NULL;
+	xb->tty = NULL;
 
-	destroy_workqueue(xbdev->init_workq);
-	destroy_workqueue(xbdev->recv_workq);
-	destroy_workqueue(xbdev->send_workq);
+	destroy_workqueue(xb->init_workq);
+	destroy_workqueue(xb->recv_workq);
+	destroy_workqueue(xb->send_workq);
 
-	//ieee802154_unregister_hw(xbdev->hw);
-	//xbee_unregister_netdev(xbdev->dev);
-	xb_unregister_device(xbdev);
+	//ieee802154_unregister_hw(xb->hw);
+	//xbee_unregister_netdev(xb->dev);
+	xb_unregister_device(xb);
 
 	tty_ldisc_flush(tty);
 	tty_driver_flush_buffer(tty);
 
-	//ieee802154_free_hw(xbdev->hw);
-	xb_free(xbdev);
+	//ieee802154_free_hw(xb->hw);
+	xb_free(xb);
 }
 
 /**
@@ -3248,17 +3248,17 @@ static int
 xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
-	struct xb_device *xbdev = tty->disc_data;
+	struct xb_device *xb = tty->disc_data;
 	unsigned int tmp;
 
 	/* First make sure we're connected. */
-	if (!xbdev || xbdev->magic != XBEE802154_MAGIC)
+	if (!xb || xb->magic != XBEE802154_MAGIC)
 		return -EINVAL;
 
         switch (cmd) {
 	case SIOCGIFNAME:
-		tmp = strlen(xbdev->dev->name) + 1;
-		if (copy_to_user((void __user *)arg, xbdev->dev->name, tmp))
+		tmp = strlen(xb->dev->name) + 1;
+		if (copy_to_user((void __user *)arg, xb->dev->name, tmp))
 			return -EFAULT;
 		return 0;
 	case SIOCSIFHWADDR:
@@ -3301,7 +3301,7 @@ xbee_ldisc_receive_buf2(struct tty_struct *tty,
 				const unsigned char *buf,
 				char *cflags, int count)
 {
-	struct xb_device *xbdev = tty->disc_data;
+	struct xb_device *xb = tty->disc_data;
 	int ret = 0;
 
 	if (!tty->disc_data) {
@@ -3309,17 +3309,17 @@ xbee_ldisc_receive_buf2(struct tty_struct *tty,
 		return 0;
 	}
 
-	ret = frame_put_received_data(xbdev->recv_buf, buf, count);
+	ret = frame_put_received_data(xb->recv_buf, buf, count);
 
 	if(ret == 0)
 		return count;
 
-	mutex_lock(&xbdev->queue_mutex);
-	ret = frame_enqueue_received(&xbdev->recv_queue, xbdev->recv_buf, (xbdev->api == 2) );
-	mutex_unlock(&xbdev->queue_mutex);
+	mutex_lock(&xb->queue_mutex);
+	ret = frame_enqueue_received(&xb->recv_queue, xb->recv_buf, (xb->api == 2) );
+	mutex_unlock(&xb->queue_mutex);
 
 	if(ret > 0)
-		ret = queue_work(xbdev->recv_workq, (struct work_struct*)&xbdev->recv_work.work);
+		ret = queue_work(xb->recv_workq, (struct work_struct*)&xb->recv_work.work);
 
 	return count;
 }
