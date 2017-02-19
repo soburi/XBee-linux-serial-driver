@@ -267,6 +267,9 @@ static const size_t XBEE_FRAME_COMMON_HEADER_AND_TRAILER = 4;
 
 /**
  * mac802154_set_header_security()
+ * @sdata: -
+ * @hdr: -
+ * @cb: -
  */
 static int
 mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
@@ -278,6 +281,8 @@ mac802154_set_header_security(struct ieee802154_sub_if_data *sdata,
 
 /**
  * mac802154_llsec_decrypt()
+ * @sec: -
+ * @skb: -
  */
 static int
 mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
@@ -287,7 +292,7 @@ mac802154_llsec_decrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 
 /**
  * mac802154_wpan_update_llsec()
- * @dev: net_device that is associated with this XBee.
+ * @dev: -
  */
 static int
 mac802154_wpan_update_llsec(struct net_device *dev)
@@ -297,6 +302,8 @@ mac802154_wpan_update_llsec(struct net_device *dev)
 
 /**
  * ieee802154_print_addr()
+ * @name: -
+ * @addr: -
  */
 static void
 ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
@@ -322,8 +329,8 @@ ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
 }
 
 /**
- * IEEE802154_DEV_TO_SUB_IF()
- * copy from Linux/net/mac802154/ieee802154_i.h
+ * IEEE802154_DEV_TO_SUB_IF() - Copy from Linux/net/mac802154/ieee802154_i.h
+ * @dev: -
  */
 static inline struct ieee802154_sub_if_data *
 IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
@@ -332,8 +339,8 @@ IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
 }
 
 /**
- * ieee802154_if_setup()
- * copy from Linux/net/mac802154/iface.c
+ * ieee802154_if_setup() - Copy from Linux/net/mac802154/iface.c
+ * @dev: -
  */
 static void ieee802154_if_setup(struct net_device *dev)
 {
@@ -368,8 +375,12 @@ static void ieee802154_if_setup(struct net_device *dev)
 }
 
 /**
- * ieee802154_header_create()
- * copy from Linux/net/mac802154/iface.c
+ * ieee802154_header_create() - Copy from Linux/net/mac802154/iface.c
+ * @skb: -
+ * @dev: -
+ * @daddr: -
+ * @saddr: -
+ * @len: -
  */
 static int ieee802154_header_create(struct sk_buff *skb,
 				    struct net_device *dev,
@@ -427,8 +438,10 @@ static int ieee802154_header_create(struct sk_buff *skb,
 }
 
 /**
- * mac802154_wpan_ioctl()
- * copy from Linux/net/mac802154/iface.c
+ * mac802154_wpan_ioctl() - Copy from Linux/net/mac802154/iface.c
+ * @dev: -
+ * @ifr: -
+ * @cmd: -
  */
 static int
 mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -495,8 +508,8 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 
 /**
- * ieee802154_deliver_skb()
- * copy from Linux/net/mac802154/rx.c
+ * ieee802154_deliver_skb() - Copy from Linux/net/mac802154/rx.c
+ * @skb: -
  */
 static int ieee802154_deliver_skb(struct sk_buff *skb)
 {
@@ -507,8 +520,10 @@ static int ieee802154_deliver_skb(struct sk_buff *skb)
 }
 
 /**
- * ieee802154_subif_frame()
- * copy from Linux/net/mac802154/rx.c
+ * ieee802154_subif_frame() - Copy from Linux/net/mac802154/rx.c
+ * @sdata: -
+ * @skb: -
+ * @hdr: -
  */
 static int
 ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
@@ -593,8 +608,9 @@ fail:
 }
 
 /**
- * ieee802154_parse_frame_start()
- * copy from Linux/net/mac802154/rx.c
+ * ieee802154_parse_frame_start() - Copy from Linux/net/mac802154/rx.c
+ * @skb: -
+ * @hdr: -
  */
 static int
 ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
@@ -673,6 +689,7 @@ mac802154_wpan_free(struct net_device *dev)
 /**
  * xbee_rx_handle_packet()
  * @xb: XBee device context.
+ * @skb: sk_buff. That contains received data from XBee.
  */
 static void
 xbee_rx_handle_packet(struct xb_device *xb, struct sk_buff *skb)
@@ -697,6 +714,8 @@ xbee_rx_handle_packet(struct xb_device *xb, struct sk_buff *skb)
 /**
  * xbee_rx()
  * @xb: XBee device context.
+ * @skb: sk_buff. That contains received data from XBee.
+ * @lqi: Link quality indicator.
  */
 static void
 xbee_rx(struct xb_device *xb, struct sk_buff *skb, u8 lqi)
@@ -717,19 +736,23 @@ xbee_rx(struct xb_device *xb, struct sk_buff *skb, u8 lqi)
 
 /**
  * extended_addr_hton()
+ * @net:  IEEE802.15.4 extended address represented by network byte order.
+ * @host: IEEE802.15.4 extended address represented by host byte order.
  */
 static void
-extended_addr_hton(uint64_t* dst, uint64_t* src)
+extended_addr_hton(uint64_t* net, uint64_t* host)
 {
 #ifndef __BIG_ENDIAN
-	ieee802154_be64_to_le64(dst, src);
+	ieee802154_be64_to_le64(net, host);
 #else
-	memcpy(dst, src, sizeof(uint64_t) );
+	memcpy(net, host, sizeof(uint64_t) );
 #endif
 }
 
 /**
  * pr_ieee802154_addr()
+ * @name: -
+ * @addr: print this address.
  */
 static void
 pr_ieee802154_addr(const char *name, const struct ieee802154_addr *addr)
@@ -756,6 +779,7 @@ pr_ieee802154_addr(const char *name, const struct ieee802154_addr *addr)
 
 /**
  * pr_ieee802154_hdr()
+ * @hdr: print this header.
  */
 static void
 pr_ieee802154_hdr(const struct ieee802154_hdr *hdr)
@@ -775,6 +799,7 @@ pr_ieee802154_hdr(const struct ieee802154_hdr *hdr)
 
 /**
  * pr_wpan_phy_supported()
+ * @phy: print this phy.
  */
 static void
 pr_wpan_phy_supported(struct wpan_phy* phy)
@@ -819,6 +844,7 @@ pr_wpan_phy_supported(struct wpan_phy* phy)
 
 /**
  * pr_wpan_phy()
+ * @phy: print this phy.
  */
 static void
 pr_wpan_phy(struct wpan_phy* phy)
@@ -873,6 +899,9 @@ pr_wpan_dev(struct wpan_dev* dev)
 
 /**
  * buffer_calc_checksum()
+ *
+ * @buf: data which formatted by APIv1.
+ * @len: buffer length.
  */
 static unsigned char
 buffer_calc_checksum(const unsigned char* buf, const size_t len)
@@ -887,6 +916,9 @@ buffer_calc_checksum(const unsigned char* buf, const size_t len)
 
 /**
  * buffer_find_delimiter_escaped()
+ *
+ * @buf: data which formatted by APIv2.
+ * @len: buffer length.
  */
 static int
 buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
@@ -910,6 +942,9 @@ buffer_find_delimiter_escaped(const unsigned char* buf, const size_t len)
 
 /**
  * buffer_unescape()
+ *
+ * @buf: data which formatted by APIv1.
+ * @len: buffer length.
  */
 static size_t
 buffer_unescape(unsigned char* buf, const size_t len)
@@ -938,6 +973,9 @@ buffer_unescape(unsigned char* buf, const size_t len)
 
 /**
  * buffer_escaped_len()
+ *
+ * @buf: data which formatted by APIv1.
+ * @len: buffer length.
  */
 static size_t
 buffer_escaped_len(const unsigned char* buf, const size_t len)
@@ -960,6 +998,11 @@ buffer_escaped_len(const unsigned char* buf, const size_t len)
 
 /**
  * buffer_escape()
+ * @buf: Data which formatted by APIv1.
+ * @data_len: Buffer length. TODO
+ * @buf_len: Buffer length. TODO
+ *
+ * Buffer must enough large to contain escaped data size.
  */
 static int
 buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
@@ -2104,31 +2147,31 @@ xb_active_scan(struct xb_device* xb, u8 scantime, u8* buffer, size_t bufsize)
  * frame_recv_dispatch()
  *
  * @xb: xbee device
- * @frame: ...
+ * @frame: sk_buff. That contains received frame from XBee.
  *
  * Verify the XBee frame, then take appropriate action depending on the
  * frame type.
  */
 static void
-frame_recv_dispatch(struct xb_device *xb, struct sk_buff *skb)
+frame_recv_dispatch(struct xb_device *xb, struct sk_buff *frame)
 {
-	struct xb_frame_header* frm = (struct xb_frame_header*)skb->data;
+	struct xb_frame_header* hdr= (struct xb_frame_header*)frame->data;
 
-	switch (frm->type) {
-	case XBEE_FRM_MSTAT:	xb_frame_recv_mstat(xb, skb);	break;
-	case XBEE_FRM_ATCMDR:	pr_frame_atcmdr(skb);	break;
-	case XBEE_FRM_RCMDR:	pr_frame_rcmdr(skb);	break;
-	case XBEE_FRM_RX64:	xb_frame_recv_rx64(xb, skb);	break;
-	case XBEE_FRM_RX16:	xb_frame_recv_rx16(xb, skb);	break;
-	case XBEE_FRM_RX64IO:   pr_frame_rx64io(skb);	break;
-	case XBEE_FRM_RX16IO:   pr_frame_rx16io(skb);	break;
-	case XBEE_FRM_ATCMD:	pr_frame_atcmd(skb);	break;
-	case XBEE_FRM_ATCMDQ:	pr_frame_atcmdq(skb);	break;
-	case XBEE_FRM_RCMD:	pr_frame_rcmd(skb);	break;
-	case XBEE_FRM_TX64:	pr_frame_tx64(skb);	break;
-	case XBEE_FRM_TX16:	pr_frame_tx16(skb);	break;
-	case XBEE_FRM_TXSTAT:	pr_frame_txstat(skb);	break;
-	default:		pr_frame_default(skb);	break;
+	switch (hdr->type) {
+	case XBEE_FRM_MSTAT:	xb_frame_recv_mstat(xb, frame);	break;
+	case XBEE_FRM_ATCMDR:	pr_frame_atcmdr(frame);	break;
+	case XBEE_FRM_RCMDR:	pr_frame_rcmdr(frame);	break;
+	case XBEE_FRM_RX64:	xb_frame_recv_rx64(xb, frame);	break;
+	case XBEE_FRM_RX16:	xb_frame_recv_rx16(xb, frame);	break;
+	case XBEE_FRM_RX64IO:   pr_frame_rx64io(frame);	break;
+	case XBEE_FRM_RX16IO:   pr_frame_rx16io(frame);	break;
+	case XBEE_FRM_ATCMD:	pr_frame_atcmd(frame);	break;
+	case XBEE_FRM_ATCMDQ:	pr_frame_atcmdq(frame);	break;
+	case XBEE_FRM_RCMD:	pr_frame_rcmd(frame);	break;
+	case XBEE_FRM_TX64:	pr_frame_tx64(frame);	break;
+	case XBEE_FRM_TX16:	pr_frame_tx16(frame);	break;
+	case XBEE_FRM_TXSTAT:	pr_frame_txstat(frame);	break;
+	default:		pr_frame_default(frame);	break;
 	}
 }
 
@@ -2404,6 +2447,8 @@ xbee_ndo_stop(struct net_device *dev)
 
 /**
  * xbee_ndo_start_xmit()
+ *
+ * @skb: sk_buff to transmit. That is must start with ieee802154_hdr.
  * @dev: net_device that is associated with this XBee.
  */
 static netdev_tx_t
