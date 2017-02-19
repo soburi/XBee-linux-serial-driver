@@ -1373,13 +1373,13 @@ frame_atcmdr_result(struct sk_buff* atcmd_resp_frame)
 }
 
 /**
- * frame_enqueue_received()
+ * frameq_enqueue_received()
  *
  * @recv_queue: Received frame queue.
  * @recv_buf: sk_buff which contains received data.
  */
 static int
-frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf, bool apiv2)
+frameq_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf, bool apiv2)
 {
 	int frame_count = 0;
 	int ret = 0;
@@ -1416,13 +1416,13 @@ frame_enqueue_received(struct sk_buff_head *recv_queue, struct sk_buff* recv_buf
 }
 
 /**
- * frame_dequeue_by_id()
+ * frameq_dequeue_by_id()
  *
  * @recv_queue: receive queue
  * @frameid: Dequeue frame which has this id from receive queue.
  */
 static struct sk_buff*
-frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
+frameq_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
 {
 	struct sk_buff* skb = NULL;
 	struct xb_frame_header_id* hd = NULL;
@@ -1444,18 +1444,18 @@ frame_dequeue_by_id(struct sk_buff_head *recv_queue, uint8_t frameid)
 }
 
 /**
- * frame_enqueue_send()
+ * frameq_enqueue_send()
  * @send_queue: send queue
  * @send_frame: send frame
  */
 static void
-frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_frame)
+frameq_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_frame)
 {
 	skb_queue_tail(send_queue, send_frame);
 }
 
 /**
- * frame_enqueue_send_at()
+ * frameq_enqueue_send_at()
  *
  * @send_queue: send queue
  * @atcmd: AT command type.
@@ -1464,7 +1464,7 @@ frame_enqueue_send(struct sk_buff_head *send_queue, struct sk_buff* send_frame)
  * @buflen: Length of buf.
  */
 static void
-frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uint8_t id, char* buf, unsigned short buflen)
+frameq_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uint8_t id, char* buf, unsigned short buflen)
 {
 	struct sk_buff* newskb = NULL;
 	struct xb_frame_atcmd* atfrm = NULL;
@@ -1486,7 +1486,7 @@ frame_enqueue_send_at(struct sk_buff_head *send_queue, unsigned short atcmd, uin
 	newskb->data[datalen+XBEE_FRAME_OFFSET_PAYLOAD] = checksum;
 	//frame_put_checksum(newskb);
 
-	frame_enqueue_send(send_queue, newskb);
+	frameq_enqueue_send(send_queue, newskb);
 }
 
 /**
@@ -1515,7 +1515,7 @@ static uint8_t
 xb_enqueue_send_at(struct xb_device *xb, unsigned short atcmd, char* buf, unsigned short buflen)
 {
 	uint8_t frameid = xb_frameid(xb);
-	frame_enqueue_send_at(&xb->send_queue, atcmd, frameid, buf, buflen);
+	frameq_enqueue_send_at(&xb->send_queue, atcmd, frameid, buf, buflen);
 	return frameid;
 }
 
@@ -1584,7 +1584,7 @@ xb_recv(struct xb_device* xb, uint8_t expect_id, unsigned long timeout)
 	struct sk_buff* skb = NULL;
 
 	mutex_lock(&xb->queue_mutex);
-	skb = frame_dequeue_by_id(&xb->recv_queue, expect_id);
+	skb = frameq_dequeue_by_id(&xb->recv_queue, expect_id);
 	mutex_unlock(&xb->queue_mutex);
 
 	if(skb != NULL) return skb;
@@ -1595,7 +1595,7 @@ xb_recv(struct xb_device* xb, uint8_t expect_id, unsigned long timeout)
 
 	if(ret > 0) {
 		mutex_lock(&xb->queue_mutex);
-		skb = frame_dequeue_by_id(&xb->recv_queue, expect_id);
+		skb = frameq_dequeue_by_id(&xb->recv_queue, expect_id);
 		mutex_unlock(&xb->queue_mutex);
 		return skb;
 	}
@@ -2977,7 +2977,7 @@ xbee_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	*/
 
-	frame_enqueue_send(&xb->send_queue, skb);
+	frameq_enqueue_send(&xb->send_queue, skb);
 	xb_send(xb);
 
 	pr_debug("%s\n", __func__);
@@ -3597,7 +3597,7 @@ xbee_ldisc_receive_buf2(struct tty_struct *tty,
 		return count;
 
 	mutex_lock(&xb->queue_mutex);
-	ret = frame_enqueue_received(&xb->recv_queue, xb->recv_buf, (xb->api == 2) );
+	ret = frameq_enqueue_received(&xb->recv_queue, xb->recv_buf, (xb->api == 2) );
 	mutex_unlock(&xb->queue_mutex);
 
 	if(ret > 0)
