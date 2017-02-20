@@ -261,9 +261,8 @@ static const size_t XBEE_FRAME_COMMON_HEADER_AND_TRAILER = 4;
 #define ieee802154_sub_if_data xbee_sub_if_data
 
 /**
- * DOC: >>>>>> begin functions copied from other files.
+ * DOC: ************** Functions copied from other files. ***************** 
  */
-
 
 /**
  * mac802154_set_header_security()
@@ -695,7 +694,7 @@ ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 #undef ieee802154_sub_if_data
 
 /**
- * DOC: <<<<<< end functions copied from other files.
+ * DOC: ************** Functions copied from other files. ***************** 
  */
 
 /**
@@ -760,6 +759,11 @@ extended_addr_hton(uint64_t* net, uint64_t* host)
 	memcpy(net, host, sizeof(uint64_t) );
 #endif
 }
+
+/**
+ * DOC: ************** Debug print utility functions. ***************** 
+ */
+
 
 /**
  * pr_ieee802154_addr()
@@ -1038,6 +1042,10 @@ pr_frame_default(struct sk_buff *skb)
 }
 
 /**
+ * DOC: ************** Buffer utility functions. ***************** 
+ */
+
+/**
  * buffer_calc_checksum()
  *
  * @buf: data which formatted by APIv1.
@@ -1170,6 +1178,10 @@ buffer_escape(unsigned char* buf, const size_t data_len, const size_t buf_len)
 
 	return buf_len - tail_ptr;
 }
+
+/**
+ * DOC: ************** XBee Frame utility functions. ***************** 
+ */
 
 /**
  * frame_alloc() - allocate XBee frame as sk_buff.
@@ -2604,9 +2616,9 @@ xb_read_config(struct xb_device* xb)
 }
 
 
-
-
-
+/**
+ * DOC: ************** Export APIs. ***************** 
+ */
 
 /**
  * xbee_header_create()
