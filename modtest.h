@@ -3,10 +3,13 @@
 
 
 struct modtest_result {
+	int testno;
 	int err;
 	unsigned int line;
 	char* msg;
 };
+
+void run_modtest(int testno, void* data, struct modtest_result* result);
 
 typedef struct modtest_result (*fp_modtest)(void* data);
 typedef int (*fp_setup_teardown)(void* arg, int testnum);
@@ -29,7 +32,7 @@ extern const size_t modtest_tests_num;
 extern const fp_setup_teardown modtest_setup;
 extern const fp_modtest modtest_tests[];
 extern const fp_setup_teardown modtest_teardown;
-
+#if 0
 static void modtest_work_fn(struct work_struct *param)
 {
 	int err = 0;
@@ -63,7 +66,7 @@ static void modtest_work_fn(struct work_struct *param)
 		pr_debug("Finish test: %lu/%lu\n", mt->test_success, mt->test_num - mt->null_test_count);
 	}
 }
-
+#endif
 static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #if defined(MODTEST_ENABLE) && MODTEST_ENABLE
@@ -94,7 +97,7 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 #define ALL_MODTESTS {}
 
-#define RETURN_RESULT(err, line, msg) { struct modtest_result _rslt_ = {err,line,msg}; return _rslt_; }
+#define RETURN_RESULT(err, line, msg) { struct modtest_result _rslt_ = {0, err,line,msg}; return _rslt_; }
 
 #define PR_EXPECTED(expected, val) \
 	{    if(sizeof(val) < 2) { pr_debug("expected:%02x(%d), result: %02x(%d)\n", (uint8_t)expected,(int8_t)expected,  (uint8_t)val, (int8_t)val); } \

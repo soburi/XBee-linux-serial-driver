@@ -67,10 +67,6 @@ struct xb_device {
 	unsigned short firmware_version;
 
 	uint16_t magic;
-
-#ifdef MODTEST_ENABLE
-	DECL_MODTEST_STRUCT();
-#endif
 };
 
 struct mac802154_llsec {
@@ -3445,10 +3441,6 @@ init_work_fn(struct work_struct *param)
 		goto err;
 	}
 
-#ifdef MODTEST_ENABLE
-	INIT_MODTEST(xb);
-	RUN_MODTEST(xb);
-#endif
 	return;
 
 err:
@@ -3577,6 +3569,30 @@ xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 		return 0;
 	case SIOCSIFHWADDR:
 		return -EINVAL;
+#ifdef MODTEST_ENABLE
+	case 0x9999: {
+		struct modtest_result* result = NULL;
+
+		result = kmalloc(sizeof(struct modtest_result), GFP_ATOMIC);
+
+		if( copy_from_user(result, (void __user *)arg,
+					sizeof(struct modtest_result) ) ) {
+			kfree(result);
+			return -EFAULT;
+		}
+
+		run_modtest(result->testno, xb, result);
+
+		if ( copy_to_user((void __user *)arg, result,
+					sizeof(struct modtest_result) ) ) {
+			kfree(result);
+			return -EFAULT;
+		}
+
+		kfree(result);
+		return 0;
+	}
+#endif
         default:
                 return tty_mode_ioctl(tty, file, cmd, arg);
         }
