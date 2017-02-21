@@ -2392,6 +2392,9 @@ static struct xb_device* xb_alloc_device(const struct cfg802154_ops* ptr_cfg8021
 	pr_debug("wpan_phy_priv\n");
 	xb = wpan_phy_priv(phy);
 
+	xb->magic = XBEE802154_MAGIC;
+
+
 	xb->phy = phy;
 	ndev = xb_alloc_netdev(xb);
 	if(!ndev)
