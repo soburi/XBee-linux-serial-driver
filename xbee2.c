@@ -30,7 +30,7 @@
 #define XBEE802154_MAGIC 0x8BEE
 
 static const void *const xbee_wpan_phy_privid = &xbee_wpan_phy_privid;
-struct workqueue_struct    *xbee_init_workq;
+struct workqueue_struct *xbee_init_workq = 0;
 
 struct xb_device;
 
@@ -3706,7 +3706,8 @@ static void __exit xbee_exit(void)
 {
 	pr_debug("%s\n", __func__);
 
-	destroy_workqueue(xbee_init_workq);
+	if(xbee_init_workq)
+		destroy_workqueue(xbee_init_workq);
 
 	if (tty_unregister_ldisc(N_IEEE802154_XBEE) != 0)
 		printk(KERN_CRIT
