@@ -2487,8 +2487,10 @@ xb_unregister_device(struct xb_device* xb)
 static void
 xb_free(struct xb_device* xb)
 {
-	free_netdev(xb->dev);
-	wpan_phy_free(xb->phy);
+	if(xb->phy) {
+		wpan_phy_free(xb->phy);
+		xb->phy = NULL;
+	}
 }
 
 /**
