@@ -16,18 +16,6 @@ extern const fp_setup_teardown modtest_setup;
 extern const fp_modtest modtest_tests[];
 extern const fp_setup_teardown modtest_teardown;
 
-#if defined(MODTEST_ENABLE) && MODTEST_ENABLE
-static int setup_teardown_default(void* arg, int testnum) { return 0; }
-
-static void modtest_test(int testno, void* data, struct modtest_result* result)
-{
-	modtest_setup(data, testno);
-	*result = modtest_tests[testno](data);
-	result->testno = testno;
-	modtest_teardown(data, testno);
-}
-#endif
-
 #define DECL_TESTS_ARRAY() \
 	const fp_setup_teardown modtest_setup    = MODTEST_SETUP; \
 	const fp_setup_teardown modtest_teardown = MODTEST_TEARDOWN; \
@@ -53,6 +41,18 @@ static void modtest_test(int testno, void* data, struct modtest_result* result)
 #define TEST_SUCCESS() RETURN_RESULT(0, __LINE__, "")
 
 
+
+#if defined(MODTEST_ENABLE) && MODTEST_ENABLE
+static int setup_teardown_default(void* arg, int testnum) { return 0; }
+
+static void modtest_test(int testno, void* data, struct modtest_result* result)
+{
+	modtest_setup(data, testno);
+	*result = modtest_tests[testno](data);
+	result->testno = testno;
+	modtest_teardown(data, testno);
+}
+#endif
 
 
 
