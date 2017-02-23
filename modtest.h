@@ -16,6 +16,7 @@ extern const fp_setup_teardown modtest_setup;
 extern const fp_modtest modtest_tests[];
 extern const fp_setup_teardown modtest_teardown;
 
+#if defined(MODTEST_ENABLE) && MODTEST_ENABLE
 static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
 static void modtest_test(int testno, void* data, struct modtest_result* result)
@@ -25,7 +26,7 @@ static void modtest_test(int testno, void* data, struct modtest_result* result)
 	result->testno = testno;
 	modtest_teardown(data, testno);
 }
-
+#endif
 
 #define DECL_TESTS_ARRAY() \
 	const fp_setup_teardown modtest_setup    = MODTEST_SETUP; \
