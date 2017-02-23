@@ -3586,7 +3586,7 @@ xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 			return -EFAULT;
 		}
 
-		run_modtest(result->testno, xb, result);
+		modtest_test(result->testno, xb, result);
 
 		if ( copy_to_user((void __user *)arg, result,
 					sizeof(struct modtest_result) ) ) {
@@ -3602,6 +3602,10 @@ xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
                 return tty_mode_ioctl(tty, file, cmd, arg);
         }
 }
+
+#ifdef MODTEST_ENABLE
+#include "xbee2_test.c"
+#endif
 
 /**
  * xbee_ldisc_hangup - Hang up line discipline.
@@ -3714,11 +3718,6 @@ static void __exit xbee_exit(void)
 			"failed to unregister ZigBee line discipline.\n");
 
 }
-
-#ifdef MODTEST_ENABLE
-#include "xbee2_test.c"
-DECL_TESTS_ARRAY();
-#endif
 
 module_init(xbee_init);
 module_exit(xbee_exit);

@@ -1,101 +1,37 @@
 #ifndef MODTEST_H
 #define MODTEST_H
 
-
 struct modtest_result {
-	int testno;
+	uint32_t testno;
 	int err;
 	unsigned int line;
 	char* msg;
 };
 
-void run_modtest(int testno, void* data, struct modtest_result* result);
-
 typedef struct modtest_result (*fp_modtest)(void* data);
 typedef int (*fp_setup_teardown)(void* arg, int testnum);
-
-struct modtest {
-	struct delayed_work work;
-	struct workqueue_struct *workq;
-	size_t test_num;
-	size_t null_test_count;
-	size_t test_count;
-	size_t test_success;
-	const fp_modtest* tests;
-	fp_setup_teardown setup;
-	fp_setup_teardown teardown;
-	void* data;
-	void* arg;
-};
 
 extern const size_t modtest_tests_num;
 extern const fp_setup_teardown modtest_setup;
 extern const fp_modtest modtest_tests[];
 extern const fp_setup_teardown modtest_teardown;
-#if 0
-static void modtest_work_fn(struct work_struct *param)
-{
-	int err = 0;
-	struct modtest_result result = {0};
-	struct modtest * mt = NULL;
-	mt = (struct modtest*)param;
 
-	if(mt->test_count < mt->test_num) {
-		int delay = 0;
-		if(mt->tests[mt->test_count] != NULL) {
-			mt->setup(mt->data, mt->test_count);
-			result = mt->tests[mt->test_count](mt->data);
-			mt->teardown(mt->data, mt->test_count);
-
-			if(result.err < 0)
-				pr_debug("TEST%lu: line=%u err=%d -- %s\n", mt->test_count, result.line, result.err, result.msg);
-			else
-				mt->test_success++;
-
-			delay = 100;
-		}
-		else {
-			mt->null_test_count++;
-			delay = 0;
-		}
-
-		mt->test_count++;
-		err = queue_delayed_work(mt->workq, &mt->work, msecs_to_jiffies(delay) );
-	}
-	else {
-		pr_debug("Finish test: %lu/%lu\n", mt->test_success, mt->test_num - mt->null_test_count);
-	}
-}
-#endif
 static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
-#if defined(MODTEST_ENABLE) && MODTEST_ENABLE
-
-#define DECL_MODTEST_STRUCT() struct modtest _modtest_
-
-#define INIT_MODTEST(parent) { \
-	parent->_modtest_.workq = create_workqueue("_modtest_"); \
-	INIT_DELAYED_WORK( (struct delayed_work*)&parent->_modtest_, modtest_work_fn); \
-	parent->_modtest_.data = parent; \
-	parent->_modtest_.test_num = modtest_tests_num; \
-	parent->_modtest_.setup = modtest_setup; \
-	parent->_modtest_.tests = modtest_tests; \
-	parent->_modtest_.teardown = modtest_teardown ; \
-	parent->_modtest_.test_success = 0; \
-	parent->_modtest_.test_count = 0; \
-	parent->_modtest_.null_test_count = 0; \
+static void modtest_test(int testno, void* data, struct modtest_result* result)
+{
+	modtest_setup(data, testno);
+	*result = modtest_tests[testno](data);
+	result->testno = testno;
+	modtest_teardown(data, testno);
 }
+
 
 #define DECL_TESTS_ARRAY() \
 	const fp_setup_teardown modtest_setup    = MODTEST_SETUP; \
 	const fp_setup_teardown modtest_teardown = MODTEST_TEARDOWN; \
 	const fp_modtest modtest_tests[] = MODTEST_TESTS; \
 	const size_t modtest_tests_num = sizeof(modtest_tests)/sizeof(fp_modtest);
-
-#define RUN_MODTEST(parent) \
-	queue_work(parent->_modtest_.workq, (struct work_struct*)&xb->_modtest_)
-
-#define ALL_MODTESTS {}
 
 #define RETURN_RESULT(err, line, msg) { struct modtest_result _rslt_ = {0, err,line,msg}; return _rslt_; }
 
@@ -115,13 +51,9 @@ static int setup_teardown_default(void* arg, int testnum) { return 0; }
 #define TEST_ERROR(err) RETURN_RESULT(err, __LINE__, "")
 #define TEST_SUCCESS() RETURN_RESULT(0, __LINE__, "")
 
-#else
 
-#define DECL_MODTEST_STRUCT()
-#define INIT_MODTEST(parent)
-#define RUN_MODTEST(parent)
 
-#endif /* MODTEST_ENABLE */
+
 
 #endif
 

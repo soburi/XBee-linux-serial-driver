@@ -1,3 +1,5 @@
+#include "modtest.h"
+
 #if defined(MODTEST_ENABLE) && MODTEST_ENABLE
 
 #define TEST_SETUP xbee_test_setup
@@ -1016,12 +1018,6 @@ static struct modtest_result xbee_ieee802154_set_csma_params_test(void* arg) {
 
 #include "gen_modtest.h"
 
-void run_modtest(int testno, void* data, struct modtest_result* result)
-{
-	modtest_setup(data, testno);
-	*result = modtest_tests[testno](data);
-	result->testno = testno;
-	modtest_teardown(data, testno);
-}
+DECL_TESTS_ARRAY();
 
 #endif //MODTEST_ENABLE
