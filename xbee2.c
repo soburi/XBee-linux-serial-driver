@@ -27,7 +27,7 @@
 
 #define N_IEEE802154_XBEE 25
 
-#define XBEE802154_MAGIC 0x8BEE
+#define XBEE802154_MAGIC 0x9BEE
 
 static const void *const xbee_wpan_phy_privid = &xbee_wpan_phy_privid;
 struct workqueue_struct *xbee_init_workq = 0;
