@@ -68,11 +68,13 @@ extern const fp_setup_teardown modtest_teardown;
 #if defined(MODTEST_ENABLE) && MODTEST_ENABLE
 static int setup_teardown_default(void* arg, int testnum) { return 0; }
 
-static void modtest_test(int testno, void* data, struct modtest_result* result)
+static void modtest_test(uint32_t testno, void* data, struct modtest_result* result)
 {
 	int i=0;
 	modtest_setup(data, testno);
+	pr_debug("test#%u: Start\n", testno);
 	modtest_tests[testno](data, result);
+	pr_debug("test#%u: Finish\n", testno);
 	result->testno = testno;
 	modtest_teardown(data, testno);
 	result->next_testno = -1;
