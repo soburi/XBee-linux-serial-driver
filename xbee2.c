@@ -3575,28 +3575,8 @@ xbee_ldisc_ioctl(struct tty_struct *tty, struct file *file,
 	case SIOCSIFHWADDR:
 		return -EINVAL;
 #ifdef MODTEST_ENABLE
-	case 0x9999: {
-		struct modtest_result* result = NULL;
-
-		result = kmalloc(sizeof(struct modtest_result), GFP_ATOMIC);
-
-		if( copy_from_user(result, (void __user *)arg,
-					sizeof(struct modtest_result) ) ) {
-			kfree(result);
-			return -EFAULT;
-		}
-
-		modtest_test(result->testno, xb, result);
-
-		if ( copy_to_user((void __user *)arg, result,
-					sizeof(struct modtest_result) ) ) {
-			kfree(result);
-			return -EFAULT;
-		}
-
-		kfree(result);
-		return 0;
-	}
+	case 0x9999:
+		return modtest_ioctl(file, cmd, arg, xb);
 #endif
         default:
                 return tty_mode_ioctl(tty, file, cmd, arg);
