@@ -30,7 +30,7 @@
 #define XBEE802154_MAGIC 0x9BEE
 
 static const void *const xbee_wpan_phy_privid = &xbee_wpan_phy_privid;
-struct workqueue_struct *xbee_init_workq = 0;
+struct workqueue_struct *xbee_init_workq = NULL;
 
 struct xb_device;
 
