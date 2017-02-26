@@ -694,31 +694,6 @@ ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
  */
 
 /**
- * xbee_rx_handle_packet()
- * @xb: XBee device context.
- * @skb: sk_buff. That contains received data from XBee.
- */
-static void
-xbee_rx_handle_packet(struct xb_device *xb, struct sk_buff *skb)
-{
-	int ret;
-	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
-	struct ieee802154_hdr hdr;
-
-	ret = ieee802154_parse_frame_start(skb, &hdr);
-	if (ret) {
-		pr_debug("got invalid frame\n");
-		kfree_skb(skb);
-		return;
-	}
-
-	ieee802154_subif_frame(sdata, skb, &hdr);
-	skb = NULL;
-
-	kfree_skb(skb);
-}
-
-/**
  * xbee_rx()
  * @xb: XBee device context.
  * @skb: sk_buff. That contains received data from XBee.
@@ -727,15 +702,25 @@ xbee_rx_handle_packet(struct xb_device *xb, struct sk_buff *skb)
 static void
 xbee_rx(struct xb_device *xb, struct sk_buff *skb, u8 lqi)
 {
-	mac_cb(skb)->lqi = lqi;
-	skb->pkt_type = 0;
-
-	//WARN_ON_ONCE(softirq_count() == 0);
+	int ret;
+	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
+	struct ieee802154_hdr hdr;
 
 	rcu_read_lock();
 
-	xbee_rx_handle_packet(xb, skb);
+	ret = ieee802154_parse_frame_start(skb, &hdr);
+	if (ret) {
+		pr_debug("got invalid frame\n");
+		goto err;
+	}
 
+	mac_cb(skb)->lqi = lqi;
+
+	ieee802154_subif_frame(sdata, skb, &hdr);
+	skb = NULL;
+
+err:
+	kfree_skb(skb);
 	rcu_read_unlock();
 
 	return;
