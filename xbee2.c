@@ -694,39 +694,6 @@ ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
  */
 
 /**
- * xbee_rx()
- * @xb: XBee device context.
- * @skb: sk_buff. That contains received data from XBee.
- * @lqi: Link quality indicator.
- */
-static void
-xbee_rx(struct xb_device *xb, struct sk_buff *skb, u8 lqi)
-{
-	int ret;
-	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
-	struct ieee802154_hdr hdr;
-
-	rcu_read_lock();
-
-	ret = ieee802154_parse_frame_start(skb, &hdr);
-	if (ret) {
-		pr_debug("got invalid frame\n");
-		goto err;
-	}
-
-	mac_cb(skb)->lqi = lqi;
-
-	ieee802154_subif_frame(sdata, skb, &hdr);
-	skb = NULL;
-
-err:
-	kfree_skb(skb);
-	rcu_read_unlock();
-
-	return;
-}
-
-/**
  * extended_addr_hton()
  * @net:  IEEE802.15.4 extended address represented by network byte order.
  * @host: IEEE802.15.4 extended address represented by host byte order.
@@ -1644,6 +1611,39 @@ xb_sendrecv_atcmd(struct xb_device* xb, unsigned short atcmd,
 }
 
 /**
+ * xb_receive()
+ * @xb: XBee device context.
+ * @skb: sk_buff. That contains received data from XBee.
+ * @lqi: Link quality indicator.
+ */
+static void
+xb_receive(struct xb_device *xb, struct sk_buff *skb, u8 lqi)
+{
+	int ret;
+	struct xbee_sub_if_data *sdata = netdev_priv(xb->dev);
+	struct ieee802154_hdr hdr;
+
+	rcu_read_lock();
+
+	ret = ieee802154_parse_frame_start(skb, &hdr);
+	if (ret) {
+		pr_debug("got invalid frame\n");
+		goto err;
+	}
+
+	mac_cb(skb)->lqi = lqi;
+
+	ieee802154_subif_frame(sdata, skb, &hdr);
+	skb = NULL;
+
+err:
+	kfree_skb(skb);
+	rcu_read_unlock();
+
+	return;
+}
+
+/**
  * xb_frame_recv_rx64()
  *
  * @xb: XBee device context.
@@ -1678,7 +1678,7 @@ xb_frame_recv_rx64(struct xb_device *xb, struct sk_buff *skb)
 	skb_pull(skb, sizeof(struct xb_frame_rx64) );
 	frame_trim_checksum(skb);
 	hlen = ieee802154_hdr_push(skb, &hdr);
-	xbee_rx(xb, skb, rx->rssi);
+	xb_receive(xb, skb, rx->rssi);
 }
 
 /**
@@ -1712,7 +1712,7 @@ xb_frame_recv_rx16(struct xb_device* xb, struct sk_buff *skb)
 	skb_pull(skb, sizeof(struct xb_frame_rx16) );
 	frame_trim_checksum(skb);
 	hlen = ieee802154_hdr_push(skb, &hdr);
-	xbee_rx(xb, skb, rx->rssi);
+	xb_receive(xb, skb, rx->rssi);
 }
 
 /**
