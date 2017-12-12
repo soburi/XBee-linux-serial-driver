@@ -1,13 +1,18 @@
 Digi XBee 802.15.4 device driver
 ========================
 
-Build
------
-Just execute make.
-
+Build and Install
+-----------------
+Just execute make & make install.
+After installing, update module dependency with depmod.
 ```
 make
+sudo make install
+sudo depmod
 ```
+
+If using Raspbian system, set KBUILD environment variable to 
+kernel header directory (/usr/src/linux-header...) on make command execute.
 
 Module setup
 -------
