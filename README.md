@@ -21,7 +21,7 @@ sudo modprobe ieee802154_socket
 sudo modprobe ieee802154_6lowpan
 sudo modprobe mac802154
 sudo insmod xbee802154.ko
-sudo ldattach -s 9600 -8 -n -1 25 /dev/ttyUSB0
+sudo ldattach -s 9600 -8 -n -1 28 /dev/ttyUSB0
 ```
 
 WPAN,LoWPAN setup

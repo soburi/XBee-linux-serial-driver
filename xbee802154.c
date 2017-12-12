@@ -25,7 +25,7 @@
 #include "modtest.h"
 #endif
 
-#define N_IEEE802154_XBEE 25
+#define N_IEEE802154_XBEE 28
 
 #define XBEE802154_MAGIC 0x9BEE
 
