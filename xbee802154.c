@@ -66,6 +66,9 @@ struct xb_device {
         struct sk_buff* last_atresp;
         unsigned short firmware_version;
         uint16_t magic;
+
+       bool netdev_registered;
+       bool wpanphy_registered;
 };
 
 struct mac802154_llsec {
@@ -2426,15 +2429,18 @@ xb_register_device(struct xb_device* xb)
         ret = wpan_phy_register(xb->phy);
         if(ret < 0)
                 return ret;
+        xb->wpanphy_registered = true;
 
         ret = xb_register_netdev(xb->dev);
         if(ret < 0)
                 goto unregister_wpan;
+        xb->netdev_registered = true;
         
         return 0;
 
 unregister_wpan:
         wpan_phy_unregister(xb->phy);
+        xb->wpanphy_registered = false;
         return ret;
 }
 
@@ -2463,8 +2469,14 @@ static void
 xb_unregister_device(struct xb_device* xb)
 {
         pr_debug("%s\n", __func__);
-        xb_unregister_netdev(xb->dev);
-        wpan_phy_unregister(xb->phy);
+       if(xb->netdev_registered) {
+               xb_unregister_netdev(xb->dev);
+               xb->netdev_registered = false;
+       }
+       if(xb->wpanphy_registered) {
+               wpan_phy_unregister(xb->phy);
+               xb->wpanphy_registered = false;
+       }
 }
 
 /**
