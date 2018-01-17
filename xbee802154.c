@@ -3427,7 +3427,7 @@ init_work_fn(struct work_struct *param)
 
         sdata->dev->header_ops = &xbee_header_ops;
         sdata->dev->netdev_ops = &xbee_net_device_ops;
-        sdata->dev->destructor = mac802154_wpan_free;
+        sdata->dev->priv_destructor = mac802154_wpan_free;
         sdata->dev->ml_priv = &xbee_ieee802154_mlme_ops;
         sdata->wpan_dev.header_ops = &xbee_wpan_dev_header_ops;
 
